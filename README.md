@@ -53,7 +53,16 @@ Desarrollar un sistema (prototipo) que permita registrar, validar y certificar d
 
 ## Tecnologías utilizadas
 
-*Aún por definir.* Se actualizará esta sección una vez que el equipo defina el stack (frontend, backend, base de datos y herramientas de apoyo) durante la Fase 1/2 del proyecto.
+| Capa | Tecnología |
+|---|---|
+| Frontend móvil | React Native (Expo) + TypeScript + NativeWind (Tailwind CSS) |
+| Backend | Firebase (Cloud Functions) |
+| Base de datos | Firestore |
+| Autenticación | Firebase Auth |
+| Escaneo QR | expo-camera / expo-barcode-scanner |
+
+
+> Stack definido para el prototipo. Algunas tecnologías (Firebase, NativeWind) son nuevas para el equipo — se documentará el proceso de aprendizaje y las decisiones técnicas en las evidencias de cada fase.
 
 ## Estructura del repositorio
 
@@ -92,11 +101,13 @@ Las evidencias individuales de cada integrante siguen el formato de nombre:
 git clone https://github.com/usuario/nombre-repositorio.git
 
 # Instalar dependencias
-# (completar según el framework elegido, ej: flutter pub get / npm install)
+npm install
 
-# Ejecutar en modo desarrollo
-# (completar comando de ejecución)
+# Ejecutar en modo desarrollo (abre Expo Go / emulador)
+npx expo start
 ```
+
+> Requiere Node.js y la app **Expo Go** instalada en el celular (o un emulador Android/iOS) para probar la app durante el desarrollo. Configuración de Firebase (claves y proyecto) se documentará una vez creado el proyecto en la consola de Firebase.
 
 ## Licencia
 
