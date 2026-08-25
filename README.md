@@ -34,8 +34,6 @@ Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesi
 
 **Prototipo (App Movil) que contiene lo siguiente:**
 
-# Especificación Funcional — EcoTrack
-
 Sistema de trazabilidad de reciclaje colectivo con incentivos verificables.
 
 ## Módulos
