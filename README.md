@@ -34,34 +34,81 @@ Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesi
 
 **Prototipo (App Movil) que contiene lo siguiente:**
 
-Módulo 1: Incorporación: Registro de usuarios en Android/iOS y vinculación obligatoria a una torre específica mediante invitación directa o código del administrador. Un usuario solo puede pertenecer a una torre a la vez.
-Módulo 2: Registro de Reciclaje: Escaneo de código QR en el contenedor y selección del material (papel/cartón, plástico, vidrio, metal). El proceso no debe superar los 30 segundos.
-Módulo 3: Validación en 2 Etapas:
-Administrador de la torre: Confirma la correcta deposición en el contenedor.
-Gestor de reciclaje: Confirma el retiro y procesamiento del material.
+Sistema de trazabilidad de reciclaje colectivo con incentivos verificables.
+
+## Módulos
+
+### Módulo 1 — Incorporación
+Registro de usuarios en Android/iOS y vinculación obligatoria a una torre específica mediante invitación directa o código del administrador. Un usuario solo puede pertenecer a una torre a la vez.
+
+### Módulo 2 — Registro de Reciclaje
+Escaneo de código QR en el contenedor y selección del material (papel/cartón, plástico, vidrio, metal). El proceso no debe superar los 30 segundos.
+
+### Módulo 3 — Validación en 2 Etapas
+- **Administrador de la torre:** confirma la correcta deposición en el contenedor.
+- **Gestor de reciclaje:** confirma el retiro y procesamiento del material.
+
 El usuario recibe notificaciones de avance en un plazo máximo de 24 horas por etapa.
-Módulo 4: Certificado Digital: Generación automática de un PDF descargable con código de verificación único al completar ambas etapas de validación.
-Módulo 5: Gamificación Colectiva: Competencia enfocada en la torre (kg acumulados y % de departamentos participantes). Incluye marcador en tiempo real, ranking semanal entre torres y misiones colectivas con incentivos definidos por el administrador.
-Módulo 6: Panel del Administrador: Gestión de usuarios, validación de depósitos, configuración de misiones e incentivos, visualización de métricas de desempeño y exportación de reportes mensuales en PDF.
-Contexto y Límites del Piloto
-Entorno: Condominio residencial de al menos 2 torres.
-Requisitos mínimos: 8 usuarios activos, 1 administrador por torre operando al menos 4 semanas consecutivas y 1 gestor (simulado por el equipo de desarrollo).
-Duración: Mínimo 4 semanas de operación real antes de la defensa del proyecto.
-Materiales permitidos: Papel/cartón, plástico, vidrio y metal (se excluyen orgánicos, electrónicos y residuos especiales).
-Métricas de Éxito
-Funcionalidad: Flujo completo (depósito a certificado) en menos de 48 horas, 95% de lectura exitosa del QR y 100% de certificados PDF generados automáticamente.
-Usabilidad: Al menos 60% de participación de usuarios registrados, proceso de alta y asociación a torre en menos de 5 minutos, y gestión autónoma por parte del administrador.
-Valor: Al menos 1 certificado por usuario activo, ranking en tiempo real funcional y reportes mensuales exportables de forma autónoma.
-Exclusiones del Alcance
-Quedan fuera del prototipo la integración con blockchain, la expansión a empresas o colegios, la conexión con gestores industriales reales, el mapa territorial de impacto, APIs públicas para terceros y modelos de análisis predictivo con IA.
-Metodología de Desarrollo
-Se utiliza Scrum adaptado organizado en 6 sprints de dos semanas:
-Arquitectura base, autenticación y vinculación a torres.
-Escaneo QR, selección de material e historial.
-Panel de administración y primera etapa de validación.
-Módulo de gestor, segunda validación y generación de PDF.
-Gamificación, ranking y misiones.
-Piloto en entorno real, ajuste de errores y documentación final.
+
+### Módulo 4 — Certificado Digital
+Generación automática de un PDF descargable con código de verificación único al completar ambas etapas de validación.
+
+### Módulo 5 — Gamificación Colectiva
+Competencia enfocada en la torre (kg acumulados y % de departamentos participantes). Incluye:
+- Marcador en tiempo real
+- Ranking semanal entre torres
+- Misiones colectivas con incentivos definidos por el administrador
+
+### Módulo 6 — Panel del Administrador
+Gestión de usuarios, validación de depósitos, configuración de misiones e incentivos, visualización de métricas de desempeño y exportación de reportes mensuales en PDF.
+
+## Contexto y Límites del Piloto
+
+| Parámetro | Detalle |
+|---|---|
+| Entorno | Condominio residencial de al menos 2 torres |
+| Requisitos mínimos | 8 usuarios activos, 1 administrador por torre operando al menos 4 semanas consecutivas, 1 gestor (simulado por el equipo de desarrollo) |
+| Duración | Mínimo 4 semanas de operación real antes de la defensa del proyecto |
+| Materiales permitidos | Papel/cartón, plástico, vidrio y metal |
+| Materiales excluidos | Orgánicos, electrónicos y residuos especiales |
+
+## Métricas de Éxito
+
+### Funcionalidad
+- Flujo completo (depósito a certificado) en menos de 48 horas
+- 95% de lectura exitosa del QR
+- 100% de certificados PDF generados automáticamente
+
+### Usabilidad
+- Al menos 60% de participación de usuarios registrados
+- Proceso de alta y asociación a torre en menos de 5 minutos
+- Gestión autónoma por parte del administrador
+
+### Valor
+- Al menos 1 certificado por usuario activo
+- Ranking en tiempo real funcional
+- Reportes mensuales exportables de forma autónoma
+
+## Exclusiones del Alcance
+
+Quedan fuera del prototipo:
+- Integración con blockchain
+- Expansión a empresas o colegios
+- Conexión con gestores industriales reales
+- Mapa territorial de impacto
+- APIs públicas para terceros
+- Modelos de análisis predictivo con IA
+
+## Metodología de Desarrollo
+
+Scrum adaptado, organizado en **6 sprints de dos semanas** (12 semanas totales):
+
+1. **Sprint 1:** Arquitectura base, autenticación y vinculación a torres.
+2. **Sprint 2:** Escaneo QR, selección de material e historial.
+3. **Sprint 3:** Panel de administración y primera etapa de validación.
+4. **Sprint 4:** Módulo de gestor, segunda validación y generación de PDF.
+5. **Sprint 5:** Gamificación, ranking y misiones.
+6. **Sprint 6:** Piloto en entorno real, ajuste de errores y documentación final.
 
  
 
