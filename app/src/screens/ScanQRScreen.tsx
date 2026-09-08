@@ -1,34 +1,53 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
-import { Pantalla } from "../../App";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Navegacion } from "../../App";
+import { Material, MATERIALES, useEcoTrack } from "../state/EcoTrack";
+import { formatKg } from "../lib/formato";
+import { Boton, CadenaVerificacion } from "../components/ui";
 
-type Paso = "escaneando" | "material" | "listo";
-type Material = "Papel/cartón" | "Plástico" | "Vidrio" | "Metal";
+type Paso = "escaneando" | "material" | "peso" | "listo";
 
-const materiales: { nombre: Material; emoji: string }[] = [
-  { nombre: "Papel/cartón", emoji: "📄" },
-  { nombre: "Plástico", emoji: "🥤" },
-  { nombre: "Vidrio", emoji: "🍾" },
-  { nombre: "Metal", emoji: "🥫" },
-];
+const PESOS_SUGERIDOS = [0.5, 1, 1.5, 2, 3, 4];
 
-export default function ScanQRScreen({ ir }: { ir: (p: Pantalla) => void }) {
+export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
+  const { usuario, crearRegistro } = useEcoTrack();
   const [paso, setPaso] = useState<Paso>("escaneando");
   const [material, setMaterial] = useState<Material | null>(null);
+  const [kg, setKg] = useState<number>(1);
+  const [segundos, setSegundos] = useState(0);
 
-  function confirmarMaterial(m: Material) {
-    setMaterial(m);
+  const contenedor = usuario?.torre === "Torre B" ? "T-B-02" : "T-A-03";
+
+  useEffect(() => {
+    if (paso === "listo") return;
+    const id = setInterval(() => setSegundos((s) => s + 1), 1000);
+    return () => clearInterval(id);
+  }, [paso]);
+
+  function confirmar() {
+    if (!material) return;
+    crearRegistro(material, kg, contenedor);
     setPaso("listo");
   }
 
   return (
-    <View className="flex-1 bg-gray-900">
-      <View className="pt-16 px-6 pb-4 flex-row items-center justify-between">
-        <TouchableOpacity onPress={() => ir("home")}>
+    <SafeAreaView className="flex-1 bg-gray-900" edges={["top"]}>
+      <View className="px-6 pb-4 flex-row items-center justify-between">
+        <TouchableOpacity
+          onPress={nav.volver}
+          accessibilityRole="button"
+          accessibilityLabel="Volver"
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+        >
           <Text className="text-white text-2xl">←</Text>
         </TouchableOpacity>
         <Text className="text-white font-semibold text-base">Registrar reciclaje</Text>
-        <View style={{ width: 24 }} />
+        <View className="w-8 items-end">
+          {paso !== "listo" && (
+            <Text className="text-gray-400 text-xs">{segundos}s</Text>
+          )}
+        </View>
       </View>
 
       {paso === "escaneando" && (
@@ -45,10 +64,14 @@ export default function ScanQRScreen({ ir }: { ir: (p: Pantalla) => void }) {
           </Text>
           <TouchableOpacity
             onPress={() => setPaso("material")}
+            accessibilityRole="button"
             className="bg-green-600 rounded-xl px-6 py-3"
           >
             <Text className="text-white font-semibold">Simular detección de código</Text>
           </TouchableOpacity>
+          <Text className="text-gray-500 text-xs mt-4 text-center">
+            La cámara real se integra con expo-camera en el sprint 2
+          </Text>
         </View>
       )}
 
@@ -57,17 +80,21 @@ export default function ScanQRScreen({ ir }: { ir: (p: Pantalla) => void }) {
           <View className="items-center mb-6">
             <View className="bg-green-100 rounded-full px-4 py-1 mb-3">
               <Text className="text-green-700 text-xs font-medium">
-                ✓ Código detectado · Contenedor T-A-03
+                ✓ Código detectado · Contenedor {contenedor}
               </Text>
             </View>
             <Text className="text-gray-800 text-xl font-bold">¿Qué material depositaste?</Text>
           </View>
 
           <View className="flex-row flex-wrap justify-between">
-            {materiales.map((m) => (
+            {MATERIALES.map((m) => (
               <TouchableOpacity
                 key={m.nombre}
-                onPress={() => confirmarMaterial(m.nombre)}
+                onPress={() => {
+                  setMaterial(m.nombre);
+                  setPaso("peso");
+                }}
+                accessibilityRole="button"
                 className="w-[48%] bg-gray-50 border border-gray-200 rounded-2xl py-6 items-center mb-4"
               >
                 <Text className="text-4xl mb-2">{m.emoji}</Text>
@@ -78,6 +105,52 @@ export default function ScanQRScreen({ ir }: { ir: (p: Pantalla) => void }) {
         </View>
       )}
 
+      {paso === "peso" && (
+        <View className="flex-1 bg-white rounded-t-3xl px-6 pt-8">
+          <View className="items-center mb-6">
+            <View className="bg-green-100 rounded-full px-4 py-1 mb-3">
+              <Text className="text-green-700 text-xs font-medium">{material}</Text>
+            </View>
+            <Text className="text-gray-800 text-xl font-bold">¿Cuánto pesa aproximadamente?</Text>
+            <Text className="text-gray-500 text-sm mt-1 text-center">
+              El administrador confirmará el peso al validar
+            </Text>
+          </View>
+
+          <View className="flex-row flex-wrap justify-between mb-6">
+            {PESOS_SUGERIDOS.map((valor) => {
+              const activo = valor === kg;
+              return (
+                <TouchableOpacity
+                  key={valor}
+                  onPress={() => setKg(valor)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: activo }}
+                  className={`w-[31%] rounded-2xl py-5 items-center mb-3 border ${
+                    activo ? "bg-green-700 border-green-700" : "bg-gray-50 border-gray-200"
+                  }`}
+                >
+                  <Text
+                    className={`font-semibold ${activo ? "text-white" : "text-gray-700"}`}
+                  >
+                    {formatKg(valor)}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+
+          <Boton titulo={`Registrar ${formatKg(kg)} de ${material}`} onPress={confirmar} />
+          <TouchableOpacity
+            onPress={() => setPaso("material")}
+            accessibilityRole="button"
+            className="py-4 items-center"
+          >
+            <Text className="text-gray-500">Cambiar material</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
       {paso === "listo" && (
         <View className="flex-1 bg-white rounded-t-3xl px-6 items-center justify-center">
           <View className="w-20 h-20 bg-green-100 rounded-full items-center justify-center mb-5">
@@ -85,16 +158,19 @@ export default function ScanQRScreen({ ir }: { ir: (p: Pantalla) => void }) {
           </View>
           <Text className="text-gray-800 text-xl font-bold mb-1">¡Registro enviado!</Text>
           <Text className="text-gray-500 text-sm text-center mb-1">
-            {material} · Contenedor T-A-03
+            {material} · {formatKg(kg)} · Contenedor {contenedor}
           </Text>
           <Text className="text-gray-400 text-xs text-center mb-8">
-            Menos de 30 segundos. Ahora tu administrador validará el depósito.
+            Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.
           </Text>
-          <TouchableOpacity onPress={() => ir("home")} className="bg-green-700 rounded-xl px-8 py-3">
-            <Text className="text-white font-semibold">Volver al inicio</Text>
-          </TouchableOpacity>
+
+          <View className="w-full bg-gray-50 rounded-2xl p-4 mb-8">
+            <CadenaVerificacion estado="pendiente" />
+          </View>
+
+          <Boton titulo="Volver al inicio" onPress={() => nav.ir("home")} className="px-8 w-full" />
         </View>
       )}
-    </View>
+    </SafeAreaView>
   );
 }

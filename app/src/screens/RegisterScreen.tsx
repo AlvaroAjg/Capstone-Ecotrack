@@ -1,58 +1,99 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity } from "react-native";
-import { Pantalla } from "../../App";
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Navegacion } from "../../App";
+import { useEcoTrack } from "../state/EcoTrack";
+import { Boton, Campo } from "../components/ui";
 
-export default function RegisterScreen({
-  ir,
-  setNombre,
-}: {
-  ir: (p: Pantalla) => void;
-  setNombre: (n: string) => void;
-}) {
-  const [nombreLocal, setNombreLocal] = useState("");
+interface Errores {
+  nombre?: string;
+  email?: string;
+  password?: string;
+}
+
+export default function RegisterScreen({ nav }: { nav: Navegacion }) {
+  const { registrarCuenta } = useEcoTrack();
+  const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [errores, setErrores] = useState<Errores>({});
 
   function handleRegistrar() {
-    setNombre(nombreLocal);
-    ir("joinTorre");
+    const nuevosErrores: Errores = {};
+    if (nombre.trim().length < 3) nuevosErrores.nombre = "Ingresa tu nombre completo";
+    if (!email.includes("@")) nuevosErrores.email = "Ingresa un correo válido";
+    if (password.length < 6) nuevosErrores.password = "Mínimo 6 caracteres";
+
+    setErrores(nuevosErrores);
+    if (Object.keys(nuevosErrores).length > 0) return;
+
+    registrarCuenta(nombre.trim());
+    nav.ir("joinTorre");
   }
 
+  const limpiar = (campo: keyof Errores) => () =>
+    setErrores((e) => ({ ...e, [campo]: undefined }));
+
   return (
-    <View className="flex-1 justify-center bg-white px-6">
-      <Text className="text-3xl font-bold text-green-700 mb-1">Crear cuenta</Text>
-      <Text className="text-base text-gray-500 mb-8">Únete a EcoTrack</Text>
-
-      <TextInput
-        placeholder="Nombre completo"
-        value={nombreLocal}
-        onChangeText={setNombreLocal}
-        className="border border-gray-300 rounded-xl px-4 py-3 mb-3"
-      />
-      <TextInput
-        placeholder="Correo electrónico"
-        value={email}
-        onChangeText={setEmail}
-        className="border border-gray-300 rounded-xl px-4 py-3 mb-3"
-      />
-      <TextInput
-        placeholder="Contraseña"
-        secureTextEntry
-        value={password}
-        onChangeText={setPassword}
-        className="border border-gray-300 rounded-xl px-4 py-3 mb-5"
-      />
-
-      <TouchableOpacity
-        onPress={handleRegistrar}
-        className="bg-green-700 rounded-xl py-4 items-center mb-4"
+    <SafeAreaView className="flex-1 bg-white" edges={["top", "bottom"]}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+        style={{ flex: 1 }}
       >
-        <Text className="text-white font-semibold text-base">Registrarme</Text>
-      </TouchableOpacity>
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <TouchableOpacity
+            onPress={nav.volver}
+            accessibilityRole="button"
+            accessibilityLabel="Volver"
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+            className="absolute top-4 left-0"
+          >
+            <Text className="text-green-700 text-2xl">←</Text>
+          </TouchableOpacity>
 
-      <TouchableOpacity onPress={() => ir("login")}>
-        <Text className="text-center text-green-700">¿Ya tienes cuenta? Inicia sesión</Text>
-      </TouchableOpacity>
-    </View>
+          <Text className="text-3xl font-bold text-green-700 mb-1">Crear cuenta</Text>
+          <Text className="text-base text-gray-500 mb-8">
+            Paso 1 de 2 · datos personales
+          </Text>
+
+          <Campo
+            etiqueta="Nombre completo"
+            placeholder="Nombre y apellido"
+            value={nombre}
+            onChangeText={setNombre}
+            onFocus={limpiar("nombre")}
+            error={errores.nombre}
+          />
+          <Campo
+            etiqueta="Correo electrónico"
+            placeholder="tucorreo@ejemplo.com"
+            value={email}
+            onChangeText={setEmail}
+            onFocus={limpiar("email")}
+            error={errores.email}
+            autoCapitalize="none"
+            keyboardType="email-address"
+          />
+          <Campo
+            etiqueta="Contraseña"
+            placeholder="Mínimo 6 caracteres"
+            secureTextEntry
+            value={password}
+            onChangeText={setPassword}
+            onFocus={limpiar("password")}
+            error={errores.password}
+          />
+
+          <Boton titulo="Continuar" onPress={handleRegistrar} className="mt-3 mb-4" />
+
+          <TouchableOpacity onPress={() => nav.ir("login")} accessibilityRole="button">
+            <Text className="text-center text-green-700">¿Ya tienes cuenta? Inicia sesión</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }

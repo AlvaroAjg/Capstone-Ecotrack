@@ -1,27 +1,52 @@
 import React, { useState } from "react";
-import { View, Text, TextInput, TouchableOpacity, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Pantalla } from "../../App";
+import { Navegacion } from "../../App";
+import { Rol, useEcoTrack } from "../state/EcoTrack";
+import { Boton, Campo, Segmentado } from "../components/ui";
 
-type Rol = "residente" | "conserje" | "gestor";
+const DESTINO_POR_ROL: Record<Rol, "home" | "admin" | "gestor"> = {
+  residente: "home",
+  administrador: "admin",
+  gestor: "gestor",
+};
 
-export default function LoginScreen({ ir }: { ir: (p: Pantalla) => void }) {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+const TEXTO_BOTON: Record<Rol, string> = {
+  residente: "Iniciar sesión",
+  administrador: "Ingresar como administrador",
+  gestor: "Ingresar como gestor",
+};
+
+const CORREO_DEMO: Record<Rol, string> = {
+  residente: "alvaro.jana@ecotrack.cl",
+  administrador: "carla.mendez@ecotrack.cl",
+  gestor: "contacto@reciclasur.cl",
+};
+
+export default function LoginScreen({ nav }: { nav: Navegacion }) {
+  const { iniciarSesion } = useEcoTrack();
   const [rol, setRol] = useState<Rol>("residente");
+  const [email, setEmail] = useState(CORREO_DEMO.residente);
+  const [password, setPassword] = useState("ecotrack2026");
+  const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
 
-  function handleLogin() {
-    if (rol === "conserje") return ir("admin");
-    if (rol === "gestor") return ir("gestor");
-    return ir("home");
+  function cambiarRol(nuevo: Rol) {
+    setRol(nuevo);
+    setEmail(CORREO_DEMO[nuevo]);
+    setErrores({});
   }
 
-  const textoBoton =
-    rol === "conserje"
-      ? "Ingresar como conserje"
-      : rol === "gestor"
-      ? "Ingresar como gestor"
-      : "Iniciar sesión";
+  function handleLogin() {
+    const nuevosErrores: typeof errores = {};
+    if (!email.includes("@")) nuevosErrores.email = "Ingresa un correo válido";
+    if (password.length < 6) nuevosErrores.password = "Mínimo 6 caracteres";
+
+    setErrores(nuevosErrores);
+    if (Object.keys(nuevosErrores).length > 0) return;
+
+    iniciarSesion(rol);
+    nav.ir(DESTINO_POR_ROL[rol]);
+  }
 
   return (
     <LinearGradient
@@ -36,110 +61,73 @@ export default function LoginScreen({ ir }: { ir: (p: Pantalla) => void }) {
 
       <KeyboardAvoidingView
         behavior={Platform.OS === "ios" ? "padding" : undefined}
-        className="flex-1 justify-center px-6"
+        style={{ flex: 1 }}
       >
-        <View className="items-center mb-8">
-          <View className="w-20 h-20 rounded-full bg-white/15 items-center justify-center mb-4 border border-white/30">
-            <Text className="text-4xl">♻️</Text>
-          </View>
-          <Text className="text-white text-4xl font-bold">EcoTrack</Text>
-          <Text className="text-green-100 text-sm mt-1 text-center">
-            Reciclaje verificado, desde tu torre hacia arriba
-          </Text>
-        </View>
-
-        <View className="bg-white rounded-3xl p-6 shadow-lg">
-          <View className="flex-row bg-gray-100 rounded-xl p-1 mb-5">
-            <TouchableOpacity
-              onPress={() => setRol("residente")}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                rol === "residente" ? "bg-green-700" : ""
-              }`}
-            >
-              <Text
-                className={`font-medium text-xs ${
-                  rol === "residente" ? "text-white" : "text-gray-500"
-                }`}
-              >
-                🏠 Residente
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setRol("conserje")}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                rol === "conserje" ? "bg-green-700" : ""
-              }`}
-            >
-              <Text
-                className={`font-medium text-xs ${
-                  rol === "conserje" ? "text-white" : "text-gray-500"
-                }`}
-              >
-                🛡️ Conserje
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              onPress={() => setRol("gestor")}
-              className={`flex-1 py-2 rounded-lg items-center ${
-                rol === "gestor" ? "bg-green-700" : ""
-              }`}
-            >
-              <Text
-                className={`font-medium text-xs ${
-                  rol === "gestor" ? "text-white" : "text-gray-500"
-                }`}
-              >
-                🚛 Gestor
-              </Text>
-            </TouchableOpacity>
-          </View>
-
-          <Text className="text-gray-400 text-xs mb-1 ml-1">Correo electrónico</Text>
-          <TextInput
-            placeholder="tucorreo@ejemplo.com"
-            placeholderTextColor="#B0B0B0"
-            value={email}
-            onChangeText={setEmail}
-            className="border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 mb-3"
-          />
-
-          <Text className="text-gray-400 text-xs mb-1 ml-1">Contraseña</Text>
-          <TextInput
-            placeholder="••••••••"
-            placeholderTextColor="#B0B0B0"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            className="border border-gray-200 bg-gray-50 rounded-xl px-4 py-3 mb-6"
-          />
-
-          <TouchableOpacity
-            onPress={handleLogin}
-            className="bg-green-700 rounded-xl py-4 items-center mb-4"
-            style={{
-              shadowColor: "#1E6B3C",
-              shadowOpacity: 0.3,
-              shadowRadius: 8,
-              shadowOffset: { width: 0, height: 4 },
-              elevation: 4,
-            }}
-          >
-            <Text className="text-white font-semibold text-base">{textoBoton}</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity onPress={() => ir("register")}>
-            <Text className="text-center text-green-700 font-medium">
-              ¿No tienes cuenta? Regístrate
+        <ScrollView
+          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 40 }}
+          keyboardShouldPersistTaps="handled"
+        >
+          <View className="items-center mb-8">
+            <View className="w-20 h-20 rounded-full bg-white/15 items-center justify-center mb-4 border border-white/30">
+              <Text className="text-4xl">♻️</Text>
+            </View>
+            <Text className="text-white text-4xl font-bold">EcoTrack</Text>
+            <Text className="text-green-100 text-sm mt-1 text-center">
+              Reciclaje verificado, desde tu torre hacia arriba
             </Text>
-          </TouchableOpacity>
-        </View>
+          </View>
 
-        <View className="flex-row justify-center items-center mt-8">
-          <Text className="text-green-100 text-xs">🌱 Papel</Text>
-          <Text className="text-green-100 text-xs mx-3">🥤 Plástico</Text>
-          <Text className="text-green-100 text-xs mx-3">🍾 Vidrio</Text>
-          <Text className="text-green-100 text-xs">🥫 Metal</Text>
-        </View>
+          <View className="bg-white rounded-3xl p-6 shadow-lg">
+            <Text className="text-gray-500 text-xs mb-2 ml-1">Ingresar como</Text>
+            <View className="mb-5">
+              <Segmentado
+                valor={rol}
+                alCambiar={cambiarRol}
+                opciones={[
+                  { valor: "residente", etiqueta: "🏠 Residente" },
+                  { valor: "administrador", etiqueta: "🛡️ Admin." },
+                  { valor: "gestor", etiqueta: "🚛 Gestor" },
+                ]}
+              />
+            </View>
+
+            <Campo
+              etiqueta="Correo electrónico"
+              placeholder="tucorreo@ejemplo.com"
+              value={email}
+              onChangeText={setEmail}
+              onFocus={() => setErrores((e) => ({ ...e, email: undefined }))}
+              error={errores.email}
+              autoCapitalize="none"
+              keyboardType="email-address"
+            />
+
+            <Campo
+              etiqueta="Contraseña"
+              placeholder="••••••••"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              onFocus={() => setErrores((e) => ({ ...e, password: undefined }))}
+              error={errores.password}
+            />
+
+            <Boton titulo={TEXTO_BOTON[rol]} onPress={handleLogin} className="mt-3 mb-4" />
+
+            <TouchableOpacity onPress={() => nav.ir("register")} accessibilityRole="button">
+              <Text className="text-center text-green-700 font-medium">
+                ¿No tienes cuenta? Regístrate
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View className="flex-row justify-center items-center mt-8">
+            <Text className="text-green-100 text-xs">📄 Papel</Text>
+            <Text className="text-green-100 text-xs mx-3">🥤 Plástico</Text>
+            <Text className="text-green-100 text-xs mx-3">🍾 Vidrio</Text>
+            <Text className="text-green-100 text-xs">🥫 Metal</Text>
+          </View>
+        </ScrollView>
       </KeyboardAvoidingView>
     </LinearGradient>
   );
