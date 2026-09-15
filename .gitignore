@@ -1,0 +1,33 @@
+# Dependencias: se reinstalan con npm install, nunca se versionan.
+node_modules/
+
+# Salida generada por scripts/publicar.mjs
+hosting/
+dist/
+web-build/
+
+# Firebase CLI
+.firebase/
+*.log
+firebase-debug.log*
+firestore-debug.log*
+ui-debug.log*
+
+# Expo
+.expo/
+.metro-health-check*
+
+# Entorno local
+.env
+.env*.local
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editores
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp

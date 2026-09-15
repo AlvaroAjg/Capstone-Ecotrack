@@ -1,0 +1,1516 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>EcoTrack — Demostración en vivo</title>
+<style>
+  :root {
+    color-scheme: dark;
+
+    /* Los teléfonos se dimensionan solos según la pantalla disponible.
+       420px es el ancho de un teléfono grande real (un iPhone son 390pt),
+       y el alto se ajusta a lo que sobra bajo la barra y la tira de flujo. */
+    --ancho-max: 420px;
+    --ancho-tel: clamp(330px, calc((100vw - 130px) / 3), var(--ancho-max));
+    --alto-tel: clamp(430px, calc(100vh - 220px), 880px);
+
+    --fondo: #0A1410;
+    --fondo-2: #101F18;
+    --borde: #22372C;
+    --texto: #E8F2EC;
+    --texto-suave: #8FA89B;
+    --verde: #15803D;
+    --verde-claro: #22C55E;
+    --ambar: #F59E0B;
+    --azul: #3B82F6;
+    --rojo: #EF4444;
+
+    /* Paleta interna de los teléfonos (idéntica a la app) */
+    --p-fondo: #F9FAFB;
+    --p-blanco: #FFFFFF;
+    --p-texto: #1F2937;
+    --p-suave: #9CA3AF;
+    --p-borde: #E5E7EB;
+    --p-verde: #15803D;
+    --p-verde-600: #16A34A;
+    --p-verde-100: #DCFCE7;
+    --p-oscuro: #111827;
+  }
+
+  :root[data-tamano="compacto"] { --ancho-max: 365px; }
+  :root[data-tamano="grande"]   { --ancho-max: 520px; }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #16301F 0%, transparent 60%),
+      var(--fondo);
+    color: var(--texto);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ------------------------------------------------------------ barra */
+  .barra {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
+    padding: 10px 20px;
+    border-bottom: 1px solid var(--borde);
+    background: rgba(10, 20, 16, 0.85);
+    backdrop-filter: blur(8px);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .marca { display: flex; align-items: center; gap: 12px; }
+  .marca .glifo {
+    width: 34px; height: 34px; border-radius: 50%; font-size: 17px;
+    background: rgba(34, 197, 94, 0.15);
+    border: 1px solid rgba(34, 197, 94, 0.35);
+    display: grid; place-items: center;
+  }
+  .marca h1 { margin: 0; font-size: 15px; letter-spacing: -0.01em; }
+  .marca p { margin: 1px 0 0; font-size: 11px; color: var(--texto-suave); }
+
+  .barra .espacio { flex: 1; }
+
+  .pastilla {
+    display: inline-flex; align-items: center; gap: 8px;
+    font-size: 12px; font-weight: 600;
+    padding: 7px 13px; border-radius: 999px;
+    border: 1px solid var(--borde); background: var(--fondo-2);
+    color: var(--texto-suave);
+  }
+  .punto { width: 8px; height: 8px; border-radius: 50%; background: var(--p-suave); }
+  .pastilla.viva { color: #86EFAC; border-color: rgba(34,197,94,.4); background: rgba(34,197,94,.1); }
+  .pastilla.viva .punto { background: var(--verde-claro); animation: latido 2s ease-in-out infinite; }
+  @keyframes latido { 0%,100% { opacity: 1; } 50% { opacity: .3; } }
+
+  .boton {
+    font: inherit; font-size: 13px; font-weight: 600;
+    padding: 9px 15px; border-radius: 10px; cursor: pointer;
+    border: 1px solid var(--borde); background: var(--fondo-2); color: var(--texto);
+    transition: background .15s, border-color .15s;
+  }
+  .boton:hover { background: #172C22; border-color: #2E4A3B; }
+  .boton.principal { background: var(--verde); border-color: var(--verde); color: #fff; }
+  .boton.principal:hover { background: #17924A; }
+  .boton:disabled { opacity: .45; cursor: not-allowed; }
+
+  select.boton { padding-right: 10px; }
+
+  /* ------------------------------------------------------------ pared */
+  .pared {
+    display: flex;
+    gap: clamp(12px, 2vw, 40px);
+    justify-content: center;
+    align-items: center;
+    padding: clamp(12px, 1.6vw, 26px) 18px 8px;
+    overflow: auto;
+    flex: 1;
+    min-height: 0;
+  }
+  .columna { display: flex; flex-direction: column; align-items: center; gap: 9px; flex: 0 0 auto; }
+
+  .rotulo { text-align: center; max-width: var(--ancho-tel); }
+  .rotulo h2 { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: -0.01em; }
+  .rotulo p { margin: 2px 0 0; font-size: 11px; color: var(--texto-suave); line-height: 1.35; }
+  .rotulo .cuenta { display: block; margin-top: 2px; font-size: 10px; color: #5F7A6C; }
+
+  /* ---------------------------------------------------------- teléfono */
+  .telefono {
+    width: var(--ancho-tel);
+    height: var(--alto-tel);
+    background: #050B08;
+    border: 1px solid #2A3F33;
+    border-radius: 42px;
+    padding: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04) inset;
+    flex: 0 0 auto;
+  }
+  .pantalla {
+    position: relative;
+    height: 100%; width: 100%;
+    border-radius: 34px; overflow: hidden;
+    background: var(--p-fondo);
+    color: var(--p-texto);
+    display: flex; flex-direction: column;
+    font-size: 13px;
+  }
+  .muesca {
+    position: absolute; top: 0; left: 50%; transform: translateX(-50%);
+    width: 110px; height: 22px; background: #050B08;
+    border-radius: 0 0 14px 14px; z-index: 5;
+  }
+  .lienzo { flex: 1; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+  .lienzo::-webkit-scrollbar { width: 5px; }
+  .lienzo::-webkit-scrollbar-thumb { background: #D1D5DB; border-radius: 3px; }
+
+  /* Encabezado interno */
+  .cabecera { padding: 34px 20px 44px; border-radius: 0 0 26px 26px; }
+  .cabecera.verde { background: var(--p-verde); }
+  .cabecera.oscura { background: var(--p-oscuro); }
+  .cabecera .rol { font-size: 12px; opacity: .8; color: #fff; }
+  .cabecera .nombre { font-size: 19px; font-weight: 700; color: #fff; margin-top: 3px; }
+  .cabecera .meta { font-size: 12px; color: rgba(255,255,255,.72); margin-top: 3px; }
+
+  /* Fila de métricas */
+  .metricas {
+    margin: -34px 20px 0; background: var(--p-blanco);
+    border-radius: 16px; padding: 14px 8px;
+    display: flex; box-shadow: 0 2px 10px rgba(0,0,0,.07);
+  }
+  .metrica { flex: 1; text-align: center; padding: 0 4px; }
+  .metrica + .metrica { border-left: 1px solid var(--p-borde); }
+  .metrica .v { font-size: 17px; font-weight: 700; line-height: 1.15; }
+  .metrica .e { font-size: 9.5px; color: #6B7280; margin-top: 3px; line-height: 1.2; letter-spacing: -0.01em; }
+  .metricas.verde .v { color: var(--p-verde); }
+
+  .seccion { padding: 0 20px; margin-top: 20px; }
+  .seccion-titulo {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 10px;
+  }
+  .seccion-titulo h3 { margin: 0; font-size: 13px; font-weight: 700; }
+  .contador {
+    font-size: 10px; font-weight: 600; color: #4B5563;
+    background: #E5E7EB; padding: 3px 9px; border-radius: 999px;
+  }
+
+  .tarjeta {
+    background: var(--p-blanco); border-radius: 16px; padding: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06); margin-bottom: 10px;
+  }
+  .tarjeta.destacar { animation: entrar .9s ease-out; }
+  @keyframes entrar {
+    0%   { box-shadow: 0 0 0 3px rgba(34,197,94,.7); transform: scale(.97); }
+    60%  { box-shadow: 0 0 0 3px rgba(34,197,94,.35); transform: scale(1); }
+    100% { box-shadow: 0 1px 4px rgba(0,0,0,.06); }
+  }
+
+  .vacio {
+    background: var(--p-blanco); border-radius: 16px; padding: 26px 18px;
+    text-align: center; box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .vacio .emoji { font-size: 28px; }
+  .vacio p { margin: 8px 0 0; color: #4B5563; font-size: 12px; line-height: 1.45; }
+
+  .fila { display: flex; align-items: center; gap: 10px; }
+  .fila .crecer { flex: 1; min-width: 0; }
+  .titulo-fila { font-weight: 600; font-size: 13px; }
+  .sub-fila { font-size: 11px; color: var(--p-suave); margin-top: 2px; }
+
+  .avatar-estado {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: grid; place-items: center; font-size: 15px; flex: 0 0 auto;
+  }
+  .insignia { font-size: 10px; font-weight: 600; padding: 4px 9px; border-radius: 999px; white-space: nowrap; }
+
+  .est-pendiente   { background: #FEF3C7; color: #B45309; }
+  .est-validado    { background: #DBEAFE; color: #1D4ED8; }
+  .est-certificado { background: var(--p-verde-100); color: var(--p-verde); }
+  .est-rechazado   { background: #FEE2E2; color: #DC2626; }
+
+  /* Cadena de verificación */
+  .cadena { display: flex; margin-top: 12px; }
+  .etapa { flex: 1; text-align: center; }
+  .etapa .linea-fila { display: flex; align-items: center; }
+  .etapa .linea { flex: 1; height: 2px; background: var(--p-borde); }
+  .etapa .linea.ok { background: var(--p-verde-600); }
+  .etapa .linea.invisible { background: transparent; }
+  .etapa .nodo {
+    width: 24px; height: 24px; border-radius: 50%;
+    display: grid; place-items: center;
+    font-size: 10px; font-weight: 700;
+    background: var(--p-borde); color: #9CA3AF; flex: 0 0 auto;
+  }
+  .etapa .nodo.ok { background: var(--p-verde-600); color: #fff; }
+  .etapa .rot { font-size: 9px; margin-top: 5px; color: var(--p-suave); }
+  .etapa .rot.actual { color: var(--p-verde); font-weight: 700; }
+  .etapa .rot.ok { color: #4B5563; }
+
+  .barra-progreso { height: 7px; background: var(--p-borde); border-radius: 999px; overflow: hidden; }
+  .barra-progreso span { display: block; height: 100%; background: var(--p-verde-600); border-radius: 999px; transition: width .5s ease; }
+
+  /* Botones dentro del teléfono */
+  .bp {
+    font: inherit; font-size: 12px; font-weight: 600;
+    border-radius: 11px; padding: 11px 12px; cursor: pointer;
+    border: 1px solid transparent; width: 100%;
+    display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .bp.verde  { background: var(--p-verde); color: #fff; }
+  .bp.verde:hover { background: #166F37; }
+  .bp.gris   { background: #fff; color: #374151; border-color: #D1D5DB; }
+  .bp.rojo   { background: #fff; color: #DC2626; border-color: #FECACA; }
+  .bp.grande { padding: 15px; font-size: 13px; }
+  .bp:disabled { opacity: .5; cursor: not-allowed; }
+  .par { display: flex; gap: 8px; }
+  .par .bp { width: auto; flex: 1; }
+
+  /* Ajuste de peso */
+  .peso-caja {
+    background: var(--p-fondo); border: 1px solid var(--p-borde);
+    border-radius: 12px; padding: 10px; margin: 10px 0;
+  }
+  .peso-caja .nota { font-size: 10px; color: #6B7280; margin-bottom: 8px; }
+  .peso-fila { display: flex; align-items: center; justify-content: space-between; }
+  .paso {
+    width: 36px; height: 36px; border-radius: 10px; cursor: pointer;
+    background: #fff; border: 1px solid #D1D5DB; font-size: 17px; color: #374151;
+    display: grid; place-items: center;
+  }
+  .paso:hover { background: #F3F4F6; }
+  .peso-valor { font-size: 16px; font-weight: 700; }
+  .peso-ajustado { font-size: 9px; color: #B45309; margin-top: 1px; }
+
+  /* Superposición de escaneo */
+  .superpuesto {
+    position: absolute; inset: 0; z-index: 8;
+    background: #111827; color: #fff;
+    display: flex; flex-direction: column;
+    border-radius: 34px;
+  }
+  .superpuesto .sup-barra {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 30px 18px 12px; font-size: 13px; font-weight: 600;
+  }
+  .superpuesto .sup-cerrar { background: none; border: 0; color: #fff; font-size: 19px; cursor: pointer; padding: 0 4px; }
+  .sup-cuerpo { flex: 1; overflow-y: auto; display: flex; flex-direction: column; }
+  .hoja { background: #fff; color: var(--p-texto); border-radius: 24px 24px 0 0; padding: 22px 18px; flex: 1; }
+  .hoja h4 { margin: 0 0 4px; font-size: 15px; text-align: center; }
+  .hoja .pie { font-size: 11px; color: var(--p-suave); text-align: center; margin: 0 0 16px; }
+
+  .visor {
+    flex: 1; display: grid; place-items: center; padding: 18px; text-align: center;
+  }
+  .marco-qr {
+    width: 190px; height: 190px; border: 2px solid var(--verde-claro);
+    border-radius: 24px; display: grid; place-items: center; margin-bottom: 20px;
+    animation: respirar 2.4s ease-in-out infinite;
+  }
+  @keyframes respirar { 0%,100% { opacity: .55; } 50% { opacity: 1; } }
+
+  .rejilla { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; }
+  .opcion {
+    background: var(--p-fondo); border: 1px solid var(--p-borde); border-radius: 14px;
+    padding: 16px 8px; text-align: center; cursor: pointer; font: inherit; font-size: 11px; color: #374151;
+  }
+  .opcion:hover { border-color: var(--p-verde-600); }
+  .opcion .emoji { display: block; font-size: 24px; margin-bottom: 5px; }
+  .opcion.activa { background: var(--p-verde); border-color: var(--p-verde); color: #fff; }
+
+  .rejilla-peso { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+
+  .lote-total {
+    background: var(--p-fondo); border: 1px solid var(--p-borde);
+    border-radius: 12px; padding: 14px; text-align: center; margin-bottom: 10px;
+  }
+  .lote-total .kg { font-size: 26px; font-weight: 700; color: var(--p-verde); line-height: 1.1; }
+  .lote-total .det { font-size: 11px; color: #6B7280; margin-top: 3px; }
+
+  .materiales { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+  .chip-material {
+    background: #fff; border: 1px solid var(--p-borde); border-radius: 8px;
+    padding: 5px 9px; font-size: 11px; color: #374151;
+  }
+
+  .codigo-caja {
+    background: var(--p-fondo); border: 1px solid var(--p-borde);
+    border-radius: 12px; padding: 12px; text-align: center; margin-top: 12px;
+  }
+  .codigo-caja .et { font-size: 10px; color: var(--p-suave); }
+  .codigo-caja .cod { font-size: 15px; font-weight: 700; letter-spacing: .12em; margin-top: 3px; }
+
+  .aviso-p { font-size: 11px; padding: 9px 11px; border-radius: 10px; line-height: 1.4; }
+  .aviso-p.err { background: #FEE2E2; color: #B91C1C; }
+  .aviso-p.ok  { background: var(--p-verde-100); color: #166534; }
+  .aviso-p.info{ background: #DBEAFE; color: #1D4ED8; }
+
+  /* ------------------------------------------------------- tira de flujo */
+  .tira {
+    display: flex; gap: 8px; justify-content: center; align-items: stretch;
+    flex-wrap: wrap; padding: 4px 20px 14px; flex: 0 0 auto;
+  }
+  .paso-flujo {
+    background: var(--fondo-2); border: 1px solid var(--borde);
+    border-radius: 12px; padding: 7px 18px; min-width: 132px; text-align: center;
+  }
+  .paso-flujo .n { font-size: 18px; font-weight: 700; line-height: 1.1; }
+  .paso-flujo .t { font-size: 10px; color: var(--texto-suave); margin-top: 2px; }
+  .flecha { display: grid; place-items: center; color: #3A5748; font-size: 16px; }
+
+  /* ------------------------------------------------------------- diálogo */
+  dialog {
+    border: 1px solid var(--borde); border-radius: 18px;
+    background: var(--fondo-2); color: var(--texto);
+    padding: 0; width: min(560px, calc(100vw - 32px));
+    box-shadow: 0 30px 80px rgba(0,0,0,.7);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.72); }
+  .dlg-cab { padding: 20px 22px 14px; border-bottom: 1px solid var(--borde); }
+  .dlg-cab h2 { margin: 0; font-size: 16px; }
+  .dlg-cab p { margin: 6px 0 0; font-size: 12px; color: var(--texto-suave); line-height: 1.5; }
+  .dlg-cuerpo { padding: 18px 22px; display: grid; gap: 16px; max-height: 60vh; overflow-y: auto; }
+  .dlg-pie { padding: 14px 22px 18px; border-top: 1px solid var(--borde); display: flex; gap: 10px; justify-content: flex-end; align-items: center; }
+
+  .grupo { display: grid; gap: 7px; }
+  .grupo > label { font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .grupo .campos { display: grid; grid-template-columns: 1fr 160px; gap: 8px; }
+  input[type="email"], input[type="password"] {
+    font: inherit; font-size: 13px; padding: 9px 11px;
+    border-radius: 9px; border: 1px solid var(--borde);
+    background: #0B1712; color: var(--texto);
+  }
+  input:focus { outline: 2px solid rgba(34,197,94,.45); outline-offset: 1px; }
+  .estado-cuenta { font-size: 11px; color: var(--texto-suave); }
+  .estado-cuenta.ok { color: #86EFAC; }
+  .estado-cuenta.mal { color: #FCA5A5; }
+
+  @media (max-width: 1180px) {
+    .pared { justify-content: flex-start; }
+  }
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">
+    <div class="glifo">♻️</div>
+    <div>
+      <h1>EcoTrack — Demostración en vivo</h1>
+      <p>Tres roles, una sola base de datos, en tiempo real</p>
+    </div>
+  </div>
+
+  <div class="espacio"></div>
+
+  <span class="pastilla" id="estadoConexion"><span class="punto"></span><span id="textoConexion">Sin conectar</span></span>
+
+  <label class="pastilla" style="gap:6px">
+    Tamaño
+    <select id="tamano" class="boton" style="padding:3px 6px; font-size:12px">
+      <option value="normal">Normal</option>
+      <option value="grande">Grande</option>
+      <option value="compacto">Compacto</option>
+    </select>
+  </label>
+
+  <button class="boton" id="btnPantalla" title="Ocupa toda la pantalla, ideal para proyectar">Pantalla completa</button>
+
+  <button class="boton" id="btnProbarReglas" title="Intenta una escritura prohibida para mostrar que el servidor la rechaza">Probar seguridad</button>
+  <button class="boton" id="btnConfig">Cuentas</button>
+</header>
+
+<main class="pared" id="pared"></main>
+
+<section class="tira" id="tira"></section>
+
+<dialog id="dlgConfig">
+  <form method="dialog">
+    <div class="dlg-cab">
+      <h2>Cuentas de la demostración</h2>
+      <p>
+        Cada panel inicia sesión por separado contra tu proyecto de Firebase, con su propia
+        cuenta y su propio rol. Las reglas de Firestore se aplican a cada uno por separado,
+        igual que en los teléfonos reales.
+      </p>
+    </div>
+    <div class="dlg-cuerpo" id="dlgCuerpo"></div>
+    <div style="padding:0 22px 14px">
+      <button class="boton" id="btnCuentasDemo" type="button" style="width:100%">
+        Usar las cuentas de demostración
+      </button>
+    </div>
+    <div class="dlg-pie">
+      <span class="estado-cuenta" id="avisoConfig"></span>
+      <div class="espacio"></div>
+      <button class="boton" value="cancel">Cerrar</button>
+      <button class="boton principal" id="btnConectar" value="default" type="button">Conectar los tres</button>
+    </div>
+  </form>
+</dialog>
+
+<script type="module">
+/* ==========================================================================
+   EcoTrack — pared de demostración
+   --------------------------------------------------------------------------
+   Tres paneles, cada uno con su propia instancia de Firebase y su propia
+   sesión, conectados al mismo proyecto. No hay datos simulados: todo lo que
+   se ve sale de Firestore y todo lo que se toca escribe en Firestore.
+   ========================================================================== */
+
+const CONFIG_FIREBASE = {
+  apiKey: "AIzaSyBmUuiyaDVYYldoKIOkCpacBCYYsnDvcxc",
+  authDomain: "ecotrack-capstone-3f12d.firebaseapp.com",
+  projectId: "ecotrack-capstone-3f12d",
+  storageBucket: "ecotrack-capstone-3f12d.firebasestorage.app",
+  messagingSenderId: "30032741037",
+  appId: "1:30032741037:web:a122c2d8b637b8e5c23c24",
+};
+
+/* --------------------------------------------------- carga del SDK (CDN) */
+const VERSIONES_SDK = ["12.4.0", "12.0.0", "11.10.0", "11.0.2", "10.14.1"];
+let SDK = null;
+
+for (const v of VERSIONES_SDK) {
+  const base = `https://www.gstatic.com/firebasejs/${v}/`;
+  try {
+    const [app, auth, fs] = await Promise.all([
+      import(base + "firebase-app.js"),
+      import(base + "firebase-auth.js"),
+      import(base + "firebase-firestore.js"),
+    ]);
+    SDK = { version: v, app, auth, fs };
+    break;
+  } catch (e) {
+    /* se intenta la siguiente versión */
+  }
+}
+
+if (!SDK) {
+  document.body.innerHTML =
+    '<div style="padding:60px;text-align:center;font-family:system-ui">' +
+    '<h1>No se pudo cargar el SDK de Firebase</h1>' +
+    '<p style="color:#8FA89B">Revisa tu conexión a internet y recarga la página.</p></div>';
+  throw new Error("SDK no disponible");
+}
+
+const { initializeApp, getApps } = SDK.app;
+const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = SDK.auth;
+const {
+  getFirestore, collection, doc, onSnapshot, query, orderBy, limit,
+  addDoc, updateDoc, writeBatch,
+} = SDK.fs;
+
+/* ------------------------------------------------------------- utilidades */
+const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const bloque = () =>
+  Array.from({ length: 4 }, () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]).join("");
+
+/** Certificado individual del residente. */
+const generarCodigo = () => `ECO-${bloque()}-${bloque()}`;
+/** Código del retiro: lo comparten todos los depósitos que salieron juntos. */
+const generarCodigoRetiro = () => `RET-${bloque()}`;
+
+const formatKg = (kg) => `${Number(kg ?? 0).toFixed(1).replace(".", ",")} kg`;
+const sumaKg = (lista) => Math.round(lista.reduce((t, n) => t + n, 0) * 10) / 10;
+const kgEfectivo = (r) => (r.kgConfirmado ?? r.kgDeclarado ?? 0);
+
+const porcentaje = (parte, total) =>
+  total > 0 ? Math.min(100, Math.max(0, Math.round((parte / total) * 100))) : 0;
+
+function tiempoRelativo(ts) {
+  if (!ts) return "";
+  const d = Date.now() - ts;
+  if (d < 60000) return "recién";
+  if (d < 3600000) return `hace ${Math.floor(d / 60000)} min`;
+  if (d < 86400000) return `hace ${Math.floor(d / 3600000)} h`;
+  return `hace ${Math.floor(d / 86400000)} días`;
+}
+
+function esDelMesActual(ts) {
+  if (!ts) return false;
+  const f = new Date(ts), h = new Date();
+  return f.getMonth() === h.getMonth() && f.getFullYear() === h.getFullYear();
+}
+
+function esDeHoy(ts) {
+  if (!ts) return false;
+  const f = new Date(ts), h = new Date();
+  return f.toDateString() === h.toDateString();
+}
+
+const escapar = (s) =>
+  String(s ?? "").replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+const MATERIALES = [
+  { nombre: "Papel/cartón", emoji: "📄" },
+  { nombre: "Plástico", emoji: "🥤" },
+  { nombre: "Vidrio", emoji: "🍾" },
+  { nombre: "Metal", emoji: "🥫" },
+];
+const PESOS = [0.5, 1, 1.5, 2, 3, 4];
+
+const ASPECTO = {
+  pendiente:   { texto: "Esperando administrador", clase: "est-pendiente",   emoji: "⏳" },
+  validado:    { texto: "Esperando gestor",        clase: "est-validado",    emoji: "🔎" },
+  certificado: { texto: "Certificado",             clase: "est-certificado", emoji: "📄" },
+  rechazado:   { texto: "Rechazado",               clase: "est-rechazado",   emoji: "✕"  },
+};
+
+function mensajeError(e) {
+  const c = e?.code ?? "";
+  const m = {
+    "auth/invalid-credential": "Correo o contraseña incorrectos.",
+    "auth/user-not-found": "Correo o contraseña incorrectos.",
+    "auth/wrong-password": "Correo o contraseña incorrectos.",
+    "auth/invalid-email": "El correo no tiene un formato válido.",
+    "auth/network-request-failed": "Sin conexión a internet.",
+    "auth/too-many-requests": "Demasiados intentos. Espera un momento.",
+    "permission-denied": "Las reglas de Firestore rechazaron la operación.",
+    "unavailable": "No se pudo contactar a Firestore.",
+  };
+  return m[c] ?? e?.message ?? "Error desconocido.";
+}
+
+/* ------------------------------------------------------------- los paneles */
+const SLOTS = [
+  {
+    id: "residente",
+    titulo: "Vista residente",
+    sub: "Deposita y escanea el QR del contenedor",
+    rolEsperado: "residente",
+  },
+  {
+    id: "administrador",
+    titulo: "Vista administrador",
+    sub: "Conserje · valida la tanda del día",
+    rolEsperado: "administrador",
+  },
+  {
+    id: "gestor",
+    titulo: "Vista gestor",
+    sub: "Confirma el retiro y emite el certificado",
+    rolEsperado: "gestor",
+  },
+];
+
+const CLAVE_ALMACEN = "ecotrack-demo-cuentas";
+
+/**
+ * Cuentas que crea el botón "Preparar todo para la demostración" de la app.
+ * Deben coincidir con app/src/lib/demo.ts.
+ */
+const PASSWORD_DEMO = "ecotrack2026";
+const CUENTAS_DEMO = {
+  residente: { email: "residente@ecotrack.cl", password: PASSWORD_DEMO },
+  administrador: { email: "admin@ecotrack.cl", password: PASSWORD_DEMO },
+  gestor: { email: "gestor@ecotrack.cl", password: PASSWORD_DEMO },
+};
+
+const estado = {};
+for (const s of SLOTS) {
+  estado[s.id] = {
+    ...s,
+    app: null, auth: null, db: null,
+    perfil: null,
+    registros: [],
+    conectado: false,
+    error: null,
+    desuscribir: null,
+    ui: {},      // estado local de la interfaz (flujo de escaneo, pesos ajustados)
+    vistos: new Map(), // id -> estado, para detectar cambios y destacar
+  };
+}
+
+let torres = [];
+const inicioSesionDemo = Date.now();
+
+/* -------------------------------------------------------- credenciales */
+function leerCuentas() {
+  try {
+    return JSON.parse(localStorage.getItem(CLAVE_ALMACEN) ?? "{}");
+  } catch { return {}; }
+}
+function guardarCuentas(c) {
+  try { localStorage.setItem(CLAVE_ALMACEN, JSON.stringify(c)); } catch {}
+}
+
+/* -------------------------------------------------------------- conexión */
+function appDe(slotId) {
+  const nombre = `ecotrack-${slotId}`;
+  const existente = getApps().find((a) => a.name === nombre);
+  return existente ?? initializeApp(CONFIG_FIREBASE, nombre);
+}
+
+async function conectarSlot(slotId, email, password) {
+  const s = estado[slotId];
+  s.error = null;
+
+  if (!s.app) {
+    s.app = appDe(slotId);
+    s.auth = getAuth(s.app);
+    s.db = getFirestore(s.app);
+  }
+
+  try {
+    await signInWithEmailAndPassword(s.auth, email.trim().toLowerCase(), password);
+  } catch (e) {
+    s.error = mensajeError(e);
+    s.conectado = false;
+    render();
+    throw e;
+  }
+}
+
+function escucharSlot(slotId) {
+  const s = estado[slotId];
+  if (!s.auth) return;
+
+  onAuthStateChanged(s.auth, (u) => {
+    if (s.desuscribir) { s.desuscribir(); s.desuscribir = null; }
+
+    if (!u) {
+      s.conectado = false;
+      s.perfil = null;
+      s.registros = [];
+      render();
+      return;
+    }
+
+    // Perfil del usuario (rol, torre, departamento)
+    const pararPerfil = onSnapshot(doc(s.db, "usuarios", u.uid), (snap) => {
+      s.perfil = snap.exists() ? { id: u.uid, ...snap.data() } : null;
+      s.conectado = true;
+      if (s.perfil && s.perfil.rol !== s.rolEsperado) {
+        s.error = `Esta cuenta tiene rol "${s.perfil.rol}", no "${s.rolEsperado}".`;
+      } else {
+        s.error = null;
+      }
+      render();
+    }, (e) => { s.error = mensajeError(e); render(); });
+
+    // Registros en vivo
+    const consulta = query(collection(s.db, "registros"), orderBy("creadoEn", "desc"), limit(300));
+    const pararRegistros = onSnapshot(consulta, (snap) => {
+      s.registros = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    }, (e) => { s.error = mensajeError(e); render(); });
+
+    // Torres (una sola vez alcanza, se toma del primer panel conectado)
+    const pararTorres = onSnapshot(collection(s.db, "torres"), (snap) => {
+      torres = snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+      render();
+    }, () => {});
+
+    s.desuscribir = () => { pararPerfil(); pararRegistros(); pararTorres(); };
+  });
+}
+
+/* ------------------------------------------------------------ derivados */
+function torreDe(id) { return torres.find((t) => t.id === id) ?? null; }
+
+function resumenTorre(registros, torreId) {
+  const torre = torreDe(torreId);
+  const deLaTorre = registros.filter((r) => r.torreId === torreId);
+  const certificados = deLaTorre.filter((r) => r.estado === "certificado" && esDelMesActual(r.certificadoEn));
+  const kgMes = sumaKg(certificados.map(kgEfectivo));
+  const deptos = new Set(
+    deLaTorre.filter((r) => r.estado !== "rechazado" && esDelMesActual(r.creadoEn)).map((r) => r.depto).filter(Boolean)
+  );
+  const metaKg = torre?.metaKg ?? 0;
+  return {
+    torre,
+    kgMes,
+    metaKg,
+    avanceMeta: porcentaje(kgMes, metaKg),
+    deptosActivos: deptos.size,
+    deptosTotales: torre?.deptosTotales ?? 0,
+    participacion: porcentaje(deptos.size, torre?.deptosTotales ?? 0),
+    pendientes: deLaTorre.filter((r) => r.estado === "pendiente"),
+  };
+}
+
+/* --------------------------------------------------------------- acciones */
+async function accion(slotId, fn, mensajeExito) {
+  const s = estado[slotId];
+  s.ui.ocupado = true;
+  s.ui.aviso = null;
+  render();
+  try {
+    await fn();
+    if (mensajeExito) s.ui.aviso = { tono: "ok", texto: mensajeExito };
+  } catch (e) {
+    s.ui.aviso = { tono: "err", texto: mensajeError(e) };
+  } finally {
+    s.ui.ocupado = false;
+    render();
+  }
+}
+
+async function crearRegistro(material, kg) {
+  const s = estado.residente;
+  const p = s.perfil;
+  if (!p?.torreId) throw new Error("La cuenta no está vinculada a una torre.");
+  const contenedor = `${String(p.torreId).replace("torre-", "T-").toUpperCase()}-01`;
+  await addDoc(collection(s.db, "registros"), {
+    residenteId: p.id,
+    residente: p.nombre ?? "",
+    depto: p.depto ?? "",
+    torreId: p.torreId,
+    torreNombre: p.torreNombre ?? "",
+    material,
+    kgDeclarado: kg,
+    kgConfirmado: null,
+    contenedor,
+    estado: "pendiente",
+    creadoEn: Date.now(),
+    validadoEn: null, validadoPor: null,
+    certificadoEn: null, certificadoPor: null,
+    codigo: null,
+  });
+}
+
+async function validar(id, kg) {
+  const s = estado.administrador;
+  await updateDoc(doc(s.db, "registros", id), {
+    estado: "validado", kgConfirmado: kg,
+    validadoEn: Date.now(), validadoPor: s.perfil.id,
+  });
+}
+
+async function rechazar(id) {
+  const s = estado.administrador;
+  await updateDoc(doc(s.db, "registros", id), {
+    estado: "rechazado", validadoEn: Date.now(), validadoPor: s.perfil.id,
+  });
+}
+
+/**
+ * El gestor retira el contenedor completo de una torre, no depósitos sueltos.
+ * Se certifica todo el lote en una escritura atómica: cada residente recibe su
+ * propio código de certificado y todos comparten el código del retiro.
+ */
+async function confirmarRetiroTorre(torreId) {
+  const s = estado.gestor;
+  const validados = s.registros.filter(
+    (r) => r.estado === "validado" && r.torreId === torreId
+  );
+  if (validados.length === 0) throw new Error("Ese lote ya no está disponible.");
+
+  const codigoRetiro = generarCodigoRetiro();
+  const ahora = Date.now();
+  const lote = writeBatch(s.db);
+
+  for (const r of validados) {
+    lote.update(doc(s.db, "registros", r.id), {
+      estado: "certificado",
+      certificadoEn: ahora,
+      certificadoPor: s.perfil.id,
+      codigo: generarCodigo(),
+      codigoRetiro,
+    });
+  }
+
+  await lote.commit();
+  s.ui.ultimoRetiro = { codigo: codigoRetiro, depositos: validados.length };
+  return codigoRetiro;
+}
+
+/** Agrupa los depósitos validados por torre: es lo que ve el gestor. */
+function lotesPorRetirar(registros) {
+  const porTorre = new Map();
+  for (const r of registros.filter((x) => x.estado === "validado")) {
+    const lista = porTorre.get(r.torreId) ?? [];
+    lista.push(r);
+    porTorre.set(r.torreId, lista);
+  }
+
+  return [...porTorre.entries()]
+    .map(([torreId, lista]) => {
+      const torre = torreDe(torreId);
+      const acumulado = new Map();
+      for (const r of lista) {
+        acumulado.set(r.material, (acumulado.get(r.material) ?? 0) + kgEfectivo(r));
+      }
+      return {
+        torreId,
+        torreNombre: torre?.nombre ?? lista[0].torreNombre ?? torreId,
+        condominio: torre?.condominio ?? "",
+        depositos: lista.length,
+        kgTotal: sumaKg(lista.map(kgEfectivo)),
+        porMaterial: [...acumulado.entries()]
+          .map(([material, kg]) => ({ material, kg: Math.round(kg * 10) / 10 }))
+          .sort((a, b) => b.kg - a.kg),
+        esperandoDesde: Math.min(...lista.map((r) => r.validadoEn ?? r.creadoEn)),
+      };
+    })
+    .sort((a, b) => a.esperandoDesde - b.esperandoDesde);
+}
+
+const EMOJI_MATERIAL = Object.fromEntries(MATERIALES.map((m) => [m.nombre, m.emoji]));
+
+/* ------------------------------------------------ prueba de las reglas */
+async function probarReglas() {
+  const s = estado.residente;
+  if (!s.conectado) {
+    alert("Conecta primero la cuenta del residente.");
+    return;
+  }
+  const mio = s.registros.find((r) => r.residenteId === s.perfil?.id && r.estado !== "certificado");
+  if (!mio) {
+    alert("Registra primero un depósito desde el panel del residente.");
+    return;
+  }
+  s.ui.aviso = { tono: "info", texto: "Intentando saltarse la cadena..." };
+  render();
+  try {
+    await updateDoc(doc(s.db, "registros", mio.id), {
+      estado: "certificado", codigo: "ECO-FALSO-0000", certificadoEn: Date.now(),
+    });
+    s.ui.aviso = { tono: "err", texto: "⚠️ La escritura fue aceptada. Revisa que las reglas estén publicadas." };
+  } catch (e) {
+    s.ui.aviso = {
+      tono: "ok",
+      texto: "✓ El servidor rechazó el intento del residente de auto-certificarse. Las reglas funcionan.",
+    };
+  }
+  render();
+  setTimeout(() => { s.ui.aviso = null; render(); }, 9000);
+}
+
+/* ------------------------------------------------------------- pintado */
+function cadenaHTML(estadoReg) {
+  if (estadoReg === "rechazado") {
+    return '<div class="aviso-p err" style="margin-top:12px">✕ Depósito rechazado por el administrador</div>';
+  }
+  const etapas = [
+    { clave: "pendiente", rot: "Depósito" },
+    { clave: "validado", rot: "Administrador" },
+    { clave: "certificado", rot: "Gestor" },
+  ];
+  const alcanzado = etapas.findIndex((e) => e.clave === estadoReg);
+
+  return `<div class="cadena">${etapas.map((e, i) => {
+    const ok = i <= alcanzado;
+    const actual = i === alcanzado;
+    const izq = i === 0 ? "invisible" : (ok ? "ok" : "");
+    const der = i === etapas.length - 1 ? "invisible" : (i < alcanzado ? "ok" : "");
+    return `<div class="etapa">
+      <div class="linea-fila">
+        <div class="linea ${izq}"></div>
+        <div class="nodo ${ok ? "ok" : ""}">${ok ? "✓" : i + 1}</div>
+        <div class="linea ${der}"></div>
+      </div>
+      <div class="rot ${actual ? "actual" : ok ? "ok" : ""}">${e.rot}</div>
+    </div>`;
+  }).join("")}</div>`;
+}
+
+const DURACION_DESTACADO = 1600;
+
+/**
+ * Detecta qué registros son nuevos o cambiaron de estado desde el último
+ * pintado, y los mantiene resaltados un momento para que se note en la
+ * proyección. El primer pintado no resalta nada.
+ */
+function marcarCambios(s) {
+  const ahora = Date.now();
+  s.destacados = s.destacados ?? new Map();
+  const primeraCarga = s.vistos.size === 0;
+
+  for (const r of s.registros) {
+    const anterior = s.vistos.get(r.id);
+    if (!primeraCarga && anterior !== r.estado) {
+      s.destacados.set(r.id, ahora + DURACION_DESTACADO);
+    }
+    s.vistos.set(r.id, r.estado);
+  }
+
+  const vivos = new Set();
+  let proximoVencimiento = null;
+  for (const [id, hasta] of s.destacados) {
+    if (hasta > ahora) {
+      vivos.add(id);
+      proximoVencimiento = proximoVencimiento === null ? hasta : Math.min(proximoVencimiento, hasta);
+    } else {
+      s.destacados.delete(id);
+    }
+  }
+
+  // Se repinta al vencer el resaltado para que la clase se retire sola.
+  if (proximoVencimiento !== null && !s.temporizadorDestacado) {
+    s.temporizadorDestacado = setTimeout(() => {
+      s.temporizadorDestacado = null;
+      render();
+    }, proximoVencimiento - ahora + 50);
+  }
+
+  return vivos;
+}
+
+function avisoHTML(s) {
+  if (!s.ui.aviso) return "";
+  return `<div class="seccion"><div class="aviso-p ${s.ui.aviso.tono}">${escapar(s.ui.aviso.texto)}</div></div>`;
+}
+
+function sinConexionHTML(s) {
+  return `<div style="padding:40px 24px;text-align:center">
+    <div style="font-size:34px;margin-bottom:10px">🔌</div>
+    <div style="font-weight:700;margin-bottom:6px">${escapar(s.titulo)}</div>
+    <p style="color:#6B7280;font-size:12px;line-height:1.5;margin:0 0 16px">
+      ${s.error ? escapar(s.error) : "Este panel todavía no tiene una cuenta conectada."}
+    </p>
+    <button class="bp verde" data-abrir-config="1">Configurar cuentas</button>
+  </div>`;
+}
+
+/* ---------------------------------------------------- panel: residente */
+function pintarResidente(s, destacados) {
+  if (!s.conectado || !s.perfil) return sinConexionHTML(s);
+
+  const p = s.perfil;
+  const mios = s.registros.filter((r) => r.residenteId === p.id);
+  const certificados = mios.filter((r) => r.estado === "certificado");
+  const kgMes = sumaKg(certificados.filter((r) => esDelMesActual(r.certificadoEn)).map(kgEfectivo));
+  const res = resumenTorre(s.registros, p.torreId);
+
+  const ranking = torres
+    .map((t) => ({ id: t.id, kg: resumenTorre(s.registros, t.id).kgMes }))
+    .sort((a, b) => b.kg - a.kg);
+  const posicion = ranking.findIndex((t) => t.id === p.torreId) + 1;
+
+  const actividad = mios.length === 0
+    ? `<div class="vacio"><div class="emoji">♻️</div><p>Aún no registras reciclaje. Escanea el QR del contenedor para empezar.</p></div>`
+    : mios.slice(0, 8).map((r) => {
+        const a = ASPECTO[r.estado] ?? ASPECTO.pendiente;
+        const ajustado = r.kgConfirmado != null && Math.abs(r.kgConfirmado - r.kgDeclarado) > 0.01;
+        return `<div class="tarjeta ${destacados.has(r.id) ? "destacar" : ""}">
+          <div class="fila" style="align-items:flex-start">
+            <div class="avatar-estado ${a.clase}">${a.emoji}</div>
+            <div class="crecer">
+              <div class="titulo-fila">${escapar(r.material)} · ${formatKg(kgEfectivo(r))}</div>
+              <div class="sub-fila">Contenedor ${escapar(r.contenedor)} · ${tiempoRelativo(r.creadoEn)}</div>
+              ${ajustado ? `<div class="sub-fila" style="color:#B45309">Peso ajustado por el administrador (declaraste ${formatKg(r.kgDeclarado)})</div>` : ""}
+              <span class="insignia ${a.clase}" style="display:inline-block;margin-top:7px">${a.texto}</span>
+            </div>
+          </div>
+          ${cadenaHTML(r.estado)}
+          ${r.codigo ? `<div class="codigo-caja">
+            <div class="et">Código de verificación</div>
+            <div class="cod">${escapar(r.codigo)}</div>
+            ${r.codigoRetiro ? `<div class="et" style="margin-top:6px">Retirado en el lote ${escapar(r.codigoRetiro)}</div>` : ""}
+          </div>` : ""}
+        </div>`;
+      }).join("");
+
+  return `
+    <div class="cabecera verde">
+      <div class="rol">Bienvenido de vuelta</div>
+      <div class="nombre">${escapar(p.nombre)}</div>
+      <div class="meta">${escapar(p.torreNombre ?? "")} · ${escapar(p.depto ?? "")}</div>
+    </div>
+    <div class="metricas verde">
+      <div class="metrica"><div class="v">${formatKg(kgMes)}</div><div class="e">Certificado este mes</div></div>
+      <div class="metrica"><div class="v">${posicion || "—"}°</div><div class="e">Ranking de tu torre</div></div>
+      <div class="metrica"><div class="v">${certificados.length}</div><div class="e">Certificados</div></div>
+    </div>
+    ${avisoHTML(s)}
+    <div class="seccion">
+      <button class="bp verde grande" data-accion="abrir-escaneo" ${s.ui.ocupado ? "disabled" : ""}>📷 Escanear código QR</button>
+    </div>
+    <div class="seccion">
+      <div class="seccion-titulo"><h3>Misión de la torre</h3></div>
+      <div class="tarjeta">
+        <div class="fila" style="margin-bottom:8px">
+          <div class="crecer titulo-fila" style="font-size:12px">Alcanzar ${res.metaKg} kg este mes</div>
+          <div style="color:var(--p-verde);font-weight:700;font-size:12px">${res.avanceMeta}%</div>
+        </div>
+        <div class="barra-progreso"><span style="width:${res.avanceMeta}%"></span></div>
+        <div class="sub-fila" style="margin-top:7px">${formatKg(res.kgMes)} de ${res.metaKg} kg · ${res.deptosActivos} de ${res.deptosTotales} deptos. participando</div>
+      </div>
+    </div>
+    <div class="seccion" style="padding-bottom:24px">
+      <div class="seccion-titulo"><h3>Mi actividad</h3><span class="contador">${mios.length}</span></div>
+      ${actividad}
+    </div>`;
+}
+
+function pintarEscaneo(s) {
+  const f = s.ui.flujo;
+  if (!f) return "";
+
+  let cuerpo = "";
+
+  if (f.paso === "buscando") {
+    cuerpo = `<div class="visor">
+      <div>
+        <div class="marco-qr"><div style="font-size:46px">📷</div></div>
+        <div style="font-weight:600;margin-bottom:5px">Buscando código QR...</div>
+        <div style="font-size:11px;color:#9CA3AF;margin-bottom:18px">Apunta la cámara al código del contenedor</div>
+        <button class="bp verde" data-accion="simular-qr" style="width:auto;padding:11px 20px">Simular detección de código</button>
+      </div>
+    </div>`;
+  } else if (f.paso === "material") {
+    cuerpo = `<div class="sup-cuerpo"><div class="hoja">
+      <div style="text-align:center;margin-bottom:14px">
+        <span class="insignia est-certificado">✓ Código detectado</span>
+      </div>
+      <h4>¿Qué material depositaste?</h4>
+      <p class="pie">Contenedor ${escapar(f.contenedor)}</p>
+      <div class="rejilla">
+        ${MATERIALES.map((m) => `<button class="opcion" data-accion="elegir-material" data-valor="${escapar(m.nombre)}">
+          <span class="emoji">${m.emoji}</span>${escapar(m.nombre)}</button>`).join("")}
+      </div>
+    </div></div>`;
+  } else if (f.paso === "peso") {
+    cuerpo = `<div class="sup-cuerpo"><div class="hoja">
+      <div style="text-align:center;margin-bottom:12px">
+        <span class="insignia est-certificado">${escapar(f.material)}</span>
+      </div>
+      <h4>¿Cuánto pesa aproximadamente?</h4>
+      <p class="pie">El administrador confirmará el peso al validar</p>
+      <div class="rejilla-peso">
+        ${PESOS.map((v) => `<button class="opcion ${v === f.kg ? "activa" : ""}" data-accion="elegir-peso" data-valor="${v}">${formatKg(v)}</button>`).join("")}
+      </div>
+      <button class="bp verde grande" data-accion="confirmar-registro" ${s.ui.ocupado ? "disabled" : ""}>
+        ${s.ui.ocupado ? "Guardando..." : `Registrar ${formatKg(f.kg)} de ${escapar(f.material)}`}
+      </button>
+    </div></div>`;
+  } else if (f.paso === "listo") {
+    cuerpo = `<div class="sup-cuerpo"><div class="hoja" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
+      <div style="width:64px;height:64px;border-radius:50%;background:var(--p-verde-100);display:grid;place-items:center;font-size:30px;margin-bottom:14px">✅</div>
+      <h4>¡Registro enviado!</h4>
+      <p class="pie">${escapar(f.material)} · ${formatKg(f.kg)} · Contenedor ${escapar(f.contenedor)}</p>
+      <div style="width:100%;background:var(--p-fondo);border-radius:14px;padding:14px;margin:6px 0 18px">
+        ${cadenaHTML("pendiente")}
+      </div>
+      <button class="bp verde" data-accion="cerrar-escaneo">Volver al inicio</button>
+    </div></div>`;
+  }
+
+  return `<div class="superpuesto">
+    <div class="sup-barra">
+      <button class="sup-cerrar" data-accion="cerrar-escaneo">←</button>
+      <span>Registrar reciclaje</span>
+      <span style="width:20px"></span>
+    </div>
+    ${cuerpo}
+  </div>`;
+}
+
+/* ------------------------------------------------ panel: administrador */
+function pintarAdministrador(s, destacados) {
+  if (!s.conectado || !s.perfil) return sinConexionHTML(s);
+
+  const p = s.perfil;
+  const res = resumenTorre(s.registros, p.torreId);
+
+  const pendientes = res.pendientes.map((r) => {
+    const kg = s.ui.pesos?.[r.id] ?? r.kgDeclarado;
+    const ajustado = Math.abs(kg - r.kgDeclarado) > 0.01;
+    return `<div class="tarjeta ${destacados.has(r.id) ? "destacar" : ""}">
+      <div class="fila" style="align-items:flex-start">
+        <div class="crecer">
+          <div class="titulo-fila">${escapar(r.residente)}</div>
+          <div class="sub-fila">${escapar(r.depto)} · ${escapar(r.material)}</div>
+          <div class="sub-fila">Contenedor ${escapar(r.contenedor)}</div>
+        </div>
+        <span class="sub-fila">${tiempoRelativo(r.creadoEn)}</span>
+      </div>
+      <div class="peso-caja">
+        <div class="nota">Peso declarado: ${formatKg(r.kgDeclarado)} · ajústalo si a la vista difiere</div>
+        <div class="peso-fila">
+          <button class="paso" data-accion="peso-menos" data-id="${r.id}">−</button>
+          <div style="text-align:center">
+            <div class="peso-valor">${formatKg(kg)}</div>
+            ${ajustado ? '<div class="peso-ajustado">peso corregido</div>' : ""}
+          </div>
+          <button class="paso" data-accion="peso-mas" data-id="${r.id}">+</button>
+        </div>
+      </div>
+      <div class="par">
+        <button class="bp verde" data-accion="validar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Validar ${formatKg(kg)}</button>
+        <button class="bp rojo" data-accion="rechazar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Rechazar</button>
+      </div>
+    </div>`;
+  }).join("");
+
+  return `
+    <div class="cabecera oscura">
+      <div class="rol">Panel de administrador</div>
+      <div class="nombre">${escapar(p.torreNombre ?? "Sin torre")}</div>
+      <div class="meta">${escapar(p.nombre)} · ${escapar(res.torre?.condominio ?? "")}</div>
+    </div>
+    <div class="metricas">
+      <div class="metrica"><div class="v">${res.deptosActivos}/${res.deptosTotales}</div><div class="e">Deptos. activos</div></div>
+      <div class="metrica"><div class="v">${formatKg(res.kgMes)}</div><div class="e">Certificado este mes</div></div>
+      <div class="metrica"><div class="v">${res.participacion}%</div><div class="e">Participación</div></div>
+    </div>
+    ${avisoHTML(s)}
+    <div class="seccion">
+      <div class="seccion-titulo"><h3>Validaciones pendientes</h3><span class="contador">${res.pendientes.length} en cola</span></div>
+      ${res.pendientes.length === 0
+        ? `<div class="vacio"><div class="emoji">✅</div><p>No hay depósitos pendientes en tu torre.</p></div>`
+        : `<button class="bp verde" style="margin-bottom:10px" data-accion="validar-tanda" ${s.ui.ocupado ? "disabled" : ""}>
+             🗓️ Validar la tanda del día (${res.pendientes.length})
+           </button>${pendientes}`}
+    </div>
+    <div class="seccion" style="padding-bottom:24px">
+      <div class="seccion-titulo"><h3>Misión de la torre</h3></div>
+      <div class="tarjeta">
+        <div class="fila" style="margin-bottom:8px">
+          <div class="crecer titulo-fila" style="font-size:12px">${res.metaKg} kg certificados este mes</div>
+          <div style="color:var(--p-verde);font-weight:700;font-size:12px">${res.avanceMeta}%</div>
+        </div>
+        <div class="barra-progreso"><span style="width:${res.avanceMeta}%"></span></div>
+        <div class="sub-fila" style="margin-top:7px">${formatKg(res.kgMes)} de ${res.metaKg} kg acumulados</div>
+      </div>
+    </div>`;
+}
+
+/* ------------------------------------------------------- panel: gestor */
+function pintarGestor(s, destacados) {
+  if (!s.conectado || !s.perfil) return sinConexionHTML(s);
+
+  const p = s.perfil;
+  const lotes = lotesPorRetirar(s.registros);
+  const kgCola = sumaKg(lotes.map((l) => l.kgTotal));
+  const certificadosHoy = s.registros.filter(
+    (r) => r.estado === "certificado" && r.certificadoPor === p.id && esDeHoy(r.certificadoEn)
+  ).length;
+
+  const ultimo = s.ui.ultimoRetiro;
+
+  const lista = lotes.map((l) => `
+    <div class="tarjeta ${destacados.has(l.torreId) ? "destacar" : ""}">
+      <div class="fila" style="align-items:flex-start;margin-bottom:10px">
+        <div class="crecer">
+          <div class="titulo-fila" style="font-size:15px">${escapar(l.torreNombre)}</div>
+          <div class="sub-fila">${escapar(l.condominio)}</div>
+        </div>
+        <span class="sub-fila">${tiempoRelativo(l.esperandoDesde)}</span>
+      </div>
+
+      <div class="lote-total">
+        <div class="kg">${formatKg(l.kgTotal)}</div>
+        <div class="det">${l.depositos} depósito${l.depositos === 1 ? "" : "s"} validado${l.depositos === 1 ? "" : "s"}</div>
+      </div>
+
+      <div class="materiales">
+        ${l.porMaterial.map((m) => `<span class="chip-material">${EMOJI_MATERIAL[m.material] ?? "♻️"} ${escapar(m.material)} · ${formatKg(m.kg)}</span>`).join("")}
+      </div>
+
+      <button class="bp verde" data-accion="confirmar-retiro" data-torre="${escapar(l.torreId)}" ${s.ui.ocupado ? "disabled" : ""}>
+        Confirmar retiro de ${escapar(l.torreNombre)}
+      </button>
+    </div>`).join("");
+
+  return `
+    <div class="cabecera oscura">
+      <div class="rol">Gestor de reciclaje</div>
+      <div class="nombre">Retiros pendientes</div>
+      <div class="meta">${escapar(p.nombre)} · contenedores por torre</div>
+    </div>
+    <div class="metricas">
+      <div class="metrica"><div class="v">${lotes.length}</div><div class="e">Torres por retirar</div></div>
+      <div class="metrica"><div class="v">${formatKg(kgCola)}</div><div class="e">Kilos en cola</div></div>
+      <div class="metrica"><div class="v">${certificadosHoy}</div><div class="e">Certificados hoy</div></div>
+    </div>
+    ${avisoHTML(s)}
+    ${ultimo ? `<div class="seccion">
+      <div class="tarjeta" style="text-align:center;background:var(--p-verde-100)">
+        <div style="font-size:11px;color:#166534">Último retiro confirmado</div>
+        <div style="font-size:16px;font-weight:700;letter-spacing:.12em;color:#14532D;margin-top:4px">${escapar(ultimo.codigo)}</div>
+        <div style="font-size:10px;color:#166534;margin-top:3px">${ultimo.depositos} certificado${ultimo.depositos === 1 ? "" : "s"} emitido${ultimo.depositos === 1 ? "" : "s"}</div>
+      </div>
+    </div>` : ""}
+    <div class="seccion" style="padding-bottom:24px">
+      <div class="seccion-titulo"><h3>Contenedores validados</h3><span class="contador">${lotes.length} torre${lotes.length === 1 ? "" : "s"}</span></div>
+      ${lotes.length === 0
+        ? `<div class="vacio"><div class="emoji">🎉</div><p>No quedan contenedores por retirar. Todo lo validado fue certificado.</p></div>`
+        : lista}
+    </div>`;
+}
+
+/* ------------------------------------------------------------- render */
+const PINTORES = {
+  residente: pintarResidente,
+  administrador: pintarAdministrador,
+  gestor: pintarGestor,
+};
+
+const pared = document.getElementById("pared");
+let construido = false;
+
+function construirPared() {
+  pared.innerHTML = SLOTS.map((s) => `
+    <div class="columna" data-columna="${s.id}">
+      <div class="rotulo">
+        <h2>${escapar(s.titulo)}</h2>
+        <p>${escapar(s.sub)}</p>
+        <span class="cuenta" data-cuenta="${s.id}"></span>
+      </div>
+      <div class="telefono">
+        <div class="pantalla">
+          <div class="muesca"></div>
+          <div class="lienzo" data-lienzo="${s.id}"></div>
+          <div data-overlay="${s.id}"></div>
+        </div>
+      </div>
+    </div>`).join("");
+  construido = true;
+}
+
+function render() {
+  if (!construido) construirPared();
+
+  let conectados = 0;
+
+  for (const slot of SLOTS) {
+    const s = estado[slot.id];
+    if (s.conectado) conectados++;
+
+    let destacados = marcarCambios(s);
+    if (slot.id === "gestor") {
+      // Las tarjetas del gestor son torres, así que el resaltado se traslada
+      // del depósito que cambió a la torre a la que pertenece.
+      const torres = new Set();
+      for (const r of s.registros) if (destacados.has(r.id)) torres.add(r.torreId);
+      destacados = torres;
+    }
+    const lienzo = pared.querySelector(`[data-lienzo="${slot.id}"]`);
+    const posicion = lienzo.scrollTop;
+    lienzo.innerHTML = PINTORES[slot.id](s, destacados);
+    lienzo.scrollTop = posicion;
+
+    const overlay = pared.querySelector(`[data-overlay="${slot.id}"]`);
+    overlay.innerHTML = slot.id === "residente" ? pintarEscaneo(s) : "";
+
+    const cuenta = pared.querySelector(`[data-cuenta="${slot.id}"]`);
+    cuenta.textContent = s.perfil?.email ? s.perfil.email : (s.error ?? "sin conectar");
+  }
+
+  const pastilla = document.getElementById("estadoConexion");
+  const texto = document.getElementById("textoConexion");
+  pastilla.classList.toggle("viva", conectados === 3);
+  texto.textContent = conectados === 3 ? "3 de 3 en vivo" : `${conectados} de 3 conectados`;
+
+  pintarTira();
+}
+
+function pintarTira() {
+  const s = estado.residente.conectado ? estado.residente
+    : estado.administrador.conectado ? estado.administrador
+    : estado.gestor.conectado ? estado.gestor : null;
+
+  const regs = s?.registros ?? [];
+  const deLaSesion = regs.filter((r) => r.creadoEn >= inicioSesionDemo);
+
+  const datos = [
+    { n: deLaSesion.length, t: "Depósitos en esta demo" },
+    { n: regs.filter((r) => r.estado === "pendiente").length, t: "Esperando administrador" },
+    { n: regs.filter((r) => r.estado === "validado").length, t: "Esperando gestor" },
+    { n: regs.filter((r) => r.estado === "certificado" && esDeHoy(r.certificadoEn)).length, t: "Certificados hoy" },
+  ];
+
+  document.getElementById("tira").innerHTML = datos
+    .map((d) => `<div class="paso-flujo"><div class="n">${d.n}</div><div class="t">${d.t}</div></div>`)
+    .join('<div class="flecha">→</div>');
+}
+
+/* ------------------------------------------------------------- eventos */
+pared.addEventListener("click", async (ev) => {
+  const btn = ev.target.closest("[data-accion], [data-abrir-config]");
+  if (!btn) return;
+
+  if (btn.dataset.abrirConfig) { abrirConfig(); return; }
+
+  const columna = btn.closest("[data-columna]");
+  const slotId = columna?.dataset.columna;
+  const s = estado[slotId];
+  const a = btn.dataset.accion;
+  const id = btn.dataset.id;
+
+  switch (a) {
+    case "abrir-escaneo": {
+      const p = s.perfil;
+      s.ui.flujo = {
+        paso: "buscando",
+        contenedor: `${String(p.torreId ?? "").replace("torre-", "T-").toUpperCase()}-01`,
+        material: null, kg: 1,
+      };
+      render();
+      break;
+    }
+    case "simular-qr":
+      s.ui.flujo.paso = "material";
+      render();
+      break;
+    case "elegir-material":
+      s.ui.flujo.material = btn.dataset.valor;
+      s.ui.flujo.paso = "peso";
+      render();
+      break;
+    case "elegir-peso":
+      s.ui.flujo.kg = Number(btn.dataset.valor);
+      render();
+      break;
+    case "confirmar-registro": {
+      const f = s.ui.flujo;
+      await accion("residente", () => crearRegistro(f.material, f.kg));
+      if (!s.ui.aviso) { s.ui.flujo.paso = "listo"; render(); }
+      break;
+    }
+    case "cerrar-escaneo":
+      s.ui.flujo = null;
+      render();
+      break;
+
+    case "peso-menos":
+    case "peso-mas": {
+      s.ui.pesos = s.ui.pesos ?? {};
+      const reg = s.registros.find((r) => r.id === id);
+      const actual = s.ui.pesos[id] ?? reg.kgDeclarado;
+      const delta = a === "peso-mas" ? 0.5 : -0.5;
+      s.ui.pesos[id] = Math.max(0.5, Math.round((actual + delta) * 10) / 10);
+      render();
+      break;
+    }
+    case "validar": {
+      const reg = s.registros.find((r) => r.id === id);
+      const kg = s.ui.pesos?.[id] ?? reg.kgDeclarado;
+      await accion("administrador", () => validar(id, kg));
+      break;
+    }
+    case "rechazar":
+      await accion("administrador", () => rechazar(id));
+      break;
+    case "validar-tanda": {
+      const res = resumenTorre(s.registros, s.perfil.torreId);
+      await accion("administrador", async () => {
+        for (const r of res.pendientes) {
+          await validar(r.id, s.ui.pesos?.[r.id] ?? r.kgDeclarado);
+        }
+      }, `Tanda validada: ${res.pendientes.length} depósito(s).`);
+      break;
+    }
+    case "confirmar-retiro": {
+      const torreId = btn.dataset.torre;
+      await accion("gestor", () => confirmarRetiroTorre(torreId));
+      break;
+    }
+  }
+});
+
+/* ------------------------------------------------------------- diálogo */
+const dlg = document.getElementById("dlgConfig");
+const dlgCuerpo = document.getElementById("dlgCuerpo");
+
+function abrirConfig() {
+  const almacenadas = leerCuentas();
+  // La primera vez se ofrecen las cuentas de demostración ya escritas.
+  const guardadas = Object.keys(almacenadas).length > 0 ? almacenadas : CUENTAS_DEMO;
+  dlgCuerpo.innerHTML = SLOTS.map((s) => `
+    <div class="grupo">
+      <label>
+        <span>${escapar(s.titulo)}</span>
+        <span class="estado-cuenta ${estado[s.id].conectado ? "ok" : ""}" data-marca="${s.id}">
+          ${estado[s.id].conectado ? "conectado" : ""}
+        </span>
+      </label>
+      <div class="campos">
+        <input type="email" placeholder="correo de la cuenta ${escapar(s.rolEsperado)}"
+               data-email="${s.id}" value="${escapar(guardadas[s.id]?.email ?? "")}" autocomplete="off" />
+        <input type="password" placeholder="contraseña"
+               data-pass="${s.id}" value="${escapar(guardadas[s.id]?.password ?? "")}" autocomplete="off" />
+      </div>
+    </div>`).join("");
+  document.getElementById("avisoConfig").textContent = "";
+  dlg.showModal();
+}
+
+document.getElementById("btnConfig").addEventListener("click", abrirConfig);
+
+// Rellena los seis campos con las cuentas que crea la app en su configuración
+// inicial, para no tener que escribirlas antes de presentar.
+document.getElementById("btnCuentasDemo").addEventListener("click", () => {
+  for (const s of SLOTS) {
+    const cuenta = CUENTAS_DEMO[s.id];
+    if (!cuenta) continue;
+    dlgCuerpo.querySelector(`[data-email="${s.id}"]`).value = cuenta.email;
+    dlgCuerpo.querySelector(`[data-pass="${s.id}"]`).value = cuenta.password;
+  }
+  const aviso = document.getElementById("avisoConfig");
+  aviso.textContent = "Cuentas cargadas. Pulsa \u201cConectar los tres\u201d.";
+  aviso.className = "estado-cuenta ok";
+});
+
+document.getElementById("btnConectar").addEventListener("click", async () => {
+  const aviso = document.getElementById("avisoConfig");
+  const cuentas = {};
+  for (const s of SLOTS) {
+    cuentas[s.id] = {
+      email: dlgCuerpo.querySelector(`[data-email="${s.id}"]`).value.trim(),
+      password: dlgCuerpo.querySelector(`[data-pass="${s.id}"]`).value,
+    };
+  }
+  guardarCuentas(cuentas);
+
+  aviso.textContent = "Conectando...";
+  aviso.className = "estado-cuenta";
+
+  const fallos = [];
+  for (const s of SLOTS) {
+    const c = cuentas[s.id];
+    if (!c.email || !c.password) { fallos.push(`${s.titulo}: faltan datos`); continue; }
+    try {
+      await conectarSlot(s.id, c.email, c.password);
+      escucharSlot(s.id);
+    } catch (e) {
+      fallos.push(`${s.titulo}: ${mensajeError(e)}`);
+    }
+  }
+
+  if (fallos.length === 0) {
+    aviso.textContent = "Los tres paneles quedaron conectados.";
+    aviso.className = "estado-cuenta ok";
+    setTimeout(() => dlg.close(), 900);
+  } else {
+    aviso.textContent = fallos.join(" · ");
+    aviso.className = "estado-cuenta mal";
+  }
+});
+
+document.getElementById("btnProbarReglas").addEventListener("click", probarReglas);
+
+/* ------------------------------------------------- tamaño y pantalla completa */
+const selectorTamano = document.getElementById("tamano");
+const CLAVE_TAMANO = "ecotrack-demo-tamano";
+
+function aplicarTamano(valor) {
+  document.documentElement.dataset.tamano = valor;
+  try { localStorage.setItem(CLAVE_TAMANO, valor); } catch {}
+}
+
+try {
+  const guardado = localStorage.getItem(CLAVE_TAMANO);
+  if (guardado) { selectorTamano.value = guardado; aplicarTamano(guardado); }
+} catch {}
+
+selectorTamano.addEventListener("change", (ev) => aplicarTamano(ev.target.value));
+
+document.getElementById("btnPantalla").addEventListener("click", () => {
+  if (document.fullscreenElement) document.exitFullscreen();
+  else document.documentElement.requestFullscreen?.();
+});
+
+/* ------------------------------------------------------------- arranque */
+render();
+
+// Reconecta sesiones guardadas por Firebase Auth (cada app tiene su propia clave).
+for (const s of SLOTS) {
+  const st = estado[s.id];
+  st.app = appDe(s.id);
+  st.auth = getAuth(st.app);
+  st.db = getFirestore(st.app);
+  escucharSlot(s.id);
+}
+
+// Si nunca se configuraron cuentas, se abre el diálogo de inmediato.
+setTimeout(() => {
+  const alguna = Object.values(estado).some((s) => s.conectado);
+  if (!alguna) abrirConfig();
+}, 1400);
+</script>
+</body>
+</html>

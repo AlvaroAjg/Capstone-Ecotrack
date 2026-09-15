@@ -1,51 +1,68 @@
 import React, { useState } from "react";
-import { View, Text, TouchableOpacity, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
+import {
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
+} from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
-import { Navegacion } from "../../App";
-import { Rol, useEcoTrack } from "../state/EcoTrack";
-import { Boton, Campo, Segmentado } from "../components/ui";
+import { useEcoTrack } from "../state/EcoTrack";
+import { slotDemo } from "../lib/firebase";
+import { CORREOS_DEMO, CUENTAS_DEMO, PASSWORD_DEMO } from "../lib/demo";
+import { mensajeError } from "../services/auth";
+import { Aviso, Boton, Campo } from "../components/ui";
 
-const DESTINO_POR_ROL: Record<Rol, "home" | "admin" | "gestor"> = {
-  residente: "home",
-  administrador: "admin",
-  gestor: "gestor",
-};
-
-const TEXTO_BOTON: Record<Rol, string> = {
-  residente: "Iniciar sesión",
-  administrador: "Ingresar como administrador",
-  gestor: "Ingresar como gestor",
-};
-
-const CORREO_DEMO: Record<Rol, string> = {
-  residente: "alvaro.jana@ecotrack.cl",
-  administrador: "carla.mendez@ecotrack.cl",
-  gestor: "contacto@reciclasur.cl",
-};
-
-export default function LoginScreen({ nav }: { nav: Navegacion }) {
-  const { iniciarSesion } = useEcoTrack();
-  const [rol, setRol] = useState<Rol>("residente");
-  const [email, setEmail] = useState(CORREO_DEMO.residente);
-  const [password, setPassword] = useState("ecotrack2026");
+export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => void }) {
+  const { iniciarSesion, prepararDemo } = useEcoTrack();
+  // En la pared de demostración cada panel llega con su correo prellenado.
+  const [email, setEmail] = useState(slotDemo ? CORREOS_DEMO[slotDemo] ?? "" : "");
+  const [password, setPassword] = useState("");
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
+  const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
+  const [cargando, setCargando] = useState(false);
+  const [sembrando, setSembrando] = useState(false);
+  const [avisoSemilla, setAvisoSemilla] = useState<string | null>(null);
 
-  function cambiarRol(nuevo: Rol) {
-    setRol(nuevo);
-    setEmail(CORREO_DEMO[nuevo]);
-    setErrores({});
-  }
-
-  function handleLogin() {
+  async function handleLogin() {
     const nuevosErrores: typeof errores = {};
     if (!email.includes("@")) nuevosErrores.email = "Ingresa un correo válido";
     if (password.length < 6) nuevosErrores.password = "Mínimo 6 caracteres";
 
     setErrores(nuevosErrores);
+    setErrorGeneral(null);
     if (Object.keys(nuevosErrores).length > 0) return;
 
-    iniciarSesion(rol);
-    nav.ir(DESTINO_POR_ROL[rol]);
+    setCargando(true);
+    try {
+      await iniciarSesion(email, password);
+      // La navegación la resuelve App.tsx al detectar la sesión activa.
+    } catch (error) {
+      setErrorGeneral(mensajeError(error));
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  // Utilidad de desarrollo: deja el proyecto listo para demostrar en un toque.
+  // Crea las torres y las tres cuentas. Solo hace falta una vez por proyecto.
+  async function handlePrepararDemo() {
+    setSembrando(true);
+    setAvisoSemilla(null);
+    try {
+      const r = await prepararDemo(setAvisoSemilla);
+      const partes = [`${r.torres} torres`];
+      if (r.cuentasCreadas > 0) partes.push(`${r.cuentasCreadas} cuentas nuevas`);
+      if (r.cuentasExistentes > 0) partes.push(`${r.cuentasExistentes} ya existían`);
+      setAvisoSemilla(`Listo: ${partes.join(", ")}. Contraseña: ${PASSWORD_DEMO}`);
+      setEmail(CORREOS_DEMO.residente ?? "");
+      setPassword(PASSWORD_DEMO);
+    } catch (error) {
+      setAvisoSemilla(mensajeError(error));
+    } finally {
+      setSembrando(false);
+    }
   }
 
   return (
@@ -64,7 +81,12 @@ export default function LoginScreen({ nav }: { nav: Navegacion }) {
         style={{ flex: 1 }}
       >
         <ScrollView
-          contentContainerStyle={{ flexGrow: 1, justifyContent: "center", paddingHorizontal: 24, paddingVertical: 40 }}
+          contentContainerStyle={{
+            flexGrow: 1,
+            justifyContent: "center",
+            paddingHorizontal: 24,
+            paddingVertical: 40,
+          }}
           keyboardShouldPersistTaps="handled"
         >
           <View className="items-center mb-8">
@@ -78,18 +100,24 @@ export default function LoginScreen({ nav }: { nav: Navegacion }) {
           </View>
 
           <View className="bg-white rounded-3xl p-6 shadow-lg">
-            <Text className="text-gray-500 text-xs mb-2 ml-1">Ingresar como</Text>
-            <View className="mb-5">
-              <Segmentado
-                valor={rol}
-                alCambiar={cambiarRol}
-                opciones={[
-                  { valor: "residente", etiqueta: "🏠 Residente" },
-                  { valor: "administrador", etiqueta: "🛡️ Admin." },
-                  { valor: "gestor", etiqueta: "🚛 Gestor" },
-                ]}
-              />
-            </View>
+            <Text className="text-gray-800 text-lg font-bold mb-1">Iniciar sesión</Text>
+            <Text className="text-gray-500 text-xs mb-5">
+              Tu rol queda definido por tu cuenta, no por esta pantalla.
+            </Text>
+
+            {slotDemo ? (
+              <View className="bg-gray-100 rounded-lg px-3 py-2 mb-4">
+                <Text className="text-gray-500 text-[11px]">
+                  Panel de demostración: {slotDemo}
+                </Text>
+              </View>
+            ) : null}
+
+            {errorGeneral ? (
+              <View className="mb-4">
+                <Aviso texto={errorGeneral} />
+              </View>
+            ) : null}
 
             <Campo
               etiqueta="Correo electrónico"
@@ -99,6 +127,7 @@ export default function LoginScreen({ nav }: { nav: Navegacion }) {
               onFocus={() => setErrores((e) => ({ ...e, email: undefined }))}
               error={errores.email}
               autoCapitalize="none"
+              autoCorrect={false}
               keyboardType="email-address"
             />
 
@@ -112,14 +141,50 @@ export default function LoginScreen({ nav }: { nav: Navegacion }) {
               error={errores.password}
             />
 
-            <Boton titulo={TEXTO_BOTON[rol]} onPress={handleLogin} className="mt-3 mb-4" />
+            <Boton
+              titulo={cargando ? "Ingresando..." : "Iniciar sesión"}
+              cargando={cargando}
+              onPress={handleLogin}
+              className="mt-3 mb-4"
+            />
 
-            <TouchableOpacity onPress={() => nav.ir("register")} accessibilityRole="button">
+            <TouchableOpacity onPress={alRegistrarse} accessibilityRole="button">
               <Text className="text-center text-green-700 font-medium">
                 ¿No tienes cuenta? Regístrate
               </Text>
             </TouchableOpacity>
           </View>
+
+          {__DEV__ ? (
+            <View className="mt-6 bg-white/10 border border-white/20 rounded-2xl p-4">
+              <Text className="text-green-100 text-xs mb-2">
+                Configuración inicial (solo desarrollo)
+              </Text>
+              <TouchableOpacity
+                onPress={handlePrepararDemo}
+                disabled={sembrando}
+                accessibilityRole="button"
+                className={`bg-white/20 rounded-xl py-3 items-center ${
+                  sembrando ? "opacity-60" : ""
+                }`}
+              >
+                <Text className="text-white text-xs font-medium">
+                  {sembrando ? "Preparando..." : "Preparar todo para la demostración"}
+                </Text>
+              </TouchableOpacity>
+
+              <Text className="text-green-200 text-[10px] mt-2 leading-4">
+                Crea las 2 torres y las 3 cuentas ({CUENTAS_DEMO.map((c) => c.rol).join(", ")}),
+                ya vinculadas a su torre. Solo hace falta una vez.
+              </Text>
+
+              {avisoSemilla ? (
+                <Text className="text-white text-[11px] mt-2 text-center font-medium">
+                  {avisoSemilla}
+                </Text>
+              ) : null}
+            </View>
+          ) : null}
 
           <View className="flex-row justify-center items-center mt-8">
             <Text className="text-green-100 text-xs">📄 Papel</Text>

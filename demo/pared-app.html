@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>EcoTrack — Pared con la app real</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --borde:#22372C; --texto:#E8F2EC; --suave:#8FA89B; --verde:#15803D;
+
+    /* Los marcos se dimensionan según la pantalla: 420px es el ancho de un
+       teléfono grande real, y el alto aprovecha lo que sobra bajo la barra. */
+    --ancho-max: 420px;
+    --ancho-tel: clamp(330px, calc((100vw - 130px) / 3), var(--ancho-max));
+    --alto-tel: clamp(430px, calc(100vh - 235px), 880px);
+  }
+  :root[data-tamano="compacto"] { --ancho-max: 365px; }
+  :root[data-tamano="grande"]   { --ancho-max: 520px; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; color: var(--texto);
+    display: flex; flex-direction: column;
+    background: radial-gradient(1200px 600px at 50% -10%, #16301F 0%, transparent 60%), #0A1410;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  .barra {
+    display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+    padding: 10px 20px; border-bottom: 1px solid var(--borde);
+    background: rgba(10,20,16,.85); backdrop-filter: blur(8px);
+    position: sticky; top: 0; z-index: 10;
+  }
+  .marca { display: flex; align-items: center; gap: 12px; }
+  .glifo {
+    width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; font-size: 17px;
+    background: rgba(34,197,94,.15); border: 1px solid rgba(34,197,94,.35);
+  }
+  .marca h1 { margin: 0; font-size: 15px; }
+  .marca p { margin: 1px 0 0; font-size: 11px; color: var(--suave); }
+  .espacio { flex: 1; }
+
+  .boton {
+    font: inherit; font-size: 13px; font-weight: 600; padding: 9px 15px;
+    border-radius: 10px; cursor: pointer; border: 1px solid var(--borde);
+    background: #101F18; color: var(--texto);
+  }
+  .boton:hover { background: #172C22; }
+  .boton.principal { background: var(--verde); border-color: var(--verde); color: #fff; }
+  input.url {
+    font: inherit; font-size: 13px; padding: 8px 11px; width: 230px;
+    border-radius: 9px; border: 1px solid var(--borde); background: #0B1712; color: var(--texto);
+  }
+
+  .aviso {
+    margin: 10px 20px 0; padding: 9px 14px; border-radius: 10px; flex: 0 0 auto;
+    background: rgba(59,130,246,.1); border: 1px solid rgba(59,130,246,.3);
+    color: #BFDBFE; font-size: 11.5px; line-height: 1.5;
+  }
+  .aviso code { background: rgba(0,0,0,.35); padding: 1px 6px; border-radius: 5px; font-size: 12px; }
+
+  .pared {
+    display: flex; gap: clamp(12px, 2vw, 40px);
+    justify-content: center; align-items: center;
+    padding: clamp(10px, 1.4vw, 22px) 18px 16px;
+    overflow: auto; flex: 1; min-height: 0;
+  }
+  .columna { display: flex; flex-direction: column; align-items: center; gap: 9px; flex: 0 0 auto; }
+  .rotulo { text-align: center; max-width: var(--ancho-tel); }
+  .rotulo h2 { margin: 0; font-size: 14px; font-weight: 700; }
+  .rotulo p { margin: 2px 0 0; font-size: 11px; color: var(--suave); line-height: 1.35; }
+
+  .telefono {
+    width: var(--ancho-tel); height: var(--alto-tel);
+    background: #050B08; border: 1px solid #2A3F33;
+    border-radius: 42px; padding: 10px;
+    box-shadow: 0 30px 70px rgba(0,0,0,.6), 0 0 0 1px rgba(255,255,255,.04) inset;
+  }
+  .telefono iframe {
+    width: 100%; height: 100%; border: 0; border-radius: 32px; background: #F9FAFB; display: block;
+  }
+</style>
+</head>
+<body>
+
+<header class="barra">
+  <div class="marca">
+    <div class="glifo">♻️</div>
+    <div>
+      <h1>EcoTrack — Pared con la app real</h1>
+      <p>Tres instancias de la app de React Native corriendo en Expo Web</p>
+    </div>
+  </div>
+  <div class="espacio"></div>
+  <label style="font-size:12px;color:var(--suave)">
+    Servidor
+    <input class="url" id="base" value="http://localhost:8081" />
+  </label>
+  <label style="font-size:12px;color:var(--suave)">
+    Tamaño
+    <select class="boton" id="tamano" style="padding:7px 8px">
+      <option value="normal">Normal</option>
+      <option value="grande">Grande</option>
+      <option value="compacto">Compacto</option>
+    </select>
+  </label>
+  <button class="boton" id="pantalla">Pantalla completa</button>
+  <button class="boton" id="recargar">Recargar los tres</button>
+  <button class="boton principal" id="aplicar">Aplicar servidor</button>
+</header>
+
+<div class="aviso" id="aviso"></div>
+
+<main class="pared" id="pared"></main>
+
+<script>
+  const SLOTS = [
+    { id: "residente",     titulo: "Vista residente",     sub: "Deposita y escanea el QR del contenedor" },
+    { id: "administrador", titulo: "Vista administrador", sub: "Conserje · valida la tanda del día" },
+    { id: "gestor",        titulo: "Vista gestor",        sub: "Confirma el retiro y emite el certificado" },
+  ];
+
+  const pared = document.getElementById("pared");
+  const campoBase = document.getElementById("base");
+
+  const CLAVE = "ecotrack-pared-base";
+
+  // Si esta página está publicada en internet, la app vive en el mismo sitio.
+  // Si se abrió como archivo local, se asume el servidor de Expo en localhost.
+  const PREDETERMINADO = location.protocol.startsWith("http")
+    ? location.origin
+    : "http://localhost:8081";
+  campoBase.value = PREDETERMINADO;
+
+  try {
+    const guardado = localStorage.getItem(CLAVE);
+    if (guardado) campoBase.value = guardado;
+  } catch {}
+
+  function construir() {
+    const base = campoBase.value.replace(/\/+$/, "");
+    try { localStorage.setItem(CLAVE, base); } catch {}
+
+    pared.innerHTML = SLOTS.map((s) => `
+      <div class="columna">
+        <div class="rotulo">
+          <h2>${s.titulo}</h2>
+          <p>${s.sub}</p>
+        </div>
+        <div class="telefono">
+          <iframe src="${base}/?slot=${s.id}" title="${s.titulo}"
+                  allow="camera; clipboard-write"></iframe>
+        </div>
+      </div>`).join("");
+
+  }
+
+  const CLAVE_TAMANO = "ecotrack-pared-tamano";
+  const selectorTamano = document.getElementById("tamano");
+
+  function aplicarTamano(valor) {
+    document.documentElement.dataset.tamano = valor;
+    try { localStorage.setItem(CLAVE_TAMANO, valor); } catch {}
+  }
+
+  try {
+    const guardado = localStorage.getItem(CLAVE_TAMANO);
+    if (guardado) { selectorTamano.value = guardado; aplicarTamano(guardado); }
+  } catch {}
+
+  selectorTamano.addEventListener("change", (e) => aplicarTamano(e.target.value));
+
+  document.getElementById("pantalla").addEventListener("click", () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  });
+
+  document.getElementById("aplicar").addEventListener("click", construir);
+  document.getElementById("recargar").addEventListener("click", construir);
+  campoBase.addEventListener("keydown", (e) => { if (e.key === "Enter") construir(); });
+
+  // Aviso contextual: no es lo mismo estar publicado que abierto como archivo.
+  document.getElementById("aviso").innerHTML = location.protocol.startsWith("http")
+    ? `Esta pared incrusta la app real, servida desde este mismo sitio. Cada panel inicia
+       sesión por separado y su sesión queda guardada en este navegador, así que solo
+       escribes las contraseñas la primera vez.`
+    : `Esta pared incrusta la app real. Antes de usarla, deja corriendo
+       <code>npx expo start --web</code> dentro de la carpeta <code>app/</code>.
+       Si Metro te muestra otro puerto, cámbialo arriba y pulsa <strong>Aplicar servidor</strong>.
+       Cada panel inicia sesión por separado y su sesión queda guardada.`;
+
+  construir();
+</script>
+</body>
+</html>

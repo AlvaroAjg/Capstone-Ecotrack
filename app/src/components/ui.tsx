@@ -1,6 +1,14 @@
 import React from "react";
-import { View, Text, TouchableOpacity, TextInput, ScrollView } from "react-native";
-import { EstadoRegistro } from "../state/EcoTrack";
+import {
+  ActivityIndicator,
+  ScrollView,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import type { EstadoRegistro } from "../lib/tipos";
 
 export function Encabezado({
   tono = "verde",
@@ -130,6 +138,7 @@ export function Boton({
   variante = "primario",
   icono,
   deshabilitado = false,
+  cargando = false,
   className = "",
 }: {
   titulo: string;
@@ -137,21 +146,31 @@ export function Boton({
   variante?: VarianteBoton;
   icono?: string;
   deshabilitado?: boolean;
+  cargando?: boolean;
   className?: string;
 }) {
   const estilo = ESTILO_BOTON[variante];
+  const inactivo = deshabilitado || cargando;
   return (
     <TouchableOpacity
       onPress={onPress}
-      disabled={deshabilitado}
+      disabled={inactivo}
       activeOpacity={0.85}
       accessibilityRole="button"
       accessibilityLabel={titulo}
+      accessibilityState={{ disabled: inactivo, busy: cargando }}
       className={`rounded-xl py-4 items-center flex-row justify-center ${estilo.caja} ${
-        deshabilitado ? "opacity-40" : ""
+        inactivo ? "opacity-50" : ""
       } ${className}`}
     >
-      {icono ? <Text className="text-lg mr-2">{icono}</Text> : null}
+      {cargando ? (
+        <ActivityIndicator
+          color={variante === "primario" || variante === "oscuro" ? "#FFFFFF" : "#166534"}
+          style={{ marginRight: 8 }}
+        />
+      ) : icono ? (
+        <Text className="text-lg mr-2">{icono}</Text>
+      ) : null}
       <Text className={`font-semibold text-base ${estilo.texto}`}>{titulo}</Text>
     </TouchableOpacity>
   );
@@ -329,5 +348,40 @@ export function Cuerpo({ children }: { children: React.ReactNode }) {
     <ScrollView className="flex-1 bg-gray-50" contentContainerStyle={{ paddingBottom: 40 }}>
       {children}
     </ScrollView>
+  );
+}
+
+/** Pantalla completa de carga, usada mientras se resuelve la sesión. */
+export function PantallaCargando({ mensaje }: { mensaje?: string }) {
+  return (
+    <SafeAreaView className="flex-1 bg-green-700 items-center justify-center px-8">
+      <View className="w-20 h-20 rounded-full bg-white/15 items-center justify-center mb-5 border border-white/30">
+        <Text className="text-4xl">♻️</Text>
+      </View>
+      <Text className="text-white text-2xl font-bold mb-3">EcoTrack</Text>
+      <ActivityIndicator color="#FFFFFF" />
+      {mensaje ? (
+        <Text className="text-green-100 text-sm mt-4 text-center">{mensaje}</Text>
+      ) : null}
+    </SafeAreaView>
+  );
+}
+
+/** Banda de error. Se usa para fallos de red o de permisos de Firestore. */
+export function Aviso({
+  texto,
+  tono = "error",
+}: {
+  texto: string;
+  tono?: "error" | "info";
+}) {
+  const estilo =
+    tono === "error"
+      ? { caja: "bg-red-50 border-red-200", texto: "text-red-700" }
+      : { caja: "bg-blue-50 border-blue-200", texto: "text-blue-700" };
+  return (
+    <View className={`border rounded-xl px-4 py-3 ${estilo.caja}`}>
+      <Text className={`text-xs ${estilo.texto}`}>{texto}</Text>
+    </View>
   );
 }

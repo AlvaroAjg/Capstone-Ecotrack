@@ -1,0 +1,84 @@
+rules_version = '2';
+
+// Reglas de seguridad de EcoTrack.
+//
+// Principio: la cadena de verificación no puede saltarse etapas ni ser
+// manipulada por quien no corresponde. Un residente crea depósitos solo a su
+// nombre, el administrador valida solo su torre, y el certificado únicamente lo
+// emite el gestor sobre un depósito ya validado.
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function autenticado() {
+      return request.auth != null;
+    }
+
+    function miPerfil() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function miRol() {
+      return miPerfil().rol;
+    }
+
+    // ---------------------------------------------------------------- torres
+    match /torres/{torreId} {
+      allow read: if autenticado();
+      allow write: if autenticado() && miRol() == 'administrador';
+    }
+
+    // -------------------------------------------------------------- usuarios
+    match /usuarios/{uid} {
+      allow read: if autenticado();
+
+      // Cada quien crea su propio perfil al registrarse.
+      allow create: if autenticado() && request.auth.uid == uid;
+
+      // Puede editar su perfil (torre, departamento) pero NO su propio rol.
+      allow update: if autenticado()
+                    && request.auth.uid == uid
+                    && request.resource.data.rol == resource.data.rol;
+
+      allow delete: if false;
+    }
+
+    // ------------------------------------------------------------- registros
+    match /registros/{registroId} {
+      // Limitación conocida del prototipo: las reglas de Firestore autorizan
+      // documentos completos, no campos sueltos. La app le muestra al gestor
+      // solo el agregado por torre (kilos y materiales, sin nombres), pero a
+      // nivel de base de datos sigue pudiendo leer el documento entero.
+      // Para que esa separación sea real haría falta exponer el agregado a
+      // través de Cloud Functions. Queda documentado como trabajo futuro.
+      allow read: if autenticado();
+
+      // Un depósito nace siempre a nombre de quien lo crea y en estado pendiente.
+      allow create: if autenticado()
+                    && request.resource.data.residenteId == request.auth.uid
+                    && request.resource.data.estado == 'pendiente'
+                    && request.resource.data.codigo == null;
+
+      allow update: if autenticado() && (
+        // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente.
+        (
+          miRol() == 'administrador'
+          && miPerfil().torreId == resource.data.torreId
+          && resource.data.estado == 'pendiente'
+          && request.resource.data.estado in ['validado', 'rechazado']
+        )
+        ||
+        // Etapa 2: el gestor certifica un depósito ya validado.
+        // El gestor certifica el lote completo de una torre en un writeBatch;
+        // la regla se evalúa igual documento por documento.
+        (
+          miRol() == 'gestor'
+          && resource.data.estado == 'validado'
+          && request.resource.data.estado == 'certificado'
+        )
+      );
+
+      // Un registro de trazabilidad no se borra.
+      allow delete: if false;
+    }
+  }
+}

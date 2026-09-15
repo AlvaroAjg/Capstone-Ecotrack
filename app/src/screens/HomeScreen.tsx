@@ -1,10 +1,11 @@
 import React from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
-import { Registro, useEcoTrack } from "../state/EcoTrack";
+import { kgEfectivo, useEcoTrack, type Registro } from "../state/EcoTrack";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import {
   ASPECTO_ESTADO,
+  Aviso,
   Barra,
   Boton,
   CadenaVerificacion,
@@ -20,6 +21,8 @@ import {
 export default function HomeScreen({ nav }: { nav: Navegacion }) {
   const {
     usuario,
+    miTorre,
+    errorDatos,
     misRegistros,
     misKgDelMes,
     misCertificados,
@@ -29,13 +32,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
   } = useEcoTrack();
 
   const nombre = usuario?.nombre ?? "Residente";
-  const torre = usuario?.torre ?? "Torre A";
-  const resumen = resumenTorre(torre);
-
-  function salir() {
-    cerrarSesion();
-    nav.ir("login");
-  }
+  const resumen = resumenTorre(usuario?.torreId ?? null);
 
   return (
     <Cuerpo>
@@ -47,7 +44,8 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
               {nombre}
             </Text>
             <Text className="text-green-200 text-sm mt-1">
-              {torre} · {usuario?.depto ?? "Depto 305"} · Condominio Piloto
+              {miTorre?.nombre ?? "Sin torre"} · {usuario?.depto ?? ""} ·{" "}
+              {miTorre?.condominio ?? ""}
             </Text>
           </View>
           <View className="w-12 h-12 bg-green-600 rounded-full items-center justify-center">
@@ -66,6 +64,12 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           { valor: `${misCertificados.length}`, etiqueta: "Certificados" },
         ]}
       />
+
+      {errorDatos ? (
+        <View className="px-6 mt-6">
+          <Aviso texto={errorDatos} />
+        </View>
+      ) : null}
 
       <View className="px-6 mt-6">
         <Boton
@@ -107,12 +111,14 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
             <Text className="text-gray-800 font-medium flex-1 pr-2">
               Alcanzar {resumen.metaKg} kg como torre este mes
             </Text>
-            <Text className="text-green-700 font-semibold text-sm">{resumen.avanceMeta}%</Text>
+            <Text className="text-green-700 font-semibold text-sm">
+              {resumen.avanceMeta}%
+            </Text>
           </View>
           <Barra avance={resumen.avanceMeta} />
           <Text className="text-gray-400 text-xs mt-2">
-            {formatKg(resumen.kgMes)} de {resumen.metaKg} kg · {resumen.participacion}% de
-            departamentos participando
+            {formatKg(resumen.kgMes)} de {resumen.metaKg} kg ·{" "}
+            {resumen.deptosActivos} de {resumen.deptosTotales} departamentos participando
           </Text>
         </Tarjeta>
       </Seccion>
@@ -142,7 +148,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
       </Seccion>
 
       <View className="px-6 mt-6">
-        <Boton titulo="Cerrar sesión" variante="peligro" onPress={salir} />
+        <Boton titulo="Cerrar sesión" variante="peligro" onPress={() => cerrarSesion()} />
       </View>
     </Cuerpo>
   );
@@ -156,24 +162,38 @@ function TarjetaActividad({
   alAbrir?: () => void;
 }) {
   const aspecto = ASPECTO_ESTADO[registro.estado];
+  const pesoCorregido =
+    registro.kgConfirmado !== null &&
+    Math.abs(registro.kgConfirmado - registro.kgDeclarado) > 0.01;
 
   const contenido = (
     <Tarjeta className="mb-3">
-      <View className="flex-row items-center mb-3">
+      {/* La insignia va bajo el texto y no a su lado: en pantallas angostas
+          competía por el ancho y estrangulaba el título hasta una letra
+          por línea. */}
+      <View className="flex-row items-start mb-3">
         <View
           className={`w-10 h-10 ${aspecto.fondo} rounded-full items-center justify-center mr-3`}
         >
           <Text>{aspecto.emoji}</Text>
         </View>
-        <View className="flex-1 pr-2">
+        <View className="flex-1 min-w-0">
           <Text className="text-gray-800 font-medium">
-            {registro.material} · {formatKg(registro.kg)}
+            {registro.material} · {formatKg(kgEfectivo(registro))}
           </Text>
           <Text className="text-gray-400 text-xs mt-1">
             Contenedor {registro.contenedor} · {tiempoRelativo(registro.creadoEn)}
           </Text>
+          {pesoCorregido ? (
+            <Text className="text-amber-600 text-[10px] mt-1">
+              Peso ajustado por el administrador (declaraste{" "}
+              {formatKg(registro.kgDeclarado)})
+            </Text>
+          ) : null}
+          <View className="flex-row mt-2">
+            <Insignia estado={registro.estado} />
+          </View>
         </View>
-        <Insignia estado={registro.estado} />
       </View>
 
       <CadenaVerificacion estado={registro.estado} />

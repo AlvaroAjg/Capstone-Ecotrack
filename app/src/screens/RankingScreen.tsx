@@ -3,7 +3,7 @@ import { View, Text } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack } from "../state/EcoTrack";
 import { formatKg, porcentaje } from "../lib/formato";
-import { Barra, Cuerpo, Encabezado, Tarjeta, TituloEncabezado } from "../components/ui";
+import { Barra, Cuerpo, Encabezado, Tarjeta, TituloEncabezado, Vacio } from "../components/ui";
 
 const MEDALLAS = ["🥇", "🥈", "🥉"];
 
@@ -16,15 +16,21 @@ export default function RankingScreen({ nav }: { nav: Navegacion }) {
       <Encabezado>
         <TituloEncabezado
           titulo="Ranking semanal"
-          subtitulo="Solo suman los kilos con certificado emitido"
+          subtitulo="Solo suman los kilos certificados en el mes en curso"
           alVolver={nav.volver}
         />
       </Encabezado>
 
       <View className="px-6 mt-6">
+        {ranking.length === 0 ? (
+          <Vacio
+            emoji="🏢"
+            texto="Todavía no hay torres registradas en el condominio."
+          />
+        ) : null}
         {ranking.map((t, i) => (
           <Tarjeta
-            key={t.nombre}
+            key={t.torreId}
             className={`mb-3 ${t.esMiTorre ? "border-2 border-green-500" : ""}`}
           >
             <View className="flex-row justify-between items-center mb-3">

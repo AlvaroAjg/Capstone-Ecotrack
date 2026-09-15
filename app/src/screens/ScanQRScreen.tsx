@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Navegacion } from "../../App";
-import { Material, MATERIALES, useEcoTrack } from "../state/EcoTrack";
+import { MATERIALES, useEcoTrack, type Material } from "../state/EcoTrack";
 import { formatKg } from "../lib/formato";
 import { Boton, CadenaVerificacion } from "../components/ui";
 
@@ -11,13 +11,19 @@ type Paso = "escaneando" | "material" | "peso" | "listo";
 const PESOS_SUGERIDOS = [0.5, 1, 1.5, 2, 3, 4];
 
 export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
-  const { usuario, crearRegistro } = useEcoTrack();
+  const { miTorre, crearRegistro } = useEcoTrack();
   const [paso, setPaso] = useState<Paso>("escaneando");
   const [material, setMaterial] = useState<Material | null>(null);
   const [kg, setKg] = useState<number>(1);
   const [segundos, setSegundos] = useState(0);
 
-  const contenedor = usuario?.torre === "Torre B" ? "T-B-02" : "T-A-03";
+  const [guardando, setGuardando] = useState(false);
+
+  // Identificador del contenedor de la torre. Al integrar expo-camera este
+  // valor vendrá del contenido del QR, no del perfil del usuario.
+  const contenedor = miTorre
+    ? `${miTorre.id.replace("torre-", "T-").toUpperCase()}-01`
+    : "SIN-TORRE";
 
   useEffect(() => {
     if (paso === "listo") return;
@@ -25,10 +31,17 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
     return () => clearInterval(id);
   }, [paso]);
 
-  function confirmar() {
+  async function confirmar() {
     if (!material) return;
-    crearRegistro(material, kg, contenedor);
-    setPaso("listo");
+    setGuardando(true);
+    try {
+      await crearRegistro(material, kg, contenedor);
+      setPaso("listo");
+    } catch (e) {
+      Alert.alert("No se pudo registrar", String(e));
+    } finally {
+      setGuardando(false);
+    }
   }
 
   return (
@@ -70,7 +83,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             <Text className="text-white font-semibold">Simular detección de código</Text>
           </TouchableOpacity>
           <Text className="text-gray-500 text-xs mt-4 text-center">
-            La cámara real se integra con expo-camera en el sprint 2
+            La cámara real se integra con expo-camera en el próximo tramo. El registro que generes ya se guarda en Firestore.
           </Text>
         </View>
       )}
@@ -140,7 +153,13 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             })}
           </View>
 
-          <Boton titulo={`Registrar ${formatKg(kg)} de ${material}`} onPress={confirmar} />
+          <Boton
+            titulo={
+              guardando ? "Guardando..." : `Registrar ${formatKg(kg)} de ${material}`
+            }
+            cargando={guardando}
+            onPress={confirmar}
+          />
           <TouchableOpacity
             onPress={() => setPaso("material")}
             accessibilityRole="button"
@@ -168,7 +187,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             <CadenaVerificacion estado="pendiente" />
           </View>
 
-          <Boton titulo="Volver al inicio" onPress={() => nav.ir("home")} className="px-8 w-full" />
+          <Boton titulo="Volver al inicio" onPress={nav.volver} className="px-8 w-full" />
         </View>
       )}
     </SafeAreaView>

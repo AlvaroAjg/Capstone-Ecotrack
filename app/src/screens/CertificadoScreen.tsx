@@ -1,7 +1,7 @@
 import React from "react";
 import { View, Text, Alert } from "react-native";
 import { Navegacion } from "../../App";
-import { useEcoTrack } from "../state/EcoTrack";
+import { kgEfectivo, useEcoTrack } from "../state/EcoTrack";
 import { fechaLarga, formatKg, tiempoRelativo } from "../lib/formato";
 import {
   Boton,
@@ -36,7 +36,8 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
   function descargar() {
     Alert.alert(
       "Certificado EcoTrack",
-      `El PDF con código ${registro!.codigo} se descargará en tu dispositivo.`,
+      "La descarga del PDF llega en el sprint 4. El código de verificación " +
+        `${registro!.codigo} ya es válido y queda registrado en el sistema.`,
       [{ text: "Entendido" }]
     );
   }
@@ -69,11 +70,11 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
             {registro.residente}
           </Text>
           <Text className="text-gray-500 text-sm text-center mt-1">
-            {registro.torre} · {registro.depto} · Condominio Piloto
+            {registro.torreNombre} · {registro.depto}
           </Text>
 
           <Text className="text-gray-500 text-sm text-center mt-5">recicló de forma verificada</Text>
-          <Text className="text-green-700 text-3xl font-bold mt-1">{formatKg(registro.kg)}</Text>
+          <Text className="text-green-700 text-3xl font-bold mt-1">{formatKg(kgEfectivo(registro))}</Text>
           <Text className="text-gray-700 font-medium">{registro.material}</Text>
 
           <View className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 mt-6 items-center">
@@ -83,7 +84,13 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
             </Text>
           </View>
 
-          <Text className="text-gray-400 text-xs mt-4 text-center">
+          {registro.codigoRetiro ? (
+            <Text className="text-gray-400 text-xs mt-3 text-center">
+              Retirado en el lote {registro.codigoRetiro}
+            </Text>
+          ) : null}
+
+          <Text className="text-gray-400 text-xs mt-2 text-center">
             Emitido el {fechaLarga(registro.certificadoEn ?? registro.creadoEn)}
           </Text>
         </Tarjeta>
@@ -108,7 +115,7 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
           />
           <Etapa
             titulo="Confirmado por el gestor"
-            detalle="Recicla Sur SpA confirmó el retiro y procesamiento"
+            detalle={`El gestor retiró el contenedor de ${registro.torreNombre}${registro.codigoRetiro ? ` (lote ${registro.codigoRetiro})` : ""}`}
             momento={registro.certificadoEn}
             ultima
           />

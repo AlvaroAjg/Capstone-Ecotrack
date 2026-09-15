@@ -31,13 +31,21 @@ export function porcentaje(parte: number, total: number): number {
 
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
+function bloque(): string {
+  return Array.from(
+    { length: 4 },
+    () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]
+  ).join("");
+}
+
+/** Código del certificado individual de un residente. */
 export function generarCodigoVerificacion(): string {
-  const bloque = () =>
-    Array.from(
-      { length: 4 },
-      () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]
-    ).join("");
   return `ECO-${bloque()}-${bloque()}`;
+}
+
+/** Código del retiro: lo comparten todos los depósitos que salieron juntos. */
+export function generarCodigoRetiro(): string {
+  return `RET-${bloque()}`;
 }
 
 export function fechaLarga(timestamp: number): string {
@@ -48,4 +56,25 @@ export function fechaLarga(timestamp: number): string {
     hour: "2-digit",
     minute: "2-digit",
   });
+}
+
+/** Las métricas de torre y ranking se calculan sobre el mes calendario en curso. */
+export function esDelMesActual(timestamp: number | null): boolean {
+  if (!timestamp) return false;
+  const fecha = new Date(timestamp);
+  const hoy = new Date();
+  return (
+    fecha.getMonth() === hoy.getMonth() && fecha.getFullYear() === hoy.getFullYear()
+  );
+}
+
+export function esDeHoy(timestamp: number | null): boolean {
+  if (!timestamp) return false;
+  const fecha = new Date(timestamp);
+  const hoy = new Date();
+  return (
+    fecha.getDate() === hoy.getDate() &&
+    fecha.getMonth() === hoy.getMonth() &&
+    fecha.getFullYear() === hoy.getFullYear()
+  );
 }

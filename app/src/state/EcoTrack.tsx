@@ -1,384 +1,322 @@
-import React, { createContext, useContext, useMemo, useState } from "react";
-import { generarCodigoVerificacion, haceMinutos, porcentaje, sumaKg } from "../lib/formato";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  esDeHoy,
+  esDelMesActual,
+  porcentaje,
+  sumaKg,
+} from "../lib/formato";
+import {
+  kgEfectivo,
+  type FilaRanking,
+  type LoteRetiro,
+  type Material,
+  type Registro,
+  type ResumenTorre,
+  type Rol,
+  type Torre,
+  type Usuario,
+} from "../lib/tipos";
+import * as servicioAuth from "../services/auth";
+import * as servicioDemo from "../services/demo";
+import * as servicioRegistros from "../services/registros";
+import * as servicioTorres from "../services/torres";
 
-export type Material = "Papel/cartón" | "Plástico" | "Vidrio" | "Metal";
-export type Rol = "residente" | "administrador" | "gestor";
-export type TorreId = "Torre A" | "Torre B";
-
-export const MATERIALES: { nombre: Material; emoji: string }[] = [
-  { nombre: "Papel/cartón", emoji: "📄" },
-  { nombre: "Plástico", emoji: "🥤" },
-  { nombre: "Vidrio", emoji: "🍾" },
-  { nombre: "Metal", emoji: "🥫" },
-];
-
-export const TORRES: TorreId[] = ["Torre A", "Torre B"];
-
-export type EstadoRegistro = "pendiente" | "validado" | "certificado" | "rechazado";
-
-export interface Registro {
-  id: string;
-  residenteId: string;
-  residente: string;
-  depto: string;
-  torre: TorreId;
-  material: Material;
-  kg: number;
-  contenedor: string;
-  estado: EstadoRegistro;
-  creadoEn: number;
-  validadoEn: number | null;
-  certificadoEn: number | null;
-  codigo: string | null;
-}
-
-export interface Usuario {
-  id: string;
-  nombre: string;
-  depto: string;
-  torre: TorreId;
-  rol: Rol;
-}
-
-export const METAS_TORRE: Record<TorreId, number> = {
-  "Torre A": 200,
-  "Torre B": 150,
-};
-
-const DEPTOS_POR_TORRE: Record<TorreId, number> = {
-  "Torre A": 24,
-  "Torre B": 19,
-};
-
-export const CODIGOS_TORRE: Record<string, TorreId> = {
-  "ECO-TORRE-A": "Torre A",
-  "ECO-TORRE-B": "Torre B",
-};
-
-const REGISTROS_INICIALES: Registro[] = [
-  {
-    id: "r1",
-    residenteId: "u-matias",
-    residente: "Matías Bustamante",
-    depto: "Depto 402",
-    torre: "Torre A",
-    material: "Plástico",
-    kg: 2.1,
-    contenedor: "T-A-03",
-    estado: "pendiente",
-    creadoEn: haceMinutos(12),
-    validadoEn: null,
-    certificadoEn: null,
-    codigo: null,
-  },
-  {
-    id: "r2",
-    residenteId: "u-vicente",
-    residente: "Vicente Torres",
-    depto: "Depto 108",
-    torre: "Torre A",
-    material: "Vidrio",
-    kg: 1.4,
-    contenedor: "T-A-01",
-    estado: "pendiente",
-    creadoEn: haceMinutos(34),
-    validadoEn: null,
-    certificadoEn: null,
-    codigo: null,
-  },
-  {
-    id: "r3",
-    residenteId: "u-camila",
-    residente: "Camila Rojas",
-    depto: "Depto 701",
-    torre: "Torre B",
-    material: "Metal",
-    kg: 0.8,
-    contenedor: "T-B-02",
-    estado: "pendiente",
-    creadoEn: haceMinutos(8),
-    validadoEn: null,
-    certificadoEn: null,
-    codigo: null,
-  },
-  {
-    id: "r4",
-    residenteId: "u-pedro",
-    residente: "Pedro Soto",
-    depto: "Depto 203",
-    torre: "Torre B",
-    material: "Plástico",
-    kg: 1.6,
-    contenedor: "T-B-02",
-    estado: "validado",
-    creadoEn: haceMinutos(180),
-    validadoEn: haceMinutos(50),
-    certificadoEn: null,
-    codigo: null,
-  },
-  {
-    id: "r5",
-    residenteId: "yo",
-    residente: "Álvaro Jaña",
-    depto: "Depto 305",
-    torre: "Torre A",
-    material: "Vidrio",
-    kg: 1.4,
-    contenedor: "T-A-01",
-    estado: "validado",
-    creadoEn: haceMinutos(60 * 5),
-    validadoEn: haceMinutos(60 * 4),
-    certificadoEn: null,
-    codigo: null,
-  },
-  {
-    id: "r6",
-    residenteId: "yo",
-    residente: "Álvaro Jaña",
-    depto: "Depto 305",
-    torre: "Torre A",
-    material: "Papel/cartón",
-    kg: 3.0,
-    contenedor: "T-A-03",
-    estado: "certificado",
-    creadoEn: haceMinutos(60 * 30),
-    validadoEn: haceMinutos(60 * 28),
-    certificadoEn: haceMinutos(60 * 26),
-    codigo: "ECO-7KX2-9WMD",
-  },
-  {
-    id: "r7",
-    residenteId: "yo",
-    residente: "Álvaro Jaña",
-    depto: "Depto 305",
-    torre: "Torre A",
-    material: "Plástico",
-    kg: 2.1,
-    contenedor: "T-A-03",
-    estado: "certificado",
-    creadoEn: haceMinutos(60 * 52),
-    validadoEn: haceMinutos(60 * 50),
-    certificadoEn: haceMinutos(60 * 48),
-    codigo: "ECO-3BQ8-HTVN",
-  },
-];
-
-const BASE_KG_TORRE: Record<TorreId, number> = {
-  "Torre A": 130.9,
-  "Torre B": 92.4,
-};
-
-const TORRES_EXTERNAS = [
-  { nombre: "Torre C", condominio: "Condominio Los Aromos", kg: 214, participacion: 81 },
-  { nombre: "Torre D", condominio: "Condominio Los Aromos", kg: 121, participacion: 58 },
-  { nombre: "Torre E", condominio: "Villa Sur", kg: 67, participacion: 40 },
-];
-
-export interface ResumenTorre {
-  torre: TorreId;
-  residentes: number;
-  kgMes: number;
-  participacion: number;
-  metaKg: number;
-  avanceMeta: number;
-  pendientes: Registro[];
-}
-
-export interface FilaRanking {
-  nombre: string;
-  condominio: string;
-  kg: number;
-  participacion: number;
-  esMiTorre: boolean;
-}
+// Se reexportan para no romper los imports existentes de las pantallas.
+export {
+  MATERIALES,
+  ROLES,
+  kgEfectivo,
+  type EstadoRegistro,
+  type FilaRanking,
+  type LoteRetiro,
+  type Material,
+  type Registro,
+  type ResumenTorre,
+  type Rol,
+  type Torre,
+  type Usuario,
+} from "../lib/tipos";
 
 interface EcoTrackValor {
+  // Sesión
+  cargandoSesion: boolean;
+  preparandoDemo: boolean;
   usuario: Usuario | null;
+  miTorre: Torre | null;
+  errorDatos: string | null;
+
+  // Datos en vivo desde Firestore
   registros: Registro[];
+  torres: Torre[];
+
+  // Derivados del residente
   misRegistros: Registro[];
   misKgDelMes: number;
   misCertificados: Registro[];
   miPosicionRanking: number;
-  porRetirar: Registro[];
+
+  // Derivados del gestor: trabaja por lote de torre, nunca por residente
+  lotesPorRetirar: LoteRetiro[];
+  kgEnCola: number;
   retirosConfirmadosHoy: number;
-  iniciarSesion: (rol: Rol) => void;
-  registrarCuenta: (nombre: string) => void;
-  vincularTorre: (codigo: string) => TorreId | null;
-  cerrarSesion: () => void;
-  crearRegistro: (material: Material, kg: number, contenedor: string) => string;
-  validarRegistro: (id: string) => void;
-  rechazarRegistro: (id: string) => void;
-  confirmarRetiro: (id: string) => void;
+
+  // Acciones
+  iniciarSesion: (email: string, password: string) => Promise<void>;
+  registrarCuenta: (datos: {
+    nombre: string;
+    email: string;
+    password: string;
+    rol: Rol;
+    depto: string;
+  }) => Promise<void>;
+  vincularTorre: (codigo: string, depto: string) => Promise<Torre>;
+  cerrarSesion: () => Promise<void>;
+  prepararDemo: (
+    alAvanzar?: (mensaje: string) => void
+  ) => Promise<servicioDemo.ResultadoPreparacion>;
+  crearRegistro: (material: Material, kg: number, contenedor: string) => Promise<string>;
+  validarRegistro: (id: string, kgConfirmado: number) => Promise<void>;
+  rechazarRegistro: (id: string) => Promise<void>;
+  confirmarRetiro: (torreId: string) => Promise<string>;
   registroPorId: (id: string) => Registro | undefined;
-  resumenTorre: (torre: TorreId) => ResumenTorre;
+  resumenTorre: (torreId: string | null) => ResumenTorre;
   ranking: FilaRanking[];
 }
 
 const EcoTrackContext = createContext<EcoTrackValor | null>(null);
 
-const USUARIOS_DEMO: Record<Rol, Usuario> = {
-  residente: {
-    id: "yo",
-    nombre: "Álvaro Jaña",
-    depto: "Depto 305",
-    torre: "Torre A",
-    rol: "residente",
-  },
-  administrador: {
-    id: "admin",
-    nombre: "Carla Méndez",
-    depto: "Administración",
-    torre: "Torre A",
-    rol: "administrador",
-  },
-  gestor: {
-    id: "gestor",
-    nombre: "Recicla Sur SpA",
-    depto: "Gestor externo",
-    torre: "Torre A",
-    rol: "gestor",
-  },
-};
-
 export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
+  const [cargandoSesion, setCargandoSesion] = useState(true);
+  const [uid, setUid] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [registros, setRegistros] = useState<Registro[]>(REGISTROS_INICIALES);
-  const [retirosConfirmadosHoy, setRetirosConfirmadosHoy] = useState(0);
+  const [registros, setRegistros] = useState<Registro[]>([]);
+  const [torres, setTorres] = useState<Torre[]>([]);
+  const [errorDatos, setErrorDatos] = useState<string | null>(null);
+  const [preparandoDemo, setPreparandoDemo] = useState(false);
 
-  function iniciarSesion(rol: Rol) {
-    setUsuario(USUARIOS_DEMO[rol]);
-  }
+  // Entre `createUser` y la creación del documento de perfil hay una ventana en
+  // la que el usuario está autenticado pero aún no tiene perfil. Esta bandera
+  // evita mostrar la pantalla de login durante ese instante.
+  const registrandoRef = useRef(false);
 
-  function registrarCuenta(nombre: string) {
-    setUsuario({ id: "yo", nombre, depto: "Depto 305", torre: "Torre A", rol: "residente" });
-  }
+  // 1. Sesión de Firebase Auth (persistida en AsyncStorage).
+  useEffect(() => {
+    return servicioAuth.escucharSesion((u) => {
+      setUid(u?.uid ?? null);
+      if (!u) {
+        setUsuario(null);
+        setCargandoSesion(false);
+      }
+    });
+  }, []);
 
-  function vincularTorre(codigo: string): TorreId | null {
-    const torre = CODIGOS_TORRE[codigo.trim().toUpperCase()];
-    if (!torre) return null;
-    setUsuario((prev) => (prev ? { ...prev, torre } : prev));
-    return torre;
-  }
+  // 2. Perfil del usuario en Firestore.
+  useEffect(() => {
+    if (!uid) return;
+    setCargandoSesion(true);
+    return servicioAuth.escucharPerfil(uid, (perfil) => {
+      if (!perfil) {
+        // Durante el registro el perfil todavía se está creando.
+        if (registrandoRef.current) return;
+        // Sesión autenticada sin documento de perfil: se cierra para no dejar
+        // al usuario en un estado a medias.
+        servicioAuth.cerrarSesion().catch(() => undefined);
+        return;
+      }
+      setUsuario(perfil);
+      setCargandoSesion(false);
+    });
+  }, [uid]);
 
-  function cerrarSesion() {
-    setUsuario(null);
-  }
-
-  function crearRegistro(material: Material, kg: number, contenedor: string): string {
-    const id = `r-${Date.now()}`;
-    const nuevo: Registro = {
-      id,
-      residenteId: usuario?.id ?? "yo",
-      residente: usuario?.nombre ?? "Residente",
-      depto: usuario?.depto ?? "Depto 305",
-      torre: usuario?.torre ?? "Torre A",
-      material,
-      kg,
-      contenedor,
-      estado: "pendiente",
-      creadoEn: Date.now(),
-      validadoEn: null,
-      certificadoEn: null,
-      codigo: null,
-    };
-    setRegistros((prev) => [nuevo, ...prev]);
-    return id;
-  }
-
-  function validarRegistro(id: string) {
-    setRegistros((prev) =>
-      prev.map((r) =>
-        r.id === id && r.estado === "pendiente"
-          ? { ...r, estado: "validado" as const, validadoEn: Date.now() }
-          : r
-      )
-    );
-  }
-
-  function rechazarRegistro(id: string) {
-    setRegistros((prev) =>
-      prev.map((r) =>
-        r.id === id && r.estado === "pendiente" ? { ...r, estado: "rechazado" as const } : r
-      )
-    );
-  }
-
-  function confirmarRetiro(id: string) {
-    setRegistros((prev) =>
-      prev.map((r) =>
-        r.id === id && r.estado === "validado"
-          ? {
-              ...r,
-              estado: "certificado" as const,
-              certificadoEn: Date.now(),
-              codigo: generarCodigoVerificacion(),
-            }
-          : r
-      )
-    );
-    setRetirosConfirmadosHoy((n) => n + 1);
-  }
-
-  function registroPorId(id: string) {
-    return registros.find((r) => r.id === id);
-  }
-
-  const kgCertificadosPorTorre = useMemo(() => {
-    const acumulado: Record<TorreId, number> = { "Torre A": 0, "Torre B": 0 };
-    for (const r of registros) {
-      if (r.estado === "certificado") acumulado[r.torre] += r.kg;
+  // 3. Datos compartidos: torres y registros, en tiempo real.
+  useEffect(() => {
+    if (!uid) {
+      setRegistros([]);
+      setTorres([]);
+      setErrorDatos(null);
+      return;
     }
-    return acumulado;
-  }, [registros]);
 
-  function kgTorre(torre: TorreId): number {
-    return Math.round((BASE_KG_TORRE[torre] + kgCertificadosPorTorre[torre]) * 10) / 10;
-  }
-
-  function participacionTorre(torre: TorreId): number {
-    const deptosActivos = new Set(
-      registros.filter((r) => r.torre === torre && r.estado !== "rechazado").map((r) => r.depto)
+    const dejarTorres = servicioTorres.escucharTorres(setTorres);
+    const dejarRegistros = servicioRegistros.escucharRegistros(
+      (lista) => {
+        setRegistros(lista);
+        setErrorDatos(null);
+      },
+      (error) => setErrorDatos(servicioAuth.mensajeError(error))
     );
 
-    const piso = torre === "Torre A" ? 58 : 42;
-    return Math.min(
-      100,
-      piso + Math.round((deptosActivos.size / DEPTOS_POR_TORRE[torre]) * 100 * 0.4)
-    );
-  }
-
-  function resumenTorre(torre: TorreId): ResumenTorre {
-    const kgMes = kgTorre(torre);
-    return {
-      torre,
-      residentes: DEPTOS_POR_TORRE[torre],
-      kgMes,
-      participacion: participacionTorre(torre),
-      metaKg: METAS_TORRE[torre],
-      avanceMeta: porcentaje(kgMes, METAS_TORRE[torre]),
-      pendientes: registros
-        .filter((r) => r.torre === torre && r.estado === "pendiente")
-        .sort((a, b) => b.creadoEn - a.creadoEn),
+    return () => {
+      dejarTorres();
+      dejarRegistros();
     };
-  }
+  }, [uid]);
+
+  const miTorre = useMemo(
+    () => torres.find((t) => t.id === usuario?.torreId) ?? null,
+    [torres, usuario]
+  );
+
+  // ---------------------------------------------------------------- acciones
+
+  const iniciarSesion = useCallback(async (email: string, password: string) => {
+    await servicioAuth.iniciarSesion(email, password);
+  }, []);
+
+  const registrarCuenta = useCallback(
+    async (datos: {
+      nombre: string;
+      email: string;
+      password: string;
+      rol: Rol;
+      depto: string;
+    }) => {
+      registrandoRef.current = true;
+      try {
+        await servicioAuth.registrarCuenta(datos);
+      } catch (error) {
+        // Si la cuenta de Auth se creó pero el perfil no, se cierra la sesión
+        // para que el usuario pueda reintentar desde cero.
+        await servicioAuth.cerrarSesion().catch(() => undefined);
+        throw error;
+      } finally {
+        registrandoRef.current = false;
+      }
+    },
+    []
+  );
+
+  const vincularTorre = useCallback(
+    async (codigo: string, depto: string) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      const torre = await servicioTorres.buscarTorrePorCodigo(codigo);
+      if (!torre) throw new Error("Código no válido. Verifícalo con tu administrador.");
+      await servicioAuth.vincularTorreAlPerfil(usuario.id, torre.id, torre.nombre, depto);
+      return torre;
+    },
+    [usuario]
+  );
+
+  const cerrarSesion = useCallback(async () => {
+    await servicioAuth.cerrarSesion();
+  }, []);
+
+  /**
+   * Prepara el proyecto para demostrar: torres y las tres cuentas, de una vez.
+   * Durante el proceso la sesión cambia varias veces (una por cuenta creada),
+   * por eso se marca `registrandoRef` y `preparandoDemo`: así la app no
+   * interpreta esos estados intermedios como una sesión rota.
+   */
+  const prepararDemo = useCallback(
+    async (alAvanzar?: (mensaje: string) => void) => {
+      registrandoRef.current = true;
+      setPreparandoDemo(true);
+      try {
+        return await servicioDemo.prepararDemo(alAvanzar);
+      } finally {
+        registrandoRef.current = false;
+        setPreparandoDemo(false);
+      }
+    },
+    []
+  );
+
+  const crearRegistro = useCallback(
+    async (material: Material, kg: number, contenedor: string) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      return servicioRegistros.crearRegistro(usuario, material, kg, contenedor);
+    },
+    [usuario]
+  );
+
+  const validarRegistro = useCallback(
+    async (id: string, kgConfirmado: number) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      await servicioRegistros.validarRegistro(id, usuario.id, kgConfirmado);
+    },
+    [usuario]
+  );
+
+  const rechazarRegistro = useCallback(
+    async (id: string) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      await servicioRegistros.rechazarRegistro(id, usuario.id);
+    },
+    [usuario]
+  );
+
+  const registroPorId = useCallback(
+    (id: string) => registros.find((r) => r.id === id),
+    [registros]
+  );
+
+  // --------------------------------------------------------------- derivados
+
+  /**
+   * Métricas reales, calculadas solo con datos de Firestore.
+   * No hay valores base ni pisos artificiales: si la torre no ha certificado
+   * nada este mes, el contador muestra 0.
+   */
+  const resumenTorre = useCallback(
+    (torreId: string | null): ResumenTorre => {
+      const torre = torres.find((t) => t.id === torreId) ?? null;
+      const deLaTorre = registros.filter((r) => r.torreId === torreId);
+
+      const certificadosDelMes = deLaTorre.filter(
+        (r) => r.estado === "certificado" && esDelMesActual(r.certificadoEn)
+      );
+      const kgMes = sumaKg(certificadosDelMes.map(kgEfectivo));
+
+      const deptosActivos = new Set(
+        deLaTorre
+          .filter((r) => r.estado !== "rechazado" && esDelMesActual(r.creadoEn))
+          .map((r) => r.depto)
+          .filter(Boolean)
+      );
+
+      const deptosTotales = torre?.deptosTotales ?? 0;
+      const metaKg = torre?.metaKg ?? 0;
+
+      return {
+        torre,
+        deptosActivos: deptosActivos.size,
+        deptosTotales,
+        kgMes,
+        participacion: porcentaje(deptosActivos.size, deptosTotales),
+        metaKg,
+        avanceMeta: porcentaje(kgMes, metaKg),
+        pendientes: deLaTorre.filter((r) => r.estado === "pendiente"),
+      };
+    },
+    [registros, torres]
+  );
 
   const ranking = useMemo<FilaRanking[]>(() => {
-    const propias: FilaRanking[] = TORRES.map((torre) => ({
-      nombre: torre,
-      condominio: "Condominio Piloto",
-      kg: kgTorre(torre),
-      participacion: participacionTorre(torre),
-      esMiTorre: usuario?.torre === torre,
-    }));
-    const externas: FilaRanking[] = TORRES_EXTERNAS.map((t) => ({ ...t, esMiTorre: false }));
-    return [...propias, ...externas].sort((a, b) => b.kg - a.kg);
-  }, [registros, usuario]);
+    return torres
+      .map((torre) => {
+        const resumen = resumenTorre(torre.id);
+        return {
+          torreId: torre.id,
+          nombre: torre.nombre,
+          condominio: torre.condominio,
+          kg: resumen.kgMes,
+          participacion: resumen.participacion,
+          esMiTorre: torre.id === usuario?.torreId,
+        };
+      })
+      .sort((a, b) => b.kg - a.kg);
+  }, [torres, resumenTorre, usuario]);
 
   const misRegistros = useMemo(
-    () =>
-      registros
-        .filter((r) => r.residenteId === (usuario?.id ?? "yo"))
-        .sort((a, b) => b.creadoEn - a.creadoEn),
+    () => (usuario ? registros.filter((r) => r.residenteId === usuario.id) : []),
     [registros, usuario]
   );
 
@@ -388,7 +326,12 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const misKgDelMes = useMemo(
-    () => sumaKg(misCertificados.map((r) => r.kg)),
+    () =>
+      sumaKg(
+        misCertificados
+          .filter((r) => esDelMesActual(r.certificadoEn))
+          .map(kgEfectivo)
+      ),
     [misCertificados]
   );
 
@@ -397,27 +340,94 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     return indice === -1 ? ranking.length : indice + 1;
   }, [ranking]);
 
-  const porRetirar = useMemo(
+  /**
+   * Lo que ve el gestor: un lote por torre, no depósitos individuales.
+   * Refleja la operación real (se retira el contenedor de una torre) y de paso
+   * evita exponerle los nombres de los residentes.
+   */
+  const lotesPorRetirar = useMemo<LoteRetiro[]>(() => {
+    const validados = registros.filter((r) => r.estado === "validado");
+
+    const porTorre = new Map<string, Registro[]>();
+    for (const r of validados) {
+      const lista = porTorre.get(r.torreId) ?? [];
+      lista.push(r);
+      porTorre.set(r.torreId, lista);
+    }
+
+    return Array.from(porTorre.entries())
+      .map(([torreId, lista]) => {
+        const torre = torres.find((t) => t.id === torreId) ?? null;
+
+        const acumulado = new Map<Material, number>();
+        for (const r of lista) {
+          acumulado.set(r.material, (acumulado.get(r.material) ?? 0) + kgEfectivo(r));
+        }
+
+        return {
+          torreId,
+          torreNombre: torre?.nombre ?? lista[0].torreNombre ?? torreId,
+          condominio: torre?.condominio ?? "",
+          registros: lista,
+          kgTotal: sumaKg(lista.map(kgEfectivo)),
+          depositos: lista.length,
+          porMaterial: Array.from(acumulado.entries())
+            .map(([material, kg]) => ({ material, kg: Math.round(kg * 10) / 10 }))
+            .sort((a, b) => b.kg - a.kg),
+          esperandoDesde: Math.min(...lista.map((r) => r.validadoEn ?? r.creadoEn)),
+        };
+      })
+      .sort((a, b) => a.esperandoDesde - b.esperandoDesde);
+  }, [registros, torres]);
+
+  const kgEnCola = useMemo(
+    () => sumaKg(lotesPorRetirar.map((l) => l.kgTotal)),
+    [lotesPorRetirar]
+  );
+
+  /** Confirma el retiro del contenedor completo de una torre. */
+  const confirmarRetiro = useCallback(
+    async (torreId: string) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      const lote = lotesPorRetirar.find((l) => l.torreId === torreId);
+      if (!lote) throw new Error("Ese lote ya no está disponible.");
+      return servicioRegistros.confirmarRetiroDeTorre(lote.registros, usuario.id);
+    },
+    [usuario, lotesPorRetirar]
+  );
+
+
+  const retirosConfirmadosHoy = useMemo(
     () =>
-      registros
-        .filter((r) => r.estado === "validado")
-        .sort((a, b) => (a.validadoEn ?? 0) - (b.validadoEn ?? 0)),
-    [registros]
+      registros.filter(
+        (r) =>
+          r.estado === "certificado" &&
+          r.certificadoPor === usuario?.id &&
+          esDeHoy(r.certificadoEn)
+      ).length,
+    [registros, usuario]
   );
 
   const valor: EcoTrackValor = {
+    cargandoSesion,
+    preparandoDemo,
     usuario,
+    miTorre,
+    errorDatos,
     registros,
+    torres,
     misRegistros,
     misKgDelMes,
     misCertificados,
     miPosicionRanking,
-    porRetirar,
+    lotesPorRetirar,
+    kgEnCola,
     retirosConfirmadosHoy,
     iniciarSesion,
     registrarCuenta,
     vincularTorre,
     cerrarSesion,
+    prepararDemo,
     crearRegistro,
     validarRegistro,
     rechazarRegistro,
