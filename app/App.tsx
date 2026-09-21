@@ -13,6 +13,7 @@ import ScanQRScreen from "./src/screens/ScanQRScreen";
 import GestorScreen from "./src/screens/GestorScreen";
 import RankingScreen from "./src/screens/RankingScreen";
 import CertificadoScreen from "./src/screens/CertificadoScreen";
+import PerfilScreen from "./src/screens/PerfilScreen";
 
 export type Pantalla =
   | "home"
@@ -20,7 +21,8 @@ export type Pantalla =
   | "escanear"
   | "gestor"
   | "ranking"
-  | "certificado";
+  | "certificado"
+  | "perfil";
 
 export interface ParamsPantalla {
   registroId?: string;
@@ -74,6 +76,8 @@ function PilaApp({ rol }: { rol: Rol }) {
       return <RankingScreen nav={nav} />;
     case "certificado":
       return <CertificadoScreen nav={nav} />;
+    case "perfil":
+      return <PerfilScreen nav={nav} />;
     default:
       return <HomeScreen nav={nav} />;
   }

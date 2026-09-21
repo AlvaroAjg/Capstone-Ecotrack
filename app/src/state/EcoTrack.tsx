@@ -78,6 +78,8 @@ interface EcoTrackValor {
     depto: string;
   }) => Promise<void>;
   vincularTorre: (codigo: string, depto: string) => Promise<Torre>;
+  actualizarPerfil: (datos: { nombre: string; depto?: string }) => Promise<void>;
+  cambiarContrasena: (actual: string, nueva: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
   prepararDemo: (
     alAvanzar?: (mensaje: string) => void
@@ -204,6 +206,19 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     },
     [usuario]
   );
+
+  const actualizarPerfil = useCallback(
+    async (datos: { nombre: string; depto?: string }) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      // El perfil se escucha en tiempo real: al guardar, `usuario` se refresca solo.
+      await servicioAuth.actualizarPerfil(usuario.id, datos);
+    },
+    [usuario]
+  );
+
+  const cambiarContrasena = useCallback(async (actual: string, nueva: string) => {
+    await servicioAuth.cambiarContrasena(actual, nueva);
+  }, []);
 
   const cerrarSesion = useCallback(async () => {
     await servicioAuth.cerrarSesion();
@@ -426,6 +441,8 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     iniciarSesion,
     registrarCuenta,
     vincularTorre,
+    actualizarPerfil,
+    cambiarContrasena,
     cerrarSesion,
     prepararDemo,
     crearRegistro,

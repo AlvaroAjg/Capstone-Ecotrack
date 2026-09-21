@@ -1,9 +1,11 @@
 import React, { useState } from "react";
-import { Alert, Text, View } from "react-native";
+import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { MATERIALES, useEcoTrack, type LoteRetiro } from "../state/EcoTrack";
+import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import {
+  AvatarPerfil,
   Aviso,
   Boton,
   Cuerpo,
@@ -31,7 +33,6 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
     retirosConfirmadosHoy,
     errorDatos,
     confirmarRetiro,
-    cerrarSesion,
   } = useEcoTrack();
 
   const [ultimoRetiro, setUltimoRetiro] = useState<string | null>(null);
@@ -39,11 +40,20 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
   return (
     <Cuerpo>
       <Encabezado tono="oscuro">
-        <TituloEncabezado
-          tono="oscuro"
-          titulo="Retiros pendientes"
-          subtitulo={`${usuario?.nombre ?? "Gestor"} · contenedores por torre`}
-        />
+        <View className="flex-row justify-between items-center">
+          <View className="flex-1 pr-3">
+            <TituloEncabezado
+              tono="oscuro"
+              titulo="Retiros pendientes"
+              subtitulo={`${usuario?.nombre ?? "Gestor"} · contenedores por torre`}
+            />
+          </View>
+          <AvatarPerfil
+            nombre={usuario?.nombre ?? "Gestor"}
+            alPresionar={() => nav.ir("perfil")}
+            color="bg-gray-700"
+          />
+        </View>
       </Encabezado>
 
       <FilaMetricas
@@ -90,14 +100,6 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
         )}
       </Seccion>
 
-      <View className="px-6 mt-6">
-        <Boton
-          titulo="Cerrar sesión"
-          variante="secundario"
-          onPress={() => cerrarSesion()}
-          className="py-3"
-        />
-      </View>
     </Cuerpo>
   );
 }
@@ -123,7 +125,7 @@ function TarjetaLote({
       const codigo = await alConfirmar(lote.torreId);
       alConfirmado(codigo);
     } catch (e) {
-      Alert.alert("No se pudo confirmar el retiro", String(e));
+      avisar("No se pudo confirmar el retiro", textoDeError(e));
       setOcupado(false);
     }
   }

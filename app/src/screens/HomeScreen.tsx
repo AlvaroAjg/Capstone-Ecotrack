@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { kgEfectivo, useEcoTrack, type Registro } from "../state/EcoTrack";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import {
   ASPECTO_ESTADO,
+  AvatarPerfil,
   Aviso,
   Barra,
   Boton,
@@ -18,6 +19,9 @@ import {
   Vacio,
 } from "../components/ui";
 
+/** Cuántos depósitos se muestran antes de pedir "Ver anteriores". */
+const REGISTROS_VISIBLES = 3;
+
 export default function HomeScreen({ nav }: { nav: Navegacion }) {
   const {
     usuario,
@@ -28,17 +32,29 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     misCertificados,
     miPosicionRanking,
     resumenTorre,
-    cerrarSesion,
   } = useEcoTrack();
+
+  const [verTodos, setVerTodos] = useState(false);
 
   const nombre = usuario?.nombre ?? "Residente";
   const resumen = resumenTorre(usuario?.torreId ?? null);
 
+  // Por defecto solo los más recientes: el historial largo empujaba todo hacia abajo.
+  const visibles = verTodos ? misRegistros : misRegistros.slice(0, REGISTROS_VISIBLES);
+  const anteriores = misRegistros.length - REGISTROS_VISIBLES;
+
   return (
     <Cuerpo>
       <Encabezado>
+        {/* Tocar el nombre o el avatar abre "Mi cuenta". */}
         <View className="flex-row justify-between items-center">
-          <View className="flex-1 pr-3">
+          <TouchableOpacity
+            onPress={() => nav.ir("perfil")}
+            activeOpacity={0.8}
+            accessibilityRole="button"
+            accessibilityLabel="Abrir mi cuenta"
+            className="flex-1 pr-3"
+          >
             <Text className="text-green-100 text-sm">Bienvenido de vuelta</Text>
             <Text className="text-white text-2xl font-bold mt-1" numberOfLines={1}>
               {nombre}
@@ -47,12 +63,8 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
               {miTorre?.nombre ?? "Sin torre"} · {usuario?.depto ?? ""} ·{" "}
               {miTorre?.condominio ?? ""}
             </Text>
-          </View>
-          <View className="w-12 h-12 bg-green-600 rounded-full items-center justify-center">
-            <Text className="text-white font-bold text-lg">
-              {nombre.charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          </TouchableOpacity>
+          <AvatarPerfil nombre={nombre} alPresionar={() => nav.ir("perfil")} />
         </View>
       </Encabezado>
 
@@ -133,23 +145,35 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
             texto="Aún no registras reciclaje. Escanea el QR del contenedor para empezar."
           />
         ) : (
-          misRegistros.map((r) => (
-            <TarjetaActividad
-              key={r.id}
-              registro={r}
-              alAbrir={
-                r.estado === "certificado"
-                  ? () => nav.ir("certificado", { registroId: r.id })
-                  : undefined
-              }
-            />
-          ))
+          <>
+            {visibles.map((r) => (
+              <TarjetaActividad
+                key={r.id}
+                registro={r}
+                alAbrir={
+                  r.estado === "certificado"
+                    ? () => nav.ir("certificado", { registroId: r.id })
+                    : undefined
+                }
+              />
+            ))}
+            {anteriores > 0 ? (
+              <TouchableOpacity
+                onPress={() => setVerTodos((v) => !v)}
+                accessibilityRole="button"
+                accessibilityState={{ expanded: verTodos }}
+                className="py-3 items-center"
+              >
+                <Text className="text-green-700 text-sm font-medium">
+                  {verTodos
+                    ? "Ocultar los anteriores ▲"
+                    : `Ver ${anteriores} anterior${anteriores === 1 ? "" : "es"} ▼`}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+          </>
         )}
       </Seccion>
-
-      <View className="px-6 mt-6">
-        <Boton titulo="Cerrar sesión" variante="peligro" onPress={() => cerrarSesion()} />
-      </View>
     </Cuerpo>
   );
 }

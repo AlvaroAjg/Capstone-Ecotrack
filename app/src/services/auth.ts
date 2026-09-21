@@ -1,8 +1,11 @@
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
   onAuthStateChanged,
+  reauthenticateWithCredential,
   signInWithEmailAndPassword,
   signOut,
+  updatePassword,
   updateProfile,
   type User,
 } from "firebase/auth";
@@ -81,6 +84,39 @@ export async function vincularTorreAlPerfil(
   depto: string
 ): Promise<void> {
   await updateDoc(doc(db, "usuarios", uid), { torreId, torreNombre, depto });
+}
+
+/**
+ * Actualiza los datos personales editables. El rol y la torre no se tocan desde
+ * aquí: el rol lo protegen las reglas de Firestore y la torre se cambia con el
+ * administrador.
+ */
+export async function actualizarPerfil(
+  uid: string,
+  datos: { nombre: string; depto?: string }
+): Promise<void> {
+  const cambios: { nombre: string; depto?: string } = { nombre: datos.nombre };
+  if (datos.depto !== undefined) cambios.depto = datos.depto;
+
+  await updateDoc(doc(db, "usuarios", uid), cambios);
+
+  // El nombre también vive en Firebase Auth; si esa copia falla no se pierde el
+  // cambio principal, que ya quedó en Firestore.
+  if (auth.currentUser) {
+    await updateProfile(auth.currentUser, { displayName: datos.nombre }).catch(() => undefined);
+  }
+}
+
+/**
+ * Cambia la contraseña. Firebase exige una sesión reciente para operaciones
+ * sensibles, así que primero se vuelve a confirmar la contraseña actual.
+ */
+export async function cambiarContrasena(actual: string, nueva: string): Promise<void> {
+  const usuario = auth.currentUser;
+  if (!usuario || !usuario.email) throw new Error("No hay una sesión activa.");
+
+  await reauthenticateWithCredential(usuario, EmailAuthProvider.credential(usuario.email, actual));
+  await updatePassword(usuario, nueva);
 }
 
 const MENSAJES: Record<string, string> = {

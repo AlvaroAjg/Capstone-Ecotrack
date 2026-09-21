@@ -1,9 +1,13 @@
 import React, { useState } from "react";
-import { Alert, Text, TouchableOpacity, View } from "react-native";
+import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Registro } from "../state/EcoTrack";
+import { avisar, confirmar, textoDeError } from "../lib/dialogos";
 import { formatKg, tiempoRelativo } from "../lib/formato";
+import { contenidoQr, idContenedor } from "../lib/qr";
+import CodigoQR from "../components/CodigoQR";
 import {
+  AvatarPerfil,
   Aviso,
   Barra,
   Boton,
@@ -23,45 +27,40 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     resumenTorre,
     validarRegistro,
     rechazarRegistro,
-    cerrarSesion,
   } = useEcoTrack();
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
   const [validandoTanda, setValidandoTanda] = useState(false);
+  const [mostrarQr, setMostrarQr] = useState(false);
 
   /**
    * El conserje pasa una vez al día y revisa el contenedor completo, no
    * depósito por depósito. Esta acción cierra toda la cola pendiente de una vez,
    * tomando el peso declarado por cada residente.
    */
-  function validarTanda() {
+  async function validarTanda() {
     const pendientes = resumen.pendientes;
     if (pendientes.length === 0) return;
 
-    Alert.alert(
+    const acepta = await confirmar(
       "Validar la tanda del día",
       `Se validarán ${pendientes.length} depósito${
         pendientes.length === 1 ? "" : "s"
       } con el peso declarado por cada residente. Los que necesiten corrección puedes ajustarlos uno a uno.`,
-      [
-        { text: "Cancelar", style: "cancel" },
-        {
-          text: "Validar todo",
-          onPress: async () => {
-            setValidandoTanda(true);
-            try {
-              for (const p of pendientes) {
-                await validarRegistro(p.id, p.kgDeclarado);
-              }
-            } catch (e) {
-              Alert.alert("No se pudo completar", String(e));
-            } finally {
-              setValidandoTanda(false);
-            }
-          },
-        },
-      ]
+      "Validar todo"
     );
+    if (!acepta) return;
+
+    setValidandoTanda(true);
+    try {
+      for (const p of pendientes) {
+        await validarRegistro(p.id, p.kgDeclarado);
+      }
+    } catch (e) {
+      avisar("No se pudo completar", textoDeError(e));
+    } finally {
+      setValidandoTanda(false);
+    }
   }
 
   return (
@@ -77,11 +76,11 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
               {usuario?.nombre ?? "Administrador"} · {miTorre?.condominio ?? ""}
             </Text>
           </View>
-          <View className="w-12 h-12 bg-gray-700 rounded-full items-center justify-center">
-            <Text className="text-white font-bold text-lg">
-              {(usuario?.nombre ?? "A").charAt(0).toUpperCase()}
-            </Text>
-          </View>
+          <AvatarPerfil
+            nombre={usuario?.nombre ?? "Administrador"}
+            alPresionar={() => nav.ir("perfil")}
+            color="bg-gray-700"
+          />
         </View>
       </Encabezado>
 
@@ -135,6 +134,35 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         )}
       </Seccion>
 
+      {usuario?.torreId ? (
+        <Seccion titulo="Contenedor de la torre">
+          <Tarjeta className="items-center">
+            {mostrarQr ? (
+              <>
+                <CodigoQR texto={contenidoQr(usuario.torreId)} tamano={240} />
+                <Text className="text-gray-900 font-bold text-lg tracking-widest mt-3">
+                  {idContenedor(usuario.torreId)}
+                </Text>
+                <Text className="text-gray-400 text-xs text-center mt-1 mb-4">
+                  Imprímelo y pégalo en el contenedor. Los residentes lo escanean al depositar.
+                </Text>
+              </>
+            ) : (
+              <Text className="text-gray-500 text-xs text-center mb-4">
+                Cada contenedor tiene un QR propio. Solo los residentes de esta torre pueden
+                registrar depósitos con él.
+              </Text>
+            )}
+            <Boton
+              titulo={mostrarQr ? "Ocultar QR" : "Mostrar QR del contenedor"}
+              variante="secundario"
+              onPress={() => setMostrarQr((v) => !v)}
+              className="py-3 self-stretch"
+            />
+          </Tarjeta>
+        </Seccion>
+      ) : null}
+
       <Seccion titulo="Misión de la torre">
         <Tarjeta>
           <View className="flex-row justify-between items-center mb-2">
@@ -153,10 +181,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
             titulo="Editar incentivo"
             variante="secundario"
             onPress={() =>
-              Alert.alert(
+              avisar(
                 "Incentivo",
-                "La edición de misiones e incentivos llega en el sprint 5.",
-                [{ text: "Entendido" }]
+                "La edición de misiones e incentivos llega en el sprint 5."
               )
             }
             className="py-3"
@@ -170,19 +197,11 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
           icono="📊"
           variante="oscuro"
           onPress={() =>
-            Alert.alert(
+            avisar(
               "Reporte mensual",
-              "La exportación a PDF llega en el sprint 4, junto con el certificado descargable.",
-              [{ text: "Entendido" }]
+              "La exportación del reporte mensual en PDF llega en un próximo tramo."
             )
           }
-          className="mb-3"
-        />
-        <Boton
-          titulo="Cerrar sesión"
-          variante="secundario"
-          onPress={() => cerrarSesion()}
-          className="py-3"
         />
       </View>
     </Cuerpo>
@@ -213,7 +232,7 @@ function TarjetaPendiente({
     try {
       await accion();
     } catch (e) {
-      Alert.alert("No se pudo completar", String(e));
+      avisar("No se pudo completar", textoDeError(e));
       setOcupado(false);
     }
   }

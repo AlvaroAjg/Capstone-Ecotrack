@@ -21,6 +21,38 @@ export function Encabezado({
   return <View className={`${fondo} pt-14 pb-10 px-6 rounded-b-3xl`}>{children}</View>;
 }
 
+/**
+ * Avatar del usuario en el encabezado. Al tocarlo se abre "Mi cuenta", donde se
+ * administran los datos personales y se cierra la sesión.
+ */
+export function AvatarPerfil({
+  nombre,
+  alPresionar,
+  color = "bg-green-600",
+}: {
+  nombre: string;
+  alPresionar: () => void;
+  color?: string;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={alPresionar}
+      activeOpacity={0.8}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel="Mi cuenta"
+      className="items-center"
+    >
+      <View className={`w-12 h-12 ${color} rounded-full items-center justify-center`}>
+        <Text className="text-white font-bold text-lg">
+          {(nombre.trim().charAt(0) || "?").toUpperCase()}
+        </Text>
+      </View>
+      <Text className="text-white/70 text-[10px] mt-1">Mi cuenta</Text>
+    </TouchableOpacity>
+  );
+}
+
 export function TituloEncabezado({
   titulo,
   subtitulo,
