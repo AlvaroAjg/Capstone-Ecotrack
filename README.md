@@ -179,7 +179,18 @@ npm install
 npx expo start
 ```
 
-> Requiere Node.js y la app **Expo Go** instalada en el celular (o un emulador Android/iOS) para probar la app durante el desarrollo. Configuración de Firebase (claves y proyecto) se documentará una vez creado el proyecto en la consola de Firebase.
+> Requiere Node.js y la app **Expo Go** instalada en el celular (o un emulador Android/iOS) para probar la app durante el desarrollo. Configuración de Firebase (claves y proyecto) en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).
+
+### Instalar en el iPhone sin App Store (PWA)
+
+EcoTrack se publica como aplicación web instalable (PWA), por lo que no requiere cuenta de desarrollador de Apple ni descargar nada:
+
+```bash
+node scripts/publicar.mjs
+npx firebase-tools deploy --only hosting
+```
+
+Luego, en el iPhone: abrir `https://ecotrack-capstone-3f12d.web.app/` **en Safari** → botón Compartir → **Añadir a pantalla de inicio**. Se abre a pantalla completa, con su ícono y sin la barra del navegador. La sesión del ícono es independiente de la de Safari, así que hay que iniciar sesión una vez dentro de la app instalada.
 
 ## Licencia
 

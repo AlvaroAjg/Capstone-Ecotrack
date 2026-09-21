@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
+    <!-- viewport-fit=cover deja que la app use toda la pantalla del iPhone (notch y barra inferior);
+         los márgenes seguros los resuelve react-native-safe-area-context con env(safe-area-inset-*). -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
+    />
+    <title>EcoTrack</title>
+
+    <!-- PWA: instalable desde el navegador, sin tienda de aplicaciones. -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="application-name" content="EcoTrack" />
+
+    <!-- iOS Safari ignora parte del manifest, así que necesita estas etiquetas propias. -->
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="EcoTrack" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="format-detection" content="telephone=no" />
+
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    <style id="expo-reset">
+      /* These styles make the body full-height */
+      html,
+      body {
+        height: 100%;
+      }
+      /* These styles disable body scrolling if you are using <ScrollView> */
+      body {
+        overflow: hidden;
+        /* Evita el rebote elástico y la selección de texto al tocar, como en una app nativa. */
+        overscroll-behavior: none;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+        background-color: #15803d;
+      }
+      /* These styles make the root element full-height */
+      #root {
+        display: flex;
+        height: 100%;
+        flex: 1;
+      }
+      /* En notebook o proyector la app se ve como un teléfono centrado, no estirada.
+         En un celular (o en un iframe de la pared de demostración) no aplica. */
+      @media (min-width: 700px) {
+        body {
+          background-color: #111827;
+        }
+        #root {
+          max-width: 430px;
+          margin: 0 auto;
+          box-shadow: 0 0 0 1px #374151, 0 20px 60px rgba(0, 0, 0, 0.5);
+        }
+      }
+    </style>
+  </head>
+
+  <body>
+    <noscript>
+      EcoTrack necesita JavaScript para funcionar.
+    </noscript>
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  </body>
+</html>
