@@ -86,8 +86,10 @@ se porte bien, está garantizada por el servidor.
 
 Con dos teléfonos (o un teléfono + emulador):
 
-1. **Teléfono A, residente:** Escanear QR → simular código → material → peso →
-   registrar.
+1. **Teléfono A, residente:** Escanear QR → material → peso → registrar. El QR
+   del contenedor lo muestra el administrador en **Contenedor de la torre →
+   Mostrar QR** (en pantalla o impreso). Si la cámara no lo lee, se puede
+   escribir el código a mano (`T-A-01`). Un QR de otra torre es rechazado.
 2. **Teléfono B, administrador:** el depósito **aparece solo, sin recargar**.
    Ajusta el peso si a la vista difiere, y valida. O usa
    **"Validar la tanda del día"** para cerrar toda la cola de una vez, que es
@@ -146,9 +148,10 @@ registros/{id}
 
 ## Qué quedó fuera de este tramo
 
-- Cámara real con `expo-camera` (hoy hay un botón "Simular detección").
-- PDF descargable con `expo-print`.
-- Notificaciones de avance (`expo-notifications`).
+- Escáner con cámara y PDF del certificado en la app nativa (Expo Go): hoy
+  existen solo en la versión web instalada (PWA), que es la que se presenta.
+  En el teléfono nativo el código del contenedor se escribe a mano.
+- Notificaciones de avance.
 - Misiones e incentivos editables por el administrador.
 - Exportación del reporte mensual.
 

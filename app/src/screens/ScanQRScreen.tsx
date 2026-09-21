@@ -1,17 +1,20 @@
 import React, { useEffect, useState } from "react";
-import { ActivityIndicator, Alert, Text, TouchableOpacity, View } from "react-native";
+import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Navegacion } from "../../App";
 import { MATERIALES, useEcoTrack, type Material } from "../state/EcoTrack";
+import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg } from "../lib/formato";
+import { interpretarContenedor } from "../lib/qr";
 import { Boton, CadenaVerificacion } from "../components/ui";
+import EscanerQR from "../components/EscanerQR";
 
 type Paso = "escaneando" | "material" | "peso" | "listo";
 
 const PESOS_SUGERIDOS = [0.5, 1, 1.5, 2, 3, 4];
 
 export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
-  const { miTorre, crearRegistro } = useEcoTrack();
+  const { usuario, crearRegistro } = useEcoTrack();
   const [paso, setPaso] = useState<Paso>("escaneando");
   const [material, setMaterial] = useState<Material | null>(null);
   const [kg, setKg] = useState<number>(1);
@@ -19,11 +22,22 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
 
   const [guardando, setGuardando] = useState(false);
 
-  // Identificador del contenedor de la torre. Al integrar expo-camera este
-  // valor vendrá del contenido del QR, no del perfil del usuario.
-  const contenedor = miTorre
-    ? `${miTorre.id.replace("torre-", "T-").toUpperCase()}-01`
-    : "SIN-TORRE";
+  // Contenedor leído del QR (o escrito a mano). Se valida contra la torre del
+  // usuario antes de avanzar: no se puede depositar en el contenedor de otra torre.
+  const [contenedor, setContenedor] = useState("");
+  const [codigoManual, setCodigoManual] = useState("");
+  const [errorLectura, setErrorLectura] = useState<string | null>(null);
+
+  function procesarCodigo(texto: string) {
+    const lectura = interpretarContenedor(texto, usuario?.torreId ?? null);
+    if (!lectura.ok) {
+      setErrorLectura(lectura.error);
+      return;
+    }
+    setErrorLectura(null);
+    setContenedor(lectura.contenedor);
+    setPaso((actual) => (actual === "escaneando" ? "material" : actual));
+  }
 
   useEffect(() => {
     if (paso === "listo") return;
@@ -38,7 +52,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
       await crearRegistro(material, kg, contenedor);
       setPaso("listo");
     } catch (e) {
-      Alert.alert("No se pudo registrar", String(e));
+      avisar("No se pudo registrar", textoDeError(e));
     } finally {
       setGuardando(false);
     }
@@ -65,26 +79,41 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
 
       {paso === "escaneando" && (
         <View className="flex-1 items-center justify-center px-6">
-          <View className="w-64 h-64 border-2 border-green-500 rounded-3xl items-center justify-center mb-8">
-            <View className="w-56 h-56 border border-green-400/40 rounded-2xl items-center justify-center">
-              <Text className="text-6xl mb-4">📷</Text>
-              <ActivityIndicator color="#22C55E" />
-            </View>
+          <View className="border-2 border-green-500 rounded-[28px] p-1 mb-6">
+            <EscanerQR alLeer={procesarCodigo} />
           </View>
-          <Text className="text-white text-base font-medium mb-1">Buscando código QR...</Text>
-          <Text className="text-gray-400 text-sm text-center mb-8">
-            Apunta la cámara al código del contenedor
+          <Text className="text-white text-base font-medium mb-1">Escanea el código QR</Text>
+          <Text className="text-gray-400 text-sm text-center mb-4">
+            Apunta la cámara al código del contenedor de tu torre
           </Text>
-          <TouchableOpacity
-            onPress={() => setPaso("material")}
-            accessibilityRole="button"
-            className="bg-green-600 rounded-xl px-6 py-3"
-          >
-            <Text className="text-white font-semibold">Simular detección de código</Text>
-          </TouchableOpacity>
-          <Text className="text-gray-500 text-xs mt-4 text-center">
-            La cámara real se integra con expo-camera en el próximo tramo. El registro que generes ya se guarda en Firestore.
-          </Text>
+
+          {errorLectura ? (
+            <View className="bg-red-500/15 border border-red-400/40 rounded-xl px-4 py-3 mb-4 w-full">
+              <Text className="text-red-300 text-xs text-center">{errorLectura}</Text>
+            </View>
+          ) : null}
+
+          <Text className="text-gray-500 text-xs mb-2">¿No lee? Escribe el código del contenedor</Text>
+          <View className="flex-row w-full">
+            <TextInput
+              value={codigoManual}
+              onChangeText={setCodigoManual}
+              onSubmitEditing={() => procesarCodigo(codigoManual)}
+              placeholder="T-A-01"
+              placeholderTextColor="#6B7280"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              accessibilityLabel="Código del contenedor"
+              className="flex-1 bg-gray-800 border border-gray-700 rounded-xl px-4 py-3 text-white text-center tracking-widest mr-2"
+            />
+            <TouchableOpacity
+              onPress={() => procesarCodigo(codigoManual)}
+              accessibilityRole="button"
+              className="bg-green-600 rounded-xl px-5 items-center justify-center"
+            >
+              <Text className="text-white font-semibold">Usar</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       )}
 

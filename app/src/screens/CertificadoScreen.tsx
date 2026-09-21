@@ -1,7 +1,9 @@
-import React from "react";
-import { View, Text, Alert } from "react-native";
+import React, { useState } from "react";
+import { View, Text } from "react-native";
 import { Navegacion } from "../../App";
 import { kgEfectivo, useEcoTrack } from "../state/EcoTrack";
+import { descargarCertificado } from "../lib/certificadoPdf";
+import { avisar, textoDeError } from "../lib/dialogos";
 import { fechaLarga, formatKg, tiempoRelativo } from "../lib/formato";
 import {
   Boton,
@@ -15,7 +17,8 @@ import {
 
 export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
   const { registroPorId } = useEcoTrack();
-  const registro = nav.params.registroId ? registroPorId(nav.params.registroId) : undefined;
+  const [generando, setGenerando] = useState(false);
+  const registro =nav.params.registroId ? registroPorId(nav.params.registroId) : undefined;
 
   if (!registro || registro.estado !== "certificado" || !registro.codigo) {
     return (
@@ -33,13 +36,18 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
     );
   }
 
-  function descargar() {
-    Alert.alert(
-      "Certificado EcoTrack",
-      "La descarga del PDF llega en el sprint 4. El código de verificación " +
-        `${registro!.codigo} ya es válido y queda registrado en el sistema.`,
-      [{ text: "Entendido" }]
-    );
+  async function descargar() {
+    setGenerando(true);
+    try {
+      const resultado = await descargarCertificado(registro!);
+      if (resultado === "descargado") {
+        avisar("Certificado descargado", "El PDF quedó guardado en la carpeta de descargas de tu dispositivo.");
+      }
+    } catch (e) {
+      avisar("No se pudo generar el PDF", textoDeError(e));
+    } finally {
+      setGenerando(false);
+    }
   }
 
   return (
@@ -123,7 +131,13 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
       </View>
 
       <View className="px-6 mt-6">
-        <Boton titulo="Descargar PDF" icono="⬇️" onPress={descargar} className="mb-3" />
+        <Boton
+          titulo={generando ? "Generando PDF..." : "Descargar PDF"}
+          icono="⬇️"
+          cargando={generando}
+          onPress={descargar}
+          className="mb-3"
+        />
         <Boton
           titulo="Volver"
           variante="secundario"
