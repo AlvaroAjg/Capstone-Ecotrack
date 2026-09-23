@@ -18,6 +18,7 @@ import {
   type FilaRanking,
   type LoteRetiro,
   type Material,
+  type Mision,
   type Registro,
   type ResumenTorre,
   type Rol,
@@ -26,6 +27,7 @@ import {
 } from "../lib/tipos";
 import * as servicioAuth from "../services/auth";
 import * as servicioDemo from "../services/demo";
+import * as servicioMisiones from "../services/misiones";
 import * as servicioRegistros from "../services/registros";
 import * as servicioTorres from "../services/torres";
 
@@ -38,6 +40,7 @@ export {
   type FilaRanking,
   type LoteRetiro,
   type Material,
+  type Mision,
   type Registro,
   type ResumenTorre,
   type Rol,
@@ -68,6 +71,9 @@ interface EcoTrackValor {
   kgEnCola: number;
   retirosConfirmadosHoy: number;
 
+  // Misión activa de mi torre (null si todavía no se ha definido una)
+  mision: Mision | null;
+
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
   registrarCuenta: (datos: {
@@ -76,8 +82,11 @@ interface EcoTrackValor {
     password: string;
     rol: Rol;
     depto: string;
+    /** Solo para gestor: código que habilita ese rol al crear la cuenta. */
+    codigoRolUsado?: string;
   }) => Promise<void>;
   vincularTorre: (codigo: string, depto: string) => Promise<Torre>;
+  vincularComoAdministrador: (codigoTorre: string, codigoAdmin: string) => Promise<Torre>;
   actualizarPerfil: (datos: { nombre: string; depto?: string }) => Promise<void>;
   cambiarContrasena: (actual: string, nueva: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
@@ -90,6 +99,7 @@ interface EcoTrackValor {
   confirmarRetiro: (torreId: string) => Promise<string>;
   registroPorId: (id: string) => Registro | undefined;
   resumenTorre: (torreId: string | null) => ResumenTorre;
+  guardarMision: (datos: { metaKg: number; incentivo: string }) => Promise<void>;
   ranking: FilaRanking[];
 }
 
@@ -103,6 +113,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const [torres, setTorres] = useState<Torre[]>([]);
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [preparandoDemo, setPreparandoDemo] = useState(false);
+  const [mision, setMision] = useState<Mision | null>(null);
 
   // Entre `createUser` y la creación del documento de perfil hay una ventana en
   // la que el usuario está autenticado pero aún no tiene perfil. Esta bandera
@@ -162,6 +173,16 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     };
   }, [uid]);
 
+  // 4. Misión activa de mi torre. El gestor no tiene torre, así que nunca escucha una.
+  useEffect(() => {
+    const torreId = usuario?.torreId ?? null;
+    if (!torreId) {
+      setMision(null);
+      return;
+    }
+    return servicioMisiones.escucharMision(torreId, setMision);
+  }, [usuario?.torreId]);
+
   const miTorre = useMemo(
     () => torres.find((t) => t.id === usuario?.torreId) ?? null,
     [torres, usuario]
@@ -202,6 +223,30 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
       const torre = await servicioTorres.buscarTorrePorCodigo(codigo);
       if (!torre) throw new Error("Código no válido. Verifícalo con tu administrador.");
       await servicioAuth.vincularTorreAlPerfil(usuario.id, torre.id, torre.nombre, depto);
+      return torre;
+    },
+    [usuario]
+  );
+
+  /**
+   * Un residente se promueve a administrador de su torre presentando el
+   * código de esa torre. La regla de Firestore es quien realmente decide: si
+   * el código está mal, esta llamada falla con un mensaje claro en vez del
+   * genérico "permission-denied".
+   */
+  const vincularComoAdministrador = useCallback(
+    async (codigoTorre: string, codigoAdmin: string) => {
+      if (!usuario) throw new Error("No hay una sesión activa.");
+      const torre = await servicioTorres.buscarTorrePorCodigo(codigoTorre);
+      if (!torre) throw new Error("Código de torre no válido. Verifícalo con tu administrador.");
+      try {
+        await servicioAuth.promoverAAdministrador(usuario.id, torre.id, torre.nombre, codigoAdmin);
+      } catch (error) {
+        if ((error as { code?: string })?.code === "permission-denied") {
+          throw new Error("Código de administrador incorrecto.");
+        }
+        throw error;
+      }
       return torre;
     },
     [usuario]
@@ -273,6 +318,14 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [registros]
   );
 
+  const guardarMision = useCallback(
+    async (datos: { metaKg: number; incentivo: string }) => {
+      if (!usuario?.torreId) throw new Error("No hay una sesión activa.");
+      await servicioMisiones.guardarMision(usuario.torreId, usuario.id, datos);
+    },
+    [usuario]
+  );
+
   // --------------------------------------------------------------- derivados
 
   /**
@@ -298,7 +351,11 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
       );
 
       const deptosTotales = torre?.deptosTotales ?? 0;
-      const metaKg = torre?.metaKg ?? 0;
+      // La misión de la torre, si el administrador definió una, reemplaza la
+      // meta base sembrada en Torre.metaKg. `mision` solo está cargada para la
+      // torre del usuario actual, de ahí la comprobación de torreId.
+      const metaKg =
+        mision && mision.torreId === torreId ? mision.metaKg : torre?.metaKg ?? 0;
 
       return {
         torre,
@@ -311,7 +368,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
         pendientes: deLaTorre.filter((r) => r.estado === "pendiente"),
       };
     },
-    [registros, torres]
+    [registros, torres, mision]
   );
 
   const ranking = useMemo<FilaRanking[]>(() => {
@@ -438,9 +495,11 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     lotesPorRetirar,
     kgEnCola,
     retirosConfirmadosHoy,
+    mision,
     iniciarSesion,
     registrarCuenta,
     vincularTorre,
+    vincularComoAdministrador,
     actualizarPerfil,
     cambiarContrasena,
     cerrarSesion,
@@ -451,6 +510,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     confirmarRetiro,
     registroPorId,
     resumenTorre,
+    guardarMision,
     ranking,
   };
 

@@ -101,6 +101,20 @@ export interface ResumenTorre {
   pendientes: Registro[];
 }
 
+/**
+ * Misión activa de una torre: la meta del mes y el incentivo que definió el
+ * administrador. Colección `misiones/{torreId}`, un documento por torre; si no
+ * existe, la torre todavía no tiene misión propia (se usa la meta base de
+ * `Torre.metaKg`, sin incentivo).
+ */
+export interface Mision {
+  torreId: string;
+  metaKg: number;
+  incentivo: string;
+  actualizadaEn: number;
+  actualizadaPor: string;
+}
+
 export interface FilaRanking {
   torreId: string;
   nombre: string;

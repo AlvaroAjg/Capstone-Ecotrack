@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
-import { useEcoTrack, type Registro } from "../state/EcoTrack";
+import { useEcoTrack, type Mision, type Registro } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import { contenidoQr, idContenedor } from "../lib/qr";
@@ -11,6 +11,7 @@ import {
   Aviso,
   Barra,
   Boton,
+  Campo,
   Cuerpo,
   Encabezado,
   FilaMetricas,
@@ -27,6 +28,8 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     resumenTorre,
     validarRegistro,
     rechazarRegistro,
+    mision,
+    guardarMision,
   } = useEcoTrack();
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
@@ -164,31 +167,13 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
       ) : null}
 
       <Seccion titulo="Misión de la torre">
-        <Tarjeta>
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-800 font-medium flex-1 pr-2">
-              {resumen.metaKg} kg certificados este mes
-            </Text>
-            <Text className="text-green-700 font-semibold text-sm">
-              {resumen.avanceMeta}%
-            </Text>
-          </View>
-          <Barra avance={resumen.avanceMeta} />
-          <Text className="text-gray-400 text-xs mt-2 mb-3">
-            {formatKg(resumen.kgMes)} de {resumen.metaKg} kg acumulados
-          </Text>
-          <Boton
-            titulo="Editar incentivo"
-            variante="secundario"
-            onPress={() =>
-              avisar(
-                "Incentivo",
-                "La edición de misiones e incentivos llega en el sprint 5."
-              )
-            }
-            className="py-3"
-          />
-        </Tarjeta>
+        <TarjetaMision
+          mision={mision}
+          kgMes={resumen.kgMes}
+          metaKg={resumen.metaKg}
+          avanceMeta={resumen.avanceMeta}
+          alGuardar={guardarMision}
+        />
       </Seccion>
 
       <View className="px-6 mt-6">
@@ -205,6 +190,113 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         />
       </View>
     </Cuerpo>
+  );
+}
+
+/**
+ * Meta en kilos e incentivo de la torre, editables por el administrador.
+ * Mientras no se haya definido una misión propia, muestra la meta base
+ * sembrada en la torre (`metaKg` ya viene resuelta así desde `resumenTorre`).
+ */
+function TarjetaMision({
+  mision,
+  kgMes,
+  metaKg,
+  avanceMeta,
+  alGuardar,
+}: {
+  mision: Mision | null;
+  kgMes: number;
+  metaKg: number;
+  avanceMeta: number;
+  alGuardar: (datos: { metaKg: number; incentivo: string }) => Promise<void>;
+}) {
+  const [editando, setEditando] = useState(false);
+  const [meta, setMeta] = useState(String(metaKg));
+  const [incentivo, setIncentivo] = useState(mision?.incentivo ?? "");
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState<string | undefined>();
+
+  function abrir() {
+    setMeta(String(metaKg));
+    setIncentivo(mision?.incentivo ?? "");
+    setError(undefined);
+    setEditando(true);
+  }
+
+  async function guardar() {
+    const metaNum = Number(meta.replace(",", "."));
+    if (!Number.isFinite(metaNum) || metaNum <= 0) {
+      setError("Ingresa una meta en kilos mayor a 0.");
+      return;
+    }
+    setGuardando(true);
+    try {
+      await alGuardar({ metaKg: metaNum, incentivo: incentivo.trim() });
+      setEditando(false);
+    } catch (e) {
+      setError(textoDeError(e));
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  return (
+    <Tarjeta>
+      <View className="flex-row justify-between items-center mb-2">
+        <Text className="text-gray-800 font-medium flex-1 pr-2">
+          {metaKg} kg certificados este mes
+        </Text>
+        <Text className="text-green-700 font-semibold text-sm">{avanceMeta}%</Text>
+      </View>
+      <Barra avance={avanceMeta} />
+      <Text className="text-gray-400 text-xs mt-2 mb-3">
+        {formatKg(kgMes)} de {metaKg} kg acumulados
+      </Text>
+
+      {mision?.incentivo ? (
+        <View className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3">
+          <Text className="text-amber-800 text-xs">🎁 {mision.incentivo}</Text>
+        </View>
+      ) : null}
+
+      {!editando ? (
+        <Boton titulo="Editar incentivo" variante="secundario" onPress={abrir} className="py-3" />
+      ) : (
+        <>
+          {error ? (
+            <View className="mb-3">
+              <Aviso texto={error} />
+            </View>
+          ) : null}
+          <Campo
+            etiqueta="Meta en kilos este mes"
+            value={meta}
+            onChangeText={setMeta}
+            keyboardType="decimal-pad"
+          />
+          <Campo
+            etiqueta="Incentivo"
+            placeholder="Ej: entrada al cine para el depto que más recicló"
+            value={incentivo}
+            onChangeText={setIncentivo}
+          />
+          <Boton
+            titulo={guardando ? "Guardando..." : "Guardar misión"}
+            cargando={guardando}
+            onPress={guardar}
+            className="py-3 mb-2"
+          />
+          <Boton
+            titulo="Cancelar"
+            variante="secundario"
+            onPress={() => setEditando(false)}
+            deshabilitado={guardando}
+            className="py-3"
+          />
+        </>
+      )}
+    </Tarjeta>
   );
 }
 
