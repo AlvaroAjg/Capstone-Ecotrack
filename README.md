@@ -32,9 +32,30 @@ Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesi
 
 ## Alcance del proyecto de título
 
-**Prototipo (App Movil) que contiene lo siguiente:**
+**Prototipo (App móvil, publicado también como app web instalable) que contiene lo siguiente:**
 
 Sistema de trazabilidad de reciclaje colectivo con incentivos verificables.
+
+## Estado actual de la implementación
+
+Los módulos de más abajo describen el alcance planificado. Esto es lo que
+realmente funciona hoy, contra Firebase real, no simulado:
+
+| Módulo | Estado | Detalle |
+|---|---|---|
+| 1 — Incorporación | ✅ Implementado | Registro (residente o gestor con código), vinculación a torre por código, y promoción a administrador con el código propio de esa torre. Nadie se autoasigna un rol: lo exigen las reglas de Firestore, no la app. |
+| 2 — Registro de reciclaje | 🔶 Parcial | Escaneo con cámara real y selección de material, en la versión web instalada. En el teléfono nativo (Expo Go) el código del contenedor se ingresa a mano. |
+| 3 — Validación en 2 etapas | 🔶 Parcial | Las dos etapas (administrador → gestor) funcionan y están garantizadas por el servidor. Falta la validación diaria por lote como una sola operación atómica, y las notificaciones de avance. |
+| 4 — Certificado digital | 🔶 Parcial | El PDF se genera y se descarga o comparte desde la versión web instalada. No está disponible todavía en el teléfono nativo. |
+| 5 — Gamificación colectiva | 🔶 Parcial | Ranking semanal entre torres y misión con incentivo editable por el administrador, funcionando. Falta un marcador en tiempo real dedicado (hoy las métricas viven en el panel). |
+| 6 — Panel del administrador | 🔶 Parcial | Validación de depósitos, edición de la misión/incentivo y métricas básicas de la torre. Falta gestión de usuarios y exportación de reportes mensuales en PDF. |
+
+**Además, sin estar en el plan original:**
+- App instalable como PWA en iPhone y Android, sin pasar por ninguna tienda de aplicaciones.
+- Pantalla "Mi cuenta": editar nombre y departamento, cambiar contraseña, cerrar sesión.
+- Barra de navegación inferior (Inicio / Reciclados / Ranking) para el residente.
+
+Detalle técnico completo en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).
 
 ## Módulos
 
@@ -127,11 +148,12 @@ Desarrollar un sistema (prototipo) que permita registrar, validar y certificar d
 
 | Capa | Tecnología |
 |---|---|
-| Frontend móvil | React Native (Expo) + TypeScript + NativeWind (Tailwind CSS) |
-| Backend | Firebase (Cloud Functions) |
+| Frontend | React Native (Expo) + TypeScript + NativeWind (Tailwind CSS); publicado también como app web instalable (PWA) |
+| Backend | Firebase — la cadena de verificación se garantiza con reglas de seguridad de Firestore; sin Cloud Functions por ahora (documentado como trabajo futuro en [SETUP-FIREBASE.md](SETUP-FIREBASE.md)) |
 | Base de datos | Firestore |
 | Autenticación | Firebase Auth |
-| Escaneo QR | expo-camera / expo-barcode-scanner |
+| Escaneo QR | Cámara del navegador + `jsQR`, en la versión web instalada; `qrcode-generator` dibuja el código de cada contenedor |
+| Certificado digital | `pdf-lib`, generado en el propio dispositivo |
 
 
 > Stack definido para el prototipo. Algunas tecnologías (Firebase, NativeWind) son nuevas para el equipo — se documentará el proceso de aprendizaje y las decisiones técnicas en las evidencias de cada fase.

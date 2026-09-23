@@ -46,6 +46,15 @@ Crea en Firestore las dos torres del condominio piloto:
 | Torre A | `ECO-TORRE-A` | 200 kg | 24 |
 | Torre B | `ECO-TORRE-B` | 150 kg | 19 |
 
+Junto con las torres siembra también sus códigos de rol, en una colección
+aparte que la app nunca lee (`codigosRol`):
+
+| Documento | Campo | Valor |
+|---|---|---|
+| `codigosRol/torre-a` | `administrador` | `ADM-DEMO-A` |
+| `codigosRol/torre-b` | `administrador` | `ADM-DEMO-B` |
+| `codigosRol/gestor` | `codigo` | `GESTOR-DEMO` |
+
 Y las tres cuentas, ya vinculadas a su torre:
 
 | Rol | Correo | Contraseña |
@@ -54,13 +63,25 @@ Y las tres cuentas, ya vinculadas a su torre:
 | 🛡️ Administrador | `admin@ecotrack.cl` | `ecotrack2026` |
 | 🚛 Gestor | `gestor@ecotrack.cl` | `ecotrack2026` |
 
+La cuenta de administrador no nace administradora: se crea como residente y
+se promueve aparte, presentando el código de su torre (`ADM-DEMO-A`), exactamente
+por el mismo camino que seguiría cualquier persona real. No hay un atajo
+especial para la demo.
+
 El botón solo aparece en desarrollo (`__DEV__`), nunca en una build de
 producción, y se puede volver a tocar sin problema: si algo ya existe, lo salta.
 
 > Estas cuentas son de prueba dentro de tu propio proyecto. Antes del piloto
-> real conviene borrarlas desde Authentication en la consola. Los residentes
-> reales se registran ellos mismos desde **Crear cuenta**, eligiendo su rol y
-> vinculando su torre con el código.
+> real conviene borrarlas desde Authentication en la consola. Un residente
+> real se registra desde **Crear cuenta** y se vincula a su torre con el
+> código. Nadie puede elegir "administrador" al registrarse: se llega a ese
+> rol vinculándose a una torre con el código de administrador de esa torre.
+> Un gestor sí se registra directo, pero necesita el código de gestor.
+
+> Si el proyecto ya está en producción (reglas estrictas ya publicadas) y
+> necesitas sembrar torres o códigos nuevos, este botón ya no puede escribirlos:
+> hazlo a mano desde **Firestore Database → Datos** en la consola, con la misma
+> estructura de la tabla de arriba.
 
 ---
 
@@ -73,9 +94,13 @@ Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
 
 - un residente solo crea depósitos a su nombre y en estado `pendiente`;
 - solo el administrador **de esa torre** puede pasar `pendiente → validado`
-  o `rechazado`;
-- solo el gestor puede pasar `validado → certificado`;
-- nadie puede cambiar su propio rol ni borrar un registro.
+  o `rechazado`, y solo puede tocar el estado y el peso confirmado;
+- solo el gestor puede pasar `validado → certificado`, y solo puede tocar los
+  campos de certificación;
+- nadie puede cambiar su propio rol ni borrar un registro;
+- nadie se autoasigna administrador o gestor: esos roles exigen el código
+  correcto de `codigosRol`, una colección que la app nunca puede leer
+  directamente — solo estas reglas la consultan para comparar.
 
 Es la parte defendible del proyecto: la trazabilidad no depende de que la app
 se porte bien, está garantizada por el servidor.
@@ -110,12 +135,20 @@ torres/{torreId}
 
 usuarios/{uid}                       ← uid de Firebase Auth
   nombre, email, rol, depto, torreId, torreNombre, creadoEn
+  codigoRolUsado                     ← solo si el rol no es residente; queda como rastro de auditoría
 
 registros/{id}
   residenteId, residente, depto, torreId, torreNombre,
   material, kgDeclarado, kgConfirmado, contenedor, estado,
   creadoEn, validadoEn, validadoPor,
   certificadoEn, certificadoPor, codigo, codigoRetiro
+
+misiones/{torreId}                   ← un documento por torre; puede no existir
+  metaKg, incentivo, actualizadaEn, actualizadaPor
+
+codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde las reglas
+  administrador                      ← código de esa torre
+  codigo                             ← solo en el documento "gestor"
 ```
 
 **Decisiones a defender:**
@@ -151,9 +184,13 @@ registros/{id}
 - Escáner con cámara y PDF del certificado en la app nativa (Expo Go): hoy
   existen solo en la versión web instalada (PWA), que es la que se presenta.
   En el teléfono nativo el código del contenedor se escribe a mano.
+- Validación diaria por lote como una sola operación atómica: hoy
+  "Validar la tanda del día" valida uno por uno, en un bucle.
 - Notificaciones de avance.
-- Misiones e incentivos editables por el administrador.
-- Exportación del reporte mensual.
+- Gestión de usuarios y exportación del reporte mensual, desde el panel del
+  administrador.
+- Cloud Functions: la privacidad del gestor frente a los registros completos
+  sigue siendo de capa de aplicación, no de base de datos (ver más arriba).
 
 ---
 
@@ -166,3 +203,4 @@ registros/{id}
 | "auth/operation-not-allowed" | Falta habilitar correo/contraseña | Paso 2.1 |
 | Cambios que no se reflejan | Caché de Metro | `npx expo start -c` |
 | Códigos de torre no aparecen | No se ejecutó la siembra | Paso 3 |
+| "Código de administrador/gestor incorrecto" | No coincide con `codigosRol` | Revisa mayúsculas; si el proyecto ya está en producción, agrégalo a mano en la consola (ver nota del paso 3) |
