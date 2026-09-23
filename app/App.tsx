@@ -1,9 +1,10 @@
 import "./global.css";
 import React, { useCallback, useState } from "react";
+import { View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
-import { PantallaCargando } from "./src/components/ui";
+import { BarraInferior, PantallaCargando } from "./src/components/ui";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import JoinTorreScreen from "./src/screens/JoinTorreScreen";
@@ -12,6 +13,7 @@ import AdminScreen from "./src/screens/AdminScreen";
 import ScanQRScreen from "./src/screens/ScanQRScreen";
 import GestorScreen from "./src/screens/GestorScreen";
 import RankingScreen from "./src/screens/RankingScreen";
+import RecicladosScreen from "./src/screens/RecicladosScreen";
 import CertificadoScreen from "./src/screens/CertificadoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 
@@ -21,6 +23,7 @@ export type Pantalla =
   | "escanear"
   | "gestor"
   | "ranking"
+  | "reciclados"
   | "certificado"
   | "perfil";
 
@@ -32,6 +35,8 @@ export interface Navegacion {
   ir: (pantalla: Pantalla, params?: ParamsPantalla) => void;
   volver: () => void;
   params: ParamsPantalla;
+  /** true si esta pantalla es la raíz actual de la pila (no hay a dónde volver). */
+  raiz: boolean;
 }
 
 interface Ruta {
@@ -46,6 +51,14 @@ const INICIO_POR_ROL: Record<Rol, Pantalla> = {
 };
 
 /**
+ * Pantallas del residente que viven en la barra inferior. Navegar a una de
+ * ellas reemplaza la pila entera en vez de apilar: tocar una pestaña siempre
+ * lleva limpio a esa pantalla, sin arrastrar lo que hubiera abierto encima
+ * (escanear, un certificado, "Mi cuenta").
+ */
+const PANTALLAS_TAB: Pantalla[] = ["home", "reciclados", "ranking"];
+
+/**
  * Pila de navegación de la app autenticada.
  * Se monta con `key={usuario.id}` para reiniciarse al cambiar de cuenta.
  */
@@ -55,32 +68,62 @@ function PilaApp({ rol }: { rol: Rol }) {
   ]);
   const actual = pila[pila.length - 1];
 
-  const ir = useCallback((pantalla: Pantalla, params: ParamsPantalla = {}) => {
-    setPila((prev) => [...prev, { pantalla, params }]);
-  }, []);
+  const ir = useCallback(
+    (pantalla: Pantalla, params: ParamsPantalla = {}) => {
+      setPila((prev) => {
+        if (rol === "residente" && PANTALLAS_TAB.includes(pantalla)) {
+          return [{ pantalla, params }];
+        }
+        return [...prev, { pantalla, params }];
+      });
+    },
+    [rol]
+  );
 
   const volver = useCallback(() => {
     setPila((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
   }, []);
 
-  const nav: Navegacion = { ir, volver, params: actual.params };
+  const nav: Navegacion = { ir, volver, params: actual.params, raiz: pila.length === 1 };
 
+  let pantalla: React.ReactNode;
   switch (actual.pantalla) {
     case "admin":
-      return <AdminScreen nav={nav} />;
+      pantalla = <AdminScreen nav={nav} />;
+      break;
     case "escanear":
-      return <ScanQRScreen nav={nav} />;
+      pantalla = <ScanQRScreen nav={nav} />;
+      break;
     case "gestor":
-      return <GestorScreen nav={nav} />;
+      pantalla = <GestorScreen nav={nav} />;
+      break;
     case "ranking":
-      return <RankingScreen nav={nav} />;
+      pantalla = <RankingScreen nav={nav} />;
+      break;
+    case "reciclados":
+      pantalla = <RecicladosScreen nav={nav} />;
+      break;
     case "certificado":
-      return <CertificadoScreen nav={nav} />;
+      pantalla = <CertificadoScreen nav={nav} />;
+      break;
     case "perfil":
-      return <PerfilScreen nav={nav} />;
+      pantalla = <PerfilScreen nav={nav} />;
+      break;
     default:
-      return <HomeScreen nav={nav} />;
+      pantalla = <HomeScreen nav={nav} />;
   }
+
+  // La barra solo se muestra en las pantallas raíz del residente: escanear, el
+  // certificado y "Mi cuenta" se abren por encima, cubriéndola.
+  const mostrarBarra = rol === "residente" && nav.raiz;
+  if (!mostrarBarra) return <>{pantalla}</>;
+
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1 }}>{pantalla}</View>
+      <BarraInferior actual={actual.pantalla} alCambiar={ir} />
+    </View>
+  );
 }
 
 /** Login y registro, para usuarios sin sesión. */

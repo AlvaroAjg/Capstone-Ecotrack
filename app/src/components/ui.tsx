@@ -53,6 +53,56 @@ export function AvatarPerfil({
   );
 }
 
+type PantallaTab = "home" | "reciclados" | "ranking";
+
+const TABS_INFO: { pantalla: PantallaTab; etiqueta: string; icono: string }[] = [
+  { pantalla: "home", etiqueta: "Inicio", icono: "🏠" },
+  { pantalla: "reciclados", etiqueta: "Reciclados", icono: "♻️" },
+  { pantalla: "ranking", etiqueta: "Ranking", icono: "🏆" },
+];
+
+/**
+ * Barra fija de pestañas para el residente. Solo se muestra en las tres
+ * pantallas raíz (Inicio, Reciclados, Ranking); escanear, el certificado y
+ * "Mi cuenta" se abren por encima, cubriéndola, como en cualquier app con tabs.
+ */
+export function BarraInferior({
+  actual,
+  alCambiar,
+}: {
+  actual: string;
+  alCambiar: (pantalla: PantallaTab) => void;
+}) {
+  return (
+    <SafeAreaView edges={["bottom"]} className="bg-white border-t border-gray-200">
+      <View className="flex-row">
+        {TABS_INFO.map((t) => {
+          const activo = actual === t.pantalla;
+          return (
+            <TouchableOpacity
+              key={t.pantalla}
+              onPress={() => alCambiar(t.pantalla)}
+              accessibilityRole="button"
+              accessibilityLabel={t.etiqueta}
+              accessibilityState={{ selected: activo }}
+              className="flex-1 items-center py-2"
+            >
+              <Text className={`text-xl ${activo ? "" : "opacity-40"}`}>{t.icono}</Text>
+              <Text
+                className={`text-[11px] mt-0.5 ${
+                  activo ? "text-green-700 font-semibold" : "text-gray-400"
+                }`}
+              >
+                {t.etiqueta}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </SafeAreaView>
+  );
+}
+
 export function TituloEncabezado({
   titulo,
   subtitulo,

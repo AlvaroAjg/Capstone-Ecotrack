@@ -17,7 +17,7 @@ export default function RankingScreen({ nav }: { nav: Navegacion }) {
         <TituloEncabezado
           titulo="Ranking semanal"
           subtitulo="Solo suman los kilos certificados en el mes en curso"
-          alVolver={nav.volver}
+          alVolver={nav.raiz ? undefined : nav.volver}
         />
       </Encabezado>
 
