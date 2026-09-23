@@ -24,10 +24,14 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     miPosicionRanking,
     resumenTorre,
     mision,
+    misionesDiarias,
+    puntosSemana,
   } = useEcoTrack();
 
   const nombre = usuario?.nombre ?? "Residente";
   const resumen = resumenTorre(usuario?.torreId ?? null);
+  const diariasHechas = misionesDiarias.filter((m) => m.completada).length;
+  const siguienteDiaria = misionesDiarias.find((m) => !m.completada);
 
   return (
     <Cuerpo>
@@ -95,6 +99,36 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           <Text className="text-gray-700 text-xs font-medium">Último certificado</Text>
         </TouchableOpacity>
       </View>
+
+      <Seccion titulo="Misiones de hoy" etiqueta={`${puntosSemana} EcoPuntos`}>
+        <TouchableOpacity
+          onPress={() => nav.ir("misiones")}
+          activeOpacity={0.85}
+          accessibilityRole="button"
+          accessibilityLabel={`Misiones diarias: ${diariasHechas} de ${misionesDiarias.length} completadas. Ver todas las misiones`}
+        >
+          <Tarjeta>
+            <View className="flex-row justify-between items-center mb-2">
+              <Text className="text-gray-800 font-medium flex-1 pr-2">
+                {siguienteDiaria
+                  ? `${siguienteDiaria.emoji} ${siguienteDiaria.titulo}`
+                  : "🎉 ¡Completaste todas las misiones de hoy!"}
+              </Text>
+              <Text className="text-green-700 font-semibold text-sm">
+                {diariasHechas}/{misionesDiarias.length}
+              </Text>
+            </View>
+            <Barra
+              avance={
+                misionesDiarias.length ? (diariasHechas / misionesDiarias.length) * 100 : 0
+              }
+            />
+            <Text className="text-green-700 text-xs font-semibold mt-2">
+              Ver misiones diarias y semanales →
+            </Text>
+          </Tarjeta>
+        </TouchableOpacity>
+      </Seccion>
 
       <Seccion titulo="Misión de la torre">
         <Tarjeta>

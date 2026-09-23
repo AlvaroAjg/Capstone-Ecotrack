@@ -25,6 +25,12 @@ import {
   type Torre,
   type Usuario,
 } from "../lib/tipos";
+import {
+  misionesDiarias as calcularDiarias,
+  misionesSemanales as calcularSemanales,
+  puntosDeLaSemana,
+  type MisionSistema,
+} from "../lib/misionesSistema";
 import * as servicioAuth from "../services/auth";
 import * as servicioDemo from "../services/demo";
 import * as servicioMisiones from "../services/misiones";
@@ -73,6 +79,11 @@ interface EcoTrackValor {
 
   // Misión activa de mi torre (null si todavía no se ha definido una)
   mision: Mision | null;
+
+  // Misiones del sistema del residente, calculadas con sus propios depósitos
+  misionesDiarias: MisionSistema[];
+  misionesSemanales: MisionSistema[];
+  puntosSemana: number;
 
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
@@ -407,6 +418,10 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [misCertificados]
   );
 
+  const misionesDiarias = useMemo(() => calcularDiarias(misRegistros), [misRegistros]);
+  const misionesSemanales = useMemo(() => calcularSemanales(misRegistros), [misRegistros]);
+  const puntosSemana = useMemo(() => puntosDeLaSemana(misRegistros), [misRegistros]);
+
   const miPosicionRanking = useMemo(() => {
     const indice = ranking.findIndex((t) => t.esMiTorre);
     return indice === -1 ? ranking.length : indice + 1;
@@ -496,6 +511,9 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     kgEnCola,
     retirosConfirmadosHoy,
     mision,
+    misionesDiarias,
+    misionesSemanales,
+    puntosSemana,
     iniciarSesion,
     registrarCuenta,
     vincularTorre,

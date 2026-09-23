@@ -47,13 +47,13 @@ realmente funciona hoy, contra Firebase real, no simulado:
 | 2 — Registro de reciclaje | 🔶 Parcial | Escaneo con cámara real y selección de material, en la versión web instalada. En el teléfono nativo (Expo Go) el código del contenedor se ingresa a mano. |
 | 3 — Validación en 2 etapas | 🔶 Parcial | Las dos etapas (administrador → gestor) funcionan y están garantizadas por el servidor. Falta la validación diaria por lote como una sola operación atómica, y las notificaciones de avance. |
 | 4 — Certificado digital | 🔶 Parcial | El PDF se genera y se descarga o comparte desde la versión web instalada. No está disponible todavía en el teléfono nativo. |
-| 5 — Gamificación colectiva | 🔶 Parcial | Ranking semanal entre torres y misión con incentivo editable por el administrador, funcionando. Falta un marcador en tiempo real dedicado (hoy las métricas viven en el panel). |
+| 5 — Gamificación colectiva | 🔶 Parcial | Ranking semanal entre torres, misión de la torre con incentivo editable por el administrador, y misiones del sistema diarias y semanales con EcoPuntos, funcionando. Falta un marcador en tiempo real dedicado (hoy las métricas viven en el panel). |
 | 6 — Panel del administrador | 🔶 Parcial | Validación de depósitos, edición de la misión/incentivo y métricas básicas de la torre. Falta gestión de usuarios y exportación de reportes mensuales en PDF. |
 
 **Además, sin estar en el plan original:**
 - App instalable como PWA en iPhone y Android, sin pasar por ninguna tienda de aplicaciones.
 - Pantalla "Mi cuenta": editar nombre y departamento, cambiar contraseña, cerrar sesión.
-- Barra de navegación inferior (Inicio / Reciclados / Ranking) para el residente.
+- Barra de navegación inferior (Inicio / Misiones / Reciclados / Ranking) para el residente.
 
 Detalle técnico completo en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).
 
@@ -79,6 +79,10 @@ Competencia enfocada en la torre (kg acumulados y % de departamentos participant
 - Marcador en tiempo real
 - Ranking semanal entre torres
 - Misiones colectivas con incentivos definidos por el administrador
+- Misiones del sistema, individuales y alcanzables:
+  - **Diarias (3 por día):** "Haz un depósito hoy" siempre, más dos que rotan (material del día, 1 kg en el día, dos depósitos).
+  - **Semanales (3 por semana, lunes a domingo):** rotan entre reciclar en 3 días distintos, acumular 5 kg, 2 materiales distintos y 5 depósitos.
+  - Cada misión entrega EcoPuntos. El avance se calcula en vivo con los depósitos del residente (pendientes, validados o certificados); un depósito rechazado deja de contar. No se guarda nada adicional en Firestore.
 
 ### Módulo 6 — Panel del Administrador
 Gestión de usuarios, validación de depósitos, configuración de misiones e incentivos, visualización de métricas de desempeño y exportación de reportes mensuales en PDF.

@@ -53,17 +53,18 @@ export function AvatarPerfil({
   );
 }
 
-type PantallaTab = "home" | "reciclados" | "ranking";
+type PantallaTab = "home" | "misiones" | "reciclados" | "ranking";
 
 const TABS_INFO: { pantalla: PantallaTab; etiqueta: string; icono: string }[] = [
   { pantalla: "home", etiqueta: "Inicio", icono: "🏠" },
+  { pantalla: "misiones", etiqueta: "Misiones", icono: "🎯" },
   { pantalla: "reciclados", etiqueta: "Reciclados", icono: "♻️" },
   { pantalla: "ranking", etiqueta: "Ranking", icono: "🏆" },
 ];
 
 /**
- * Barra fija de pestañas para el residente. Solo se muestra en las tres
- * pantallas raíz (Inicio, Reciclados, Ranking); escanear, el certificado y
+ * Barra fija de pestañas para el residente. Solo se muestra en las pantallas
+ * raíz (Inicio, Misiones, Reciclados, Ranking); escanear, el certificado y
  * "Mi cuenta" se abren por encima, cubriéndola, como en cualquier app con tabs.
  */
 export function BarraInferior({
@@ -321,8 +322,13 @@ export function Segmentado<T extends string>({
 }
 
 export function Barra({ avance, color = "bg-green-600" }: { avance: number; color?: string }) {
+  const valor = Math.max(0, Math.min(Math.round(avance), 100));
   return (
-    <View className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
+    <View
+      accessibilityRole="progressbar"
+      accessibilityValue={{ min: 0, max: 100, now: valor }}
+      className="w-full h-2 bg-gray-200 rounded-full overflow-hidden"
+    >
       <View className={`h-2 rounded-full ${color}`} style={{ width: `${Math.min(avance, 100)}%` }} />
     </View>
   );
