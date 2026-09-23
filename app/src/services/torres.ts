@@ -1,5 +1,6 @@
 import { collection, doc, getDocs, onSnapshot, query, setDoc, where } from "firebase/firestore";
 import { db } from "../lib/firebase";
+import { CODIGO_GESTOR_DEMO, CODIGOS_ADMIN_DEMO } from "../lib/demo";
 import type { Torre } from "../lib/tipos";
 
 function aTorre(id: string, datos: any): Torre {
@@ -56,10 +57,28 @@ export const TORRES_SEMILLA: Torre[] = [
   },
 ];
 
+/**
+ * Además de las torres, siembra los códigos que habilitan convertirse en
+ * administrador de cada una (`codigosRol/{torreId}`) y el código de gestor
+ * (`codigosRol/gestor`). Nadie los lee desde la app (las reglas los esconden
+ * con `allow read: if false`); solo se comparan al crear o promover una cuenta.
+ *
+ * Al igual que las torres, esto solo funciona mientras el proyecto sigue en
+ * modo de prueba: una vez publicadas las reglas de `firestore.rules`, escribir
+ * aquí exige ya ser administrador. Si el proyecto ya está en producción y
+ * necesitas sembrar torres nuevas, hazlo manualmente desde la consola de
+ * Firebase.
+ */
 export async function sembrarTorres(): Promise<number> {
   for (const torre of TORRES_SEMILLA) {
     const { id, ...datos } = torre;
     await setDoc(doc(db, "torres", id), datos, { merge: true });
+    await setDoc(
+      doc(db, "codigosRol", id),
+      { administrador: CODIGOS_ADMIN_DEMO[id] ?? `ADM-${id.toUpperCase()}` },
+      { merge: true }
+    );
   }
+  await setDoc(doc(db, "codigosRol", "gestor"), { codigo: CODIGO_GESTOR_DEMO }, { merge: true });
   return TORRES_SEMILLA.length;
 }

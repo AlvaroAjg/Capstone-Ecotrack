@@ -49,6 +49,20 @@ export const CUENTAS_DEMO: CuentaDemo[] = [
   },
 ];
 
+/**
+ * Códigos que habilitan crear la cuenta de gestor o promoverse a administrador
+ * de una torre. Son los mismos que siembra `sembrarTorres()` en `codigosRol`,
+ * así que las cuentas de demostración pasan por el camino real (nadie se
+ * autoasigna un rol, ver firestore.rules). En un piloto real estos códigos los
+ * define el equipo, no tienen por qué ser estos.
+ */
+export const CODIGO_GESTOR_DEMO = "GESTOR-DEMO";
+
+export const CODIGOS_ADMIN_DEMO: Record<string, string> = {
+  "torre-a": "ADM-DEMO-A",
+  "torre-b": "ADM-DEMO-B",
+};
+
 /** Prellena el campo de correo en cada panel de la pared de demostración. */
 export const CORREOS_DEMO: Record<string, string> = Object.fromEntries(
   CUENTAS_DEMO.map((c) => [c.rol, c.email])

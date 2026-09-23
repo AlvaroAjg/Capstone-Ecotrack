@@ -45,13 +45,15 @@ export async function registrarCuenta(params: {
   password: string;
   rol: Rol;
   depto: string;
+  /** Solo para gestor: código que las reglas comprueban antes de aceptar ese rol. */
+  codigoRolUsado?: string;
 }): Promise<string> {
   const email = params.email.trim().toLowerCase();
   const credencial = await createUserWithEmailAndPassword(auth, email, params.password);
 
   await updateProfile(credencial.user, { displayName: params.nombre });
 
-  await setDoc(doc(db, "usuarios", credencial.user.uid), {
+  const datos: Record<string, unknown> = {
     nombre: params.nombre,
     email,
     rol: params.rol,
@@ -59,9 +61,35 @@ export async function registrarCuenta(params: {
     torreId: null,
     torreNombre: null,
     creadoEn: Date.now(),
-  });
+  };
+  // Solo se incluye cuando corresponde: es lo que las reglas de Firestore
+  // exigen para aceptar un rol distinto de "residente" al crear el perfil.
+  if (params.codigoRolUsado) datos.codigoRolUsado = params.codigoRolUsado;
+
+  await setDoc(doc(db, "usuarios", credencial.user.uid), datos);
 
   return credencial.user.uid;
+}
+
+/**
+ * Promueve a un residente a administrador de una torre. Solo funciona si
+ * `codigoRolUsado` coincide con el código de esa torre en `codigosRol`: la
+ * regla de Firestore es quien realmente decide, esta función solo entrega los
+ * datos. Si el código está mal, la escritura falla con "permission-denied".
+ */
+export async function promoverAAdministrador(
+  uid: string,
+  torreId: string,
+  torreNombre: string,
+  codigoRolUsado: string
+): Promise<void> {
+  await updateDoc(doc(db, "usuarios", uid), {
+    rol: "administrador",
+    torreId,
+    torreNombre,
+    depto: "Administración",
+    codigoRolUsado,
+  });
 }
 
 export async function iniciarSesion(email: string, password: string): Promise<string> {

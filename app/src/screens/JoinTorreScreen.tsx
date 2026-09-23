@@ -13,11 +13,15 @@ import { mensajeError } from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
 export default function JoinTorreScreen() {
-  const { usuario, torres, vincularTorre, cerrarSesion } = useEcoTrack();
-  const esAdmin = usuario?.rol === "administrador";
+  const { torres, vincularTorre, vincularComoAdministrador, cerrarSesion } = useEcoTrack();
 
+  // Por defecto se vincula como residente. El toggle revela el segundo código
+  // que la regla de Firestore exige para promoverse a administrador de esa
+  // torre: sin el código correcto, la escritura simplemente falla.
+  const [comoAdmin, setComoAdmin] = useState(false);
   const [codigo, setCodigo] = useState("");
-  const [depto, setDepto] = useState(esAdmin ? "Administración" : "");
+  const [codigoAdmin, setCodigoAdmin] = useState("");
+  const [depto, setDepto] = useState("");
   const [error, setError] = useState<string | undefined>();
   const [cargando, setCargando] = useState(false);
 
@@ -26,7 +30,12 @@ export default function JoinTorreScreen() {
       setError("Ingresa el código de tu torre");
       return;
     }
-    if (!esAdmin && depto.trim().length < 2) {
+    if (comoAdmin) {
+      if (!codigoAdmin.trim()) {
+        setError("Ingresa el código de administrador");
+        return;
+      }
+    } else if (depto.trim().length < 2) {
       setError("Ingresa tu departamento (ej: 305)");
       return;
     }
@@ -34,8 +43,11 @@ export default function JoinTorreScreen() {
     setCargando(true);
     setError(undefined);
     try {
-      const etiquetaDepto = esAdmin ? "Administración" : `Depto ${depto.trim()}`;
-      await vincularTorre(codigo, etiquetaDepto);
+      if (comoAdmin) {
+        await vincularComoAdministrador(codigo, codigoAdmin.trim());
+      } else {
+        await vincularTorre(codigo, `Depto ${depto.trim()}`);
+      }
       // App.tsx detecta el perfil actualizado y entra al panel correspondiente.
     } catch (e) {
       setError(mensajeError(e));
@@ -88,7 +100,7 @@ export default function JoinTorreScreen() {
             className="text-center text-lg tracking-widest"
           />
 
-          {!esAdmin ? (
+          {!comoAdmin ? (
             <Campo
               etiqueta="Tu departamento"
               placeholder="305"
@@ -97,13 +109,39 @@ export default function JoinTorreScreen() {
               onChangeText={setDepto}
               onFocus={() => setError(undefined)}
             />
-          ) : null}
+          ) : (
+            <Campo
+              etiqueta="Código de administrador"
+              placeholder="Te lo entrega el equipo de EcoTrack"
+              autoCapitalize="characters"
+              autoCorrect={false}
+              value={codigoAdmin}
+              onChangeText={setCodigoAdmin}
+              onFocus={() => setError(undefined)}
+              className="text-center tracking-widest"
+            />
+          )}
+
+          <TouchableOpacity
+            onPress={() => {
+              setComoAdmin((v) => !v);
+              setError(undefined);
+            }}
+            accessibilityRole="button"
+            className="mb-3"
+          >
+            <Text className="text-center text-gray-500 text-xs">
+              {comoAdmin
+                ? "No soy administrador, soy residente"
+                : "¿Eres administrador de esta torre? Toca aquí"}
+            </Text>
+          </TouchableOpacity>
 
           <Boton
             titulo={cargando ? "Vinculando..." : "Vincular torre"}
             cargando={cargando}
             onPress={handleVincular}
-            className="mt-3"
+            className="mt-1"
           />
 
           <View className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-4">

@@ -5,7 +5,9 @@ rules_version = '2';
 // Principio: la cadena de verificación no puede saltarse etapas ni ser
 // manipulada por quien no corresponde. Un residente crea depósitos solo a su
 // nombre, el administrador valida solo su torre, y el certificado únicamente lo
-// emite el gestor sobre un depósito ya validado.
+// emite el gestor sobre un depósito ya validado. Nadie se autoasigna un rol:
+// pasar a administrador o gestor exige un código que solo estas reglas pueden
+// comprobar (ver codigosRol más abajo).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -21,25 +23,79 @@ service cloud.firestore {
       return miPerfil().rol;
     }
 
+    /** Los campos que cambiaron en esta escritura, para permitir solo algunos. */
+    function soloCambia(campos) {
+      return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
+    }
+
+    // ------------------------------------------------------------ códigosRol
+    // Código que habilita crear una cuenta de gestor, y uno por torre que
+    // habilita promoverse a administrador de esa torre. Nadie los lee desde la
+    // app: `allow read: if false` los esconde incluso de un usuario
+    // autenticado. Solo estas reglas los consultan con get() para comparar el
+    // código que la persona escribió contra el real. Se siembran una vez,
+    // junto con las torres, mientras el proyecto todavía está en modo de
+    // prueba (ver sembrarTorres en el código de la app).
+    match /codigosRol/{id} {
+      allow read: if false;
+      allow write: if autenticado() && miRol() == 'administrador';
+    }
+
     // ---------------------------------------------------------------- torres
     match /torres/{torreId} {
       allow read: if autenticado();
-      allow write: if autenticado() && miRol() == 'administrador';
+      // Un administrador solo edita la torre que ya es la suya. Crear una
+      // torre nueva es una tarea de siembra inicial, no una acción de la app.
+      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
     }
 
     // -------------------------------------------------------------- usuarios
     match /usuarios/{uid} {
       allow read: if autenticado();
 
-      // Cada quien crea su propio perfil al registrarse.
-      allow create: if autenticado() && request.auth.uid == uid;
-
-      // Puede editar su perfil (torre, departamento) pero NO su propio rol.
-      allow update: if autenticado()
+      // Cada quien crea su propio perfil al registrarse. Nace siempre como
+      // residente, salvo que presente el código de gestor correcto: nadie
+      // puede autoasignarse administrador desde el registro, porque ese rol
+      // está ligado a una torre específica (ver la promoción más abajo).
+      allow create: if autenticado()
                     && request.auth.uid == uid
-                    && request.resource.data.rol == resource.data.rol;
+                    && (
+                      request.resource.data.rol == 'residente'
+                      ||
+                      (
+                        request.resource.data.rol == 'gestor'
+                        && request.resource.data.codigoRolUsado ==
+                           get(/databases/$(database)/documents/codigosRol/gestor).data.codigo
+                      )
+                    );
+
+      allow update: if autenticado() && request.auth.uid == uid && (
+        // Caso normal: editar nombre, departamento o vincularse a una torre
+        // como residente. El rol no cambia.
+        request.resource.data.rol == resource.data.rol
+        ||
+        // Promoción a administrador de una torre: solo si presenta el código
+        // de esa torre. Un residente no puede promoverse a sí mismo a gestor
+        // por este camino; gestor solo se obtiene al crear la cuenta.
+        (
+          resource.data.rol == 'residente'
+          && request.resource.data.rol == 'administrador'
+          && request.resource.data.torreId is string
+          && request.resource.data.codigoRolUsado ==
+             get(/databases/$(database)/documents/codigosRol/$(request.resource.data.torreId)).data.administrador
+        )
+      );
 
       allow delete: if false;
+    }
+
+    // ------------------------------------------------------------- misiones
+    // Una misión activa por torre: meta en kilos e incentivo definidos por el
+    // administrador de esa torre. Se lee junto con el resto de la app; solo el
+    // administrador de la torre correspondiente la edita.
+    match /misiones/{torreId} {
+      allow read: if autenticado();
+      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
     }
 
     // ------------------------------------------------------------- registros
@@ -59,21 +115,27 @@ service cloud.firestore {
                     && request.resource.data.codigo == null;
 
       allow update: if autenticado() && (
-        // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente.
+        // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente,
+        // y solo puede tocar el estado y el peso confirmado. No puede alterar
+        // de quién es el depósito, qué material era, ni nada de la etapa 2.
         (
           miRol() == 'administrador'
           && miPerfil().torreId == resource.data.torreId
           && resource.data.estado == 'pendiente'
           && request.resource.data.estado in ['validado', 'rechazado']
+          && soloCambia(['estado', 'kgConfirmado', 'validadoEn', 'validadoPor'])
         )
         ||
-        // Etapa 2: el gestor certifica un depósito ya validado.
+        // Etapa 2: el gestor certifica un depósito ya validado, y solo puede
+        // tocar los campos de certificación. No puede tocar el peso ni el
+        // material que ya quedaron fijados en la etapa 1.
         // El gestor certifica el lote completo de una torre en un writeBatch;
         // la regla se evalúa igual documento por documento.
         (
           miRol() == 'gestor'
           && resource.data.estado == 'validado'
           && request.resource.data.estado == 'certificado'
+          && soloCambia(['estado', 'certificadoEn', 'certificadoPor', 'codigo', 'codigoRetiro'])
         )
       );
 
