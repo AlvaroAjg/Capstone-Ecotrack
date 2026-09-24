@@ -49,6 +49,9 @@ export default function RankingScreen({ nav }: { nav: Navegacion }) {
               <View className="items-end">
                 <Text className="text-green-700 font-bold">{formatKg(t.kg)}</Text>
                 <Text className="text-gray-400 text-xs">{t.participacion}% participación</Text>
+                <Text className="text-amber-700 text-xs font-medium">
+                  ⭐ {t.ecoPuntos} EcoPuntos
+                </Text>
               </View>
             </View>
             <Barra

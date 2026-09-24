@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
@@ -11,17 +11,18 @@ import { LinearGradient } from "expo-linear-gradient";
 import { useEcoTrack } from "../state/EcoTrack";
 import { slotDemo } from "../lib/firebase";
 import { CORREOS_DEMO, CUENTAS_DEMO, PASSWORD_DEMO } from "../lib/demo";
-import { mensajeError } from "../services/auth";
+import { errorDeRedireccionGoogle, googleDisponible, mensajeError } from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
 export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => void }) {
-  const { iniciarSesion, prepararDemo } = useEcoTrack();
+  const { iniciarSesion, iniciarSesionConGoogle, prepararDemo } = useEcoTrack();
   // En la pared de demostración cada panel llega con su correo prellenado.
   const [email, setEmail] = useState(slotDemo ? CORREOS_DEMO[slotDemo] ?? "" : "");
   const [password, setPassword] = useState("");
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  const [cargandoGoogle, setCargandoGoogle] = useState(false);
   const [sembrando, setSembrando] = useState(false);
   const [avisoSemilla, setAvisoSemilla] = useState<string | null>(null);
 
@@ -42,6 +43,30 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
       setErrorGeneral(mensajeError(error));
     } finally {
       setCargando(false);
+    }
+  }
+
+  // Si se volvió de Google por redirección (app instalada) y algo falló, se
+  // muestra aquí; si salió bien, App.tsx ya detectó la sesión.
+  useEffect(() => {
+    let vigente = true;
+    errorDeRedireccionGoogle().then((error) => {
+      if (vigente && error) setErrorGeneral(mensajeError(error));
+    });
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  async function handleGoogle() {
+    setErrorGeneral(null);
+    setCargandoGoogle(true);
+    try {
+      await iniciarSesionConGoogle();
+    } catch (error) {
+      setErrorGeneral(mensajeError(error));
+    } finally {
+      setCargandoGoogle(false);
     }
   }
 
@@ -147,6 +172,36 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               onPress={handleLogin}
               className="mt-3 mb-4"
             />
+
+            {/* En la pared de demostración cada panel usa su cuenta fija. */}
+            {googleDisponible && !slotDemo ? (
+              <>
+                <View className="flex-row items-center mb-4">
+                  <View className="flex-1 h-px bg-gray-200" />
+                  <Text className="text-gray-400 text-xs mx-3">o</Text>
+                  <View className="flex-1 h-px bg-gray-200" />
+                </View>
+                <TouchableOpacity
+                  onPress={handleGoogle}
+                  disabled={cargandoGoogle}
+                  accessibilityRole="button"
+                  accessibilityLabel="Continuar con Google"
+                  className={`flex-row items-center justify-center border border-gray-300 rounded-xl py-3 mb-2 ${
+                    cargandoGoogle ? "opacity-60" : ""
+                  }`}
+                >
+                  <Text className="text-lg font-bold mr-2" style={{ color: "#4285F4" }}>
+                    G
+                  </Text>
+                  <Text className="text-gray-700 font-medium">
+                    {cargandoGoogle ? "Conectando con Google..." : "Continuar con Google"}
+                  </Text>
+                </TouchableOpacity>
+                <Text className="text-gray-400 text-[11px] text-center mb-4">
+                  Si es tu primera vez, se crea tu cuenta de residente.
+                </Text>
+              </>
+            ) : null}
 
             <TouchableOpacity onPress={alRegistrarse} accessibilityRole="button">
               <Text className="text-center text-green-700 font-medium">

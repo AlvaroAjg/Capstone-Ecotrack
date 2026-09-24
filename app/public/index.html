@@ -39,6 +39,21 @@
         -webkit-touch-callout: none;
         background-color: #15803d;
       }
+      /* Sin zoom accidental en el iPhone, pero sin bloquear el zoom con dos dedos
+         (lo necesita quien ve con dificultad):
+         - Safari acerca la pantalla al tocar un campo con letra menor a 16 px.
+         - Dos toques rápidos (p. ej. elegir peso y luego material) se leen como
+           doble toque para hacer zoom; "manipulation" desactiva solo eso. */
+      input,
+      textarea,
+      select {
+        font-size: 16px !important;
+      }
+      html,
+      body,
+      #root {
+        touch-action: manipulation;
+      }
       /* These styles make the root element full-height */
       #root {
         display: flex;

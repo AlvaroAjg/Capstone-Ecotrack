@@ -121,5 +121,7 @@ export interface FilaRanking {
   condominio: string;
   kg: number;
   participacion: number;
+  /** Suma de los EcoPuntos del mes de todos los residentes de la torre. */
+  ecoPuntos: number;
   esMiTorre: boolean;
 }

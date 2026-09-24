@@ -2,7 +2,8 @@ import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack } from "../state/EcoTrack";
-import { formatKg } from "../lib/formato";
+import { formatKg, porcentaje } from "../lib/formato";
+import { textoAvance, type MisionSistema } from "../lib/misionesSistema";
 import {
   AvatarPerfil,
   Aviso,
@@ -24,14 +25,12 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     miPosicionRanking,
     resumenTorre,
     mision,
-    misionesDiarias,
-    puntosSemana,
+    misionSemanal,
+    ecoPuntosMes,
   } = useEcoTrack();
 
   const nombre = usuario?.nombre ?? "Residente";
   const resumen = resumenTorre(usuario?.torreId ?? null);
-  const diariasHechas = misionesDiarias.filter((m) => m.completada).length;
-  const siguienteDiaria = misionesDiarias.find((m) => !m.completada);
 
   return (
     <Cuerpo>
@@ -100,34 +99,10 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </TouchableOpacity>
       </View>
 
-      <Seccion titulo="Misiones de hoy" etiqueta={`${puntosSemana} EcoPuntos`}>
-        <TouchableOpacity
-          onPress={() => nav.ir("misiones")}
-          activeOpacity={0.85}
-          accessibilityRole="button"
-          accessibilityLabel={`Misiones diarias: ${diariasHechas} de ${misionesDiarias.length} completadas. Ver todas las misiones`}
-        >
-          <Tarjeta>
-            <View className="flex-row justify-between items-center mb-2">
-              <Text className="text-gray-800 font-medium flex-1 pr-2">
-                {siguienteDiaria
-                  ? `${siguienteDiaria.emoji} ${siguienteDiaria.titulo}`
-                  : "🎉 ¡Completaste todas las misiones de hoy!"}
-              </Text>
-              <Text className="text-green-700 font-semibold text-sm">
-                {diariasHechas}/{misionesDiarias.length}
-              </Text>
-            </View>
-            <Barra
-              avance={
-                misionesDiarias.length ? (diariasHechas / misionesDiarias.length) * 100 : 0
-              }
-            />
-            <Text className="text-green-700 text-xs font-semibold mt-2">
-              Ver misiones diarias y semanales →
-            </Text>
-          </Tarjeta>
-        </TouchableOpacity>
+      <Seccion titulo="Tu misión de la semana" etiqueta={`${ecoPuntosMes} EcoPuntos este mes`}>
+        <Tarjeta>
+          <FilaMision mision={misionSemanal} />
+        </Tarjeta>
       </Seccion>
 
       <Seccion titulo="Misión de la torre">
@@ -153,5 +128,28 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </Tarjeta>
       </Seccion>
     </Cuerpo>
+  );
+}
+
+/**
+ * La misión semanal del sistema dentro de la tarjeta de Inicio. Se cumple sola
+ * al reciclar: no hay nada que tocar, así que la fila se lee de una vez.
+ */
+function FilaMision({ mision }: { mision: MisionSistema }) {
+  const estado = mision.completada ? "Completada" : textoAvance(mision);
+
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Misión de la semana: ${mision.titulo}. ${estado}. ${mision.puntos} EcoPuntos.`}
+    >
+      <View className="flex-row items-center mb-2">
+        <Text className="mr-2">{mision.completada ? "✅" : mision.emoji}</Text>
+        <Text className="text-gray-800 font-medium flex-1 min-w-0 pr-2">{mision.titulo}</Text>
+        <Text className="text-amber-700 text-xs font-semibold">+{mision.puntos}</Text>
+      </View>
+      <Barra avance={porcentaje(mision.progreso, mision.meta)} />
+      <Text className="text-gray-400 text-xs mt-2">{estado}</Text>
+    </View>
   );
 }

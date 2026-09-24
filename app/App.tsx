@@ -14,7 +14,6 @@ import ScanQRScreen from "./src/screens/ScanQRScreen";
 import GestorScreen from "./src/screens/GestorScreen";
 import RankingScreen from "./src/screens/RankingScreen";
 import RecicladosScreen from "./src/screens/RecicladosScreen";
-import MisionesScreen from "./src/screens/MisionesScreen";
 import CertificadoScreen from "./src/screens/CertificadoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 
@@ -25,7 +24,6 @@ export type Pantalla =
   | "gestor"
   | "ranking"
   | "reciclados"
-  | "misiones"
   | "certificado"
   | "perfil";
 
@@ -58,7 +56,7 @@ const INICIO_POR_ROL: Record<Rol, Pantalla> = {
  * lleva limpio a esa pantalla, sin arrastrar lo que hubiera abierto encima
  * (escanear, un certificado, "Mi cuenta").
  */
-const PANTALLAS_TAB: Pantalla[] = ["home", "misiones", "reciclados", "ranking"];
+const PANTALLAS_TAB: Pantalla[] = ["home", "reciclados", "ranking"];
 
 /**
  * Pila de navegación de la app autenticada.
@@ -104,9 +102,6 @@ function PilaApp({ rol }: { rol: Rol }) {
       break;
     case "reciclados":
       pantalla = <RecicladosScreen nav={nav} />;
-      break;
-    case "misiones":
-      pantalla = <MisionesScreen nav={nav} />;
       break;
     case "certificado":
       pantalla = <CertificadoScreen nav={nav} />;

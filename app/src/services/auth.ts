@@ -1,9 +1,14 @@
+import { Platform } from "react-native";
 import {
   createUserWithEmailAndPassword,
   EmailAuthProvider,
+  getRedirectResult,
+  GoogleAuthProvider,
   onAuthStateChanged,
   reauthenticateWithCredential,
   signInWithEmailAndPassword,
+  signInWithPopup,
+  signInWithRedirect,
   signOut,
   updatePassword,
   updateProfile,
@@ -12,6 +17,8 @@ import {
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import type { Rol, Usuario } from "../lib/tipos";
+
+export type UsuarioAuth = User;
 
 /** Escucha altas y bajas de sesión. Devuelve la función para desuscribirse. */
 export function escucharSesion(callback: (usuario: User | null) => void) {
@@ -101,6 +108,94 @@ export async function iniciarSesion(email: string, password: string): Promise<st
   return credencial.user.uid;
 }
 
+/** Google solo está disponible en la versión web (y la PWA instalada). */
+export const googleDisponible = Platform.OS === "web";
+
+/**
+ * La app instalada en la pantalla de inicio del iPhone no maneja bien las
+ * ventanas emergentes: ahí se usa redirección, que se queda en la misma
+ * ventana. En el navegador normal la ventana emergente es más rápida.
+ */
+function esAppInstalada(): boolean {
+  try {
+    return (
+      window.matchMedia?.("(display-mode: standalone)").matches ||
+      (window.navigator as { standalone?: boolean }).standalone === true
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Inicia sesión con una cuenta de Google personal. Si es la primera vez, el
+ * perfil de residente lo crea el estado de la app al detectar la sesión (ver
+ * crearPerfilGoogle), así funciona igual con ventana emergente o redirección.
+ */
+export async function iniciarSesionConGoogle(): Promise<void> {
+  const proveedor = new GoogleAuthProvider();
+  // Siempre deja elegir la cuenta, por si el teléfono tiene varias.
+  proveedor.setCustomParameters({ prompt: "select_account" });
+
+  if (esAppInstalada()) {
+    await signInWithRedirect(auth, proveedor);
+    return;
+  }
+  try {
+    await signInWithPopup(auth, proveedor);
+  } catch (error) {
+    // Si el navegador bloqueó la ventana emergente, se intenta por redirección.
+    if ((error as { code?: string })?.code === "auth/popup-blocked") {
+      await signInWithRedirect(auth, proveedor);
+      return;
+    }
+    throw error;
+  }
+}
+
+/**
+ * Al volver de una redirección de Google, entrega el error si lo hubo. El
+ * éxito no necesita manejo aparte: lo detecta escucharSesion como cualquier
+ * otro inicio de sesión.
+ */
+export async function errorDeRedireccionGoogle(): Promise<unknown | null> {
+  if (!googleDisponible) return null;
+  try {
+    await getRedirectResult(auth);
+    return null;
+  } catch (error) {
+    return error;
+  }
+}
+
+/** true si la sesión activa entró con Google (y por lo tanto no tiene contraseña propia). */
+export function entroConGoogle(usuario: User | null = auth.currentUser): boolean {
+  return !!usuario?.providerData.some((p) => p.providerId === "google.com");
+}
+
+/** true si la cuenta tiene contraseña de EcoTrack que se pueda cambiar. */
+export function tieneContrasena(): boolean {
+  return !!auth.currentUser?.providerData.some((p) => p.providerId === "password");
+}
+
+/**
+ * Primer ingreso con Google: crea el perfil siempre como residente, con el
+ * nombre y correo de la cuenta de Google. La torre y el departamento se piden
+ * después, en la misma pantalla de vinculación que usa el registro normal.
+ */
+export async function crearPerfilGoogle(usuario: User): Promise<void> {
+  await setDoc(doc(db, "usuarios", usuario.uid), {
+    nombre: usuario.displayName?.trim() || usuario.email?.split("@")[0] || "Residente",
+    email: (usuario.email ?? "").toLowerCase(),
+    rol: "residente",
+    depto: "",
+    torreId: null,
+    torreNombre: null,
+    proveedor: "google",
+    creadoEn: Date.now(),
+  });
+}
+
 export async function cerrarSesion(): Promise<void> {
   await signOut(auth);
 }
@@ -157,7 +252,13 @@ const MENSAJES: Record<string, string> = {
   "auth/network-request-failed": "Sin conexión. Revisa tu internet e intenta de nuevo.",
   "auth/too-many-requests": "Demasiados intentos fallidos. Espera un momento.",
   "auth/operation-not-allowed":
-    "El inicio de sesión con correo no está habilitado en la consola de Firebase.",
+    "Ese método de inicio de sesión no está habilitado en la consola de Firebase.",
+  "auth/popup-closed-by-user": "Cerraste la ventana de Google antes de terminar.",
+  "auth/cancelled-popup-request": "Cerraste la ventana de Google antes de terminar.",
+  "auth/unauthorized-domain":
+    "Este sitio no está autorizado para iniciar sesión con Google. Agrégalo en Firebase → Authentication → Settings → Authorized domains.",
+  "auth/account-exists-with-different-credential":
+    "Ese correo ya tiene una cuenta en EcoTrack. Inicia sesión con tu contraseña.",
   "permission-denied": "No tienes permiso para realizar esta acción.",
   unavailable: "No se pudo contactar a Firestore. Revisa tu conexión.",
 };

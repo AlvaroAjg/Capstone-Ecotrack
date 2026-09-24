@@ -2,9 +2,10 @@ import React, { useEffect, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Navegacion } from "../../App";
-import { MATERIALES, useEcoTrack, type Material } from "../state/EcoTrack";
+import { MATERIALES, useEcoTrack, type Material, type Registro } from "../state/EcoTrack";
 import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg } from "../lib/formato";
+import { misionSemanal as calcularMision, type MisionSistema } from "../lib/misionesSistema";
 import { interpretarContenedor } from "../lib/qr";
 import { Boton, CadenaVerificacion } from "../components/ui";
 import EscanerQR from "../components/EscanerQR";
@@ -14,13 +15,15 @@ type Paso = "escaneando" | "material" | "peso" | "listo";
 const PESOS_SUGERIDOS = [0.5, 1, 1.5, 2, 3, 4];
 
 export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
-  const { usuario, crearRegistro } = useEcoTrack();
+  const { usuario, crearRegistro, misRegistros, misionSemanal } = useEcoTrack();
   const [paso, setPaso] = useState<Paso>("escaneando");
   const [material, setMaterial] = useState<Material | null>(null);
   const [kg, setKg] = useState<number>(1);
   const [segundos, setSegundos] = useState(0);
 
   const [guardando, setGuardando] = useState(false);
+  /** La misión semanal, si este depósito fue justo el que la completó. */
+  const [misionCumplida, setMisionCumplida] = useState<MisionSistema | null>(null);
 
   // Contenedor leído del QR (o escrito a mano). Se valida contra la torre del
   // usuario antes de avanzar: no se puede depositar en el contenedor de otra torre.
@@ -50,6 +53,19 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
     setGuardando(true);
     try {
       await crearRegistro(material, kg, contenedor);
+      // Se calcula con el depósito recién creado agregado a mano, sin esperar a
+      // que Firestore lo devuelva en la próxima lectura en vivo.
+      if (!misionSemanal.completada) {
+        const nuevo = {
+          creadoEn: Date.now(),
+          material,
+          kgDeclarado: kg,
+          kgConfirmado: null,
+          estado: "pendiente",
+        } as Registro;
+        const despues = calcularMision([...misRegistros, nuevo]);
+        if (despues.completada) setMisionCumplida(despues);
+      }
       setPaso("listo");
     } catch (e) {
       avisar("No se pudo registrar", textoDeError(e));
@@ -211,6 +227,19 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           <Text className="text-gray-400 text-xs text-center mb-8">
             Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.
           </Text>
+
+          {misionCumplida ? (
+            <View
+              accessible
+              accessibilityLabel={`Misión de la semana cumplida: ${misionCumplida.titulo}. Ganaste ${misionCumplida.puntos} EcoPuntos.`}
+              className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 items-center"
+            >
+              <Text className="text-amber-800 font-bold">🎉 ¡Misión de la semana cumplida!</Text>
+              <Text className="text-amber-700 text-xs mt-1 text-center">
+                {misionCumplida.titulo} · +{misionCumplida.puntos} EcoPuntos
+              </Text>
+            </View>
+          ) : null}
 
           <View className="w-full bg-gray-50 rounded-2xl p-4 mb-8">
             <CadenaVerificacion estado="pendiente" />

@@ -26,9 +26,8 @@ import {
   type Usuario,
 } from "../lib/tipos";
 import {
-  misionesDiarias as calcularDiarias,
-  misionesSemanales as calcularSemanales,
-  puntosDeLaSemana,
+  misionSemanal as calcularSemanal,
+  puntosDelMes,
   type MisionSistema,
 } from "../lib/misionesSistema";
 import * as servicioAuth from "../services/auth";
@@ -80,13 +79,13 @@ interface EcoTrackValor {
   // Misión activa de mi torre (null si todavía no se ha definido una)
   mision: Mision | null;
 
-  // Misiones del sistema del residente, calculadas con sus propios depósitos
-  misionesDiarias: MisionSistema[];
-  misionesSemanales: MisionSistema[];
-  puntosSemana: number;
+  // Misión semanal del sistema, calculada con los depósitos del residente
+  misionSemanal: MisionSistema;
+  ecoPuntosMes: number;
 
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
+  iniciarSesionConGoogle: () => Promise<void>;
   registrarCuenta: (datos: {
     nombre: string;
     email: string;
@@ -131,9 +130,15 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   // evita mostrar la pantalla de login durante ese instante.
   const registrandoRef = useRef(false);
 
+  // Usuario de Firebase Auth de la sesión actual, para saber si entró con Google.
+  const usuarioAuthRef = useRef<servicioAuth.UsuarioAuth | null>(null);
+  // Evita crear dos veces el perfil de Google si el snapshot llega repetido.
+  const creandoPerfilRef = useRef(false);
+
   // 1. Sesión de Firebase Auth (persistida en AsyncStorage).
   useEffect(() => {
     return servicioAuth.escucharSesion((u) => {
+      usuarioAuthRef.current = u;
       setUid(u?.uid ?? null);
       if (!u) {
         setUsuario(null);
@@ -149,7 +154,23 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     return servicioAuth.escucharPerfil(uid, (perfil) => {
       if (!perfil) {
         // Durante el registro el perfil todavía se está creando.
-        if (registrandoRef.current) return;
+        if (registrandoRef.current || creandoPerfilRef.current) return;
+
+        // Primer ingreso con Google: no hay registro previo, así que se crea
+        // el perfil de residente aquí. Sirve igual si Google volvió por
+        // ventana emergente o por redirección.
+        const usuarioAuth = usuarioAuthRef.current;
+        if (usuarioAuth?.uid === uid && servicioAuth.entroConGoogle(usuarioAuth)) {
+          creandoPerfilRef.current = true;
+          servicioAuth
+            .crearPerfilGoogle(usuarioAuth)
+            .catch(() => servicioAuth.cerrarSesion().catch(() => undefined))
+            .finally(() => {
+              creandoPerfilRef.current = false;
+            });
+          return;
+        }
+
         // Sesión autenticada sin documento de perfil: se cierra para no dejar
         // al usuario en un estado a medias.
         servicioAuth.cerrarSesion().catch(() => undefined);
@@ -203,6 +224,10 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
 
   const iniciarSesion = useCallback(async (email: string, password: string) => {
     await servicioAuth.iniciarSesion(email, password);
+  }, []);
+
+  const iniciarSesionConGoogle = useCallback(async () => {
+    await servicioAuth.iniciarSesionConGoogle();
   }, []);
 
   const registrarCuenta = useCallback(
@@ -382,6 +407,25 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [registros, torres, mision]
   );
 
+  /**
+   * EcoPuntos del mes por torre: la suma de los de cada residente, calculados
+   * igual que los propios (misión semanal con sus depósitos no rechazados).
+   */
+  const ecoPuntosPorTorre = useMemo(() => {
+    const porResidente = new Map<string, { torreId: string; registros: Registro[] }>();
+    for (const r of registros) {
+      const entrada = porResidente.get(r.residenteId) ?? { torreId: r.torreId, registros: [] };
+      entrada.registros.push(r);
+      porResidente.set(r.residenteId, entrada);
+    }
+
+    const totales = new Map<string, number>();
+    for (const { torreId, registros: suyos } of porResidente.values()) {
+      totales.set(torreId, (totales.get(torreId) ?? 0) + puntosDelMes(suyos));
+    }
+    return totales;
+  }, [registros]);
+
   const ranking = useMemo<FilaRanking[]>(() => {
     return torres
       .map((torre) => {
@@ -392,11 +436,12 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
           condominio: torre.condominio,
           kg: resumen.kgMes,
           participacion: resumen.participacion,
+          ecoPuntos: ecoPuntosPorTorre.get(torre.id) ?? 0,
           esMiTorre: torre.id === usuario?.torreId,
         };
       })
       .sort((a, b) => b.kg - a.kg);
-  }, [torres, resumenTorre, usuario]);
+  }, [torres, resumenTorre, ecoPuntosPorTorre, usuario]);
 
   const misRegistros = useMemo(
     () => (usuario ? registros.filter((r) => r.residenteId === usuario.id) : []),
@@ -418,9 +463,8 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [misCertificados]
   );
 
-  const misionesDiarias = useMemo(() => calcularDiarias(misRegistros), [misRegistros]);
-  const misionesSemanales = useMemo(() => calcularSemanales(misRegistros), [misRegistros]);
-  const puntosSemana = useMemo(() => puntosDeLaSemana(misRegistros), [misRegistros]);
+  const misionSemanal = useMemo(() => calcularSemanal(misRegistros), [misRegistros]);
+  const ecoPuntosMes = useMemo(() => puntosDelMes(misRegistros), [misRegistros]);
 
   const miPosicionRanking = useMemo(() => {
     const indice = ranking.findIndex((t) => t.esMiTorre);
@@ -511,10 +555,10 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     kgEnCola,
     retirosConfirmadosHoy,
     mision,
-    misionesDiarias,
-    misionesSemanales,
-    puntosSemana,
+    misionSemanal,
+    ecoPuntosMes,
     iniciarSesion,
+    iniciarSesionConGoogle,
     registrarCuenta,
     vincularTorre,
     vincularComoAdministrador,

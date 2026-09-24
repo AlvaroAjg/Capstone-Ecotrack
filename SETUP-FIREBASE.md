@@ -32,6 +32,21 @@ la estructura de carpetas.
 
 Déjalo en modo de prueba por ahora: el paso 3 necesita escribir sin reglas.
 
+**Inicio de sesión con Google (opcional, solo versión web / PWA):**
+
+3. **Authentication → Sign-in method → Google → Habilitar**, eligiendo un correo de soporte.
+4. **Authentication → Settings → Authorized domains:** deben estar `localhost` y
+   `ecotrack-capstone-3f12d.web.app` (normalmente ya vienen).
+5. **Google Cloud Console → APIs y servicios → Credenciales →** el cliente OAuth
+   *"Web client (auto created by Google Service)"* **→ URIs de redireccionamiento
+   autorizados →** agregar `https://ecotrack-capstone-3f12d.web.app/__/auth/handler`.
+   Es necesario porque en el sitio publicado la app usa su propio dominio para
+   Google (así Safari del iPhone no bloquea la sesión); sin este paso Google
+   responde `redirect_uri_mismatch`.
+
+Una cuenta que entra por primera vez con Google nace siempre como **residente**
+y luego pasa por la vinculación a torre, igual que un registro normal.
+
 ---
 
 ## 3. Preparar todo, de un toque

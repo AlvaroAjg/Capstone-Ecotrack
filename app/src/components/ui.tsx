@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from "react-native";
-import { SafeAreaView } from "react-native-safe-area-context";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { EstadoRegistro } from "../lib/tipos";
 
 export function Encabezado({
@@ -53,19 +53,22 @@ export function AvatarPerfil({
   );
 }
 
-type PantallaTab = "home" | "misiones" | "reciclados" | "ranking";
+type PantallaTab = "home" | "reciclados" | "ranking";
 
 const TABS_INFO: { pantalla: PantallaTab; etiqueta: string; icono: string }[] = [
   { pantalla: "home", etiqueta: "Inicio", icono: "🏠" },
-  { pantalla: "misiones", etiqueta: "Misiones", icono: "🎯" },
   { pantalla: "reciclados", etiqueta: "Reciclados", icono: "♻️" },
   { pantalla: "ranking", etiqueta: "Ranking", icono: "🏆" },
 ];
 
 /**
- * Barra fija de pestañas para el residente. Solo se muestra en las pantallas
- * raíz (Inicio, Misiones, Reciclados, Ranking); escanear, el certificado y
+ * Barra fija de pestañas para el residente. Solo se muestra en las tres
+ * pantallas raíz (Inicio, Reciclados, Ranking); escanear, el certificado y
  * "Mi cuenta" se abren por encima, cubriéndola, como en cualquier app con tabs.
+ *
+ * No usa todo el margen seguro inferior: en el iPhone son ~34 px pensados para
+ * la rayita de inicio, y sumados al relleno propio dejaban los íconos flotando
+ * muy arriba. Basta con una parte para que no se crucen con ella.
  */
 export function BarraInferior({
   actual,
@@ -74,8 +77,12 @@ export function BarraInferior({
   actual: string;
   alCambiar: (pantalla: PantallaTab) => void;
 }) {
+  const { bottom } = useSafeAreaInsets();
   return (
-    <SafeAreaView edges={["bottom"]} className="bg-white border-t border-gray-200">
+    <View
+      className="bg-white border-t border-gray-200"
+      style={{ paddingBottom: Math.max(6, bottom - 16) }}
+    >
       <View className="flex-row">
         {TABS_INFO.map((t) => {
           const activo = actual === t.pantalla;
@@ -86,7 +93,7 @@ export function BarraInferior({
               accessibilityRole="button"
               accessibilityLabel={t.etiqueta}
               accessibilityState={{ selected: activo }}
-              className="flex-1 items-center py-2"
+              className="flex-1 items-center pt-2 pb-1"
             >
               <Text className={`text-xl ${activo ? "" : "opacity-40"}`}>{t.icono}</Text>
               <Text
@@ -100,7 +107,7 @@ export function BarraInferior({
           );
         })}
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

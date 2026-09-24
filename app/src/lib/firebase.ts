@@ -9,9 +9,26 @@ import * as firebaseAuth from "firebase/auth";
 import { getFirestore, initializeFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
+/**
+ * Dominio que atiende el inicio de sesión con Google. En el sitio publicado se
+ * usa el mismo dominio de la app (Firebase Hosting sirve /__/auth/ en él): así
+ * Safari no bloquea la sesión por venir de otro sitio, que es lo que pasa en el
+ * iPhone con firebaseapp.com. En localhost se mantiene el dominio por defecto.
+ */
+function dominioAuth(): string {
+  const porDefecto = "ecotrack-capstone-3f12d.firebaseapp.com";
+  if (Platform.OS !== "web") return porDefecto;
+  try {
+    const host = window.location.hostname;
+    return host === "ecotrack-capstone-3f12d.web.app" ? host : porDefecto;
+  } catch {
+    return porDefecto;
+  }
+}
+
 const firebaseConfig = {
   apiKey: "AIzaSyBmUuiyaDVYYldoKIOkCpacBCYYsnDvcxc",
-  authDomain: "ecotrack-capstone-3f12d.firebaseapp.com",
+  authDomain: dominioAuth(),
   projectId: "ecotrack-capstone-3f12d",
   storageBucket: "ecotrack-capstone-3f12d.firebasestorage.app",
   messagingSenderId: "30032741037",

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Rol } from "../state/EcoTrack";
-import { mensajeError } from "../services/auth";
+import { mensajeError, tieneContrasena } from "../services/auth";
 import {
   etiquetaDepto,
   normalizarNombre,
@@ -213,76 +213,88 @@ export default function PerfilScreen({ nav }: { nav: Navegacion }) {
         </Tarjeta>
       </Seccion>
 
-      <Seccion titulo="Seguridad">
-        <Tarjeta>
-          {mensajeClave ? (
-            <View className="mb-4">
-              <Aviso tono="info" texto={mensajeClave} />
-            </View>
-          ) : null}
+      {/* Quien entra con Google no tiene contraseña de EcoTrack: la maneja Google. */}
+      {!tieneContrasena() ? (
+        <Seccion titulo="Seguridad">
+          <Tarjeta>
+            <Text className="text-gray-500 text-sm">
+              Entras con tu cuenta de Google. La contraseña y la seguridad se
+              administran desde Google.
+            </Text>
+          </Tarjeta>
+        </Seccion>
+      ) : (
+        <Seccion titulo="Seguridad">
+          <Tarjeta>
+            {mensajeClave ? (
+              <View className="mb-4">
+                <Aviso tono="info" texto={mensajeClave} />
+              </View>
+            ) : null}
 
-          {!cambiandoClave ? (
-            <Boton
-              titulo="Cambiar contraseña"
-              variante="secundario"
-              onPress={() => {
-                setMensajeClave(null);
-                setCambiandoClave(true);
-              }}
-              className="py-3"
-            />
-          ) : (
-            <>
-              {errorClave ? (
-                <View className="mb-4">
-                  <Aviso texto={errorClave} />
-                </View>
-              ) : null}
-              <Campo
-                etiqueta="Contraseña actual"
-                secureTextEntry
-                value={claveActual}
-                onChangeText={setClaveActual}
-                onFocus={() => setErrorClave(undefined)}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-              <Campo
-                etiqueta="Nueva contraseña"
-                secureTextEntry
-                value={claveNueva}
-                onChangeText={setClaveNueva}
-                onFocus={() => setErrorClave(undefined)}
-                autoCapitalize="none"
-                autoCorrect={false}
-                placeholder="Mínimo 6 caracteres"
-              />
-              <Campo
-                etiqueta="Repite la nueva contraseña"
-                secureTextEntry
-                value={claveRepetida}
-                onChangeText={setClaveRepetida}
-                onFocus={() => setErrorClave(undefined)}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
+            {!cambiandoClave ? (
               <Boton
-                titulo={guardandoClave ? "Actualizando..." : "Actualizar contraseña"}
-                cargando={guardandoClave}
-                onPress={guardarClave}
-                className="py-3 mb-2"
-              />
-              <Boton
-                titulo="Cancelar"
+                titulo="Cambiar contraseña"
                 variante="secundario"
-                onPress={cerrarFormularioClave}
-                deshabilitado={guardandoClave}
+                onPress={() => {
+                  setMensajeClave(null);
+                  setCambiandoClave(true);
+                }}
                 className="py-3"
               />
-            </>
-          )}
-        </Tarjeta>
-      </Seccion>
+            ) : (
+              <>
+                {errorClave ? (
+                  <View className="mb-4">
+                    <Aviso texto={errorClave} />
+                  </View>
+                ) : null}
+                <Campo
+                  etiqueta="Contraseña actual"
+                  secureTextEntry
+                  value={claveActual}
+                  onChangeText={setClaveActual}
+                  onFocus={() => setErrorClave(undefined)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Campo
+                  etiqueta="Nueva contraseña"
+                  secureTextEntry
+                  value={claveNueva}
+                  onChangeText={setClaveNueva}
+                  onFocus={() => setErrorClave(undefined)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  placeholder="Mínimo 6 caracteres"
+                />
+                <Campo
+                  etiqueta="Repite la nueva contraseña"
+                  secureTextEntry
+                  value={claveRepetida}
+                  onChangeText={setClaveRepetida}
+                  onFocus={() => setErrorClave(undefined)}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+                <Boton
+                  titulo={guardandoClave ? "Actualizando..." : "Actualizar contraseña"}
+                  cargando={guardandoClave}
+                  onPress={guardarClave}
+                  className="py-3 mb-2"
+                />
+                <Boton
+                  titulo="Cancelar"
+                  variante="secundario"
+                  onPress={cerrarFormularioClave}
+                  deshabilitado={guardandoClave}
+                  className="py-3"
+                />
+              </>
+            )}
+          </Tarjeta>
+        </Seccion>
+      )}
 
       <View className="px-6 mt-6">
         <Boton titulo="Cerrar sesión" variante="peligro" onPress={() => cerrarSesion()} />
