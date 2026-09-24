@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
 import { BarraInferior, PantallaCargando } from "./src/components/ui";
+import BannerAvisos from "./src/components/BannerAvisos";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import JoinTorreScreen from "./src/screens/JoinTorreScreen";
@@ -121,12 +122,24 @@ function PilaApp({ rol }: { rol: Rol }) {
   // La barra solo se muestra en las pantallas raíz del residente: escanear, el
   // certificado y "Mi cuenta" se abren por encima, cubriéndola.
   const mostrarBarra = rol === "residente" && nav.raiz;
-  if (!mostrarBarra) return <>{pantalla}</>;
+
+  // El banner de avisos va encima de todo, en cualquier pantalla. Tocarlo abre
+  // el certificado si el aviso tiene uno; si no, la lista de avisos.
+  const banner = (
+    <BannerAvisos
+      alAbrir={(aviso) =>
+        aviso.registroId
+          ? ir("certificado", { registroId: aviso.registroId })
+          : actual.pantalla !== "avisos" && ir("avisos")
+      }
+    />
+  );
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ flex: 1 }}>{pantalla}</View>
-      <BarraInferior actual={actual.pantalla} alCambiar={ir} />
+      {mostrarBarra ? <BarraInferior actual={actual.pantalla} alCambiar={ir} /> : null}
+      {banner}
     </View>
   );
 }
