@@ -53,6 +53,39 @@ export function AvatarPerfil({
   );
 }
 
+/**
+ * Campana de avisos del encabezado, con la cantidad de avisos nuevos. Va junto
+ * al avatar en el inicio de cada rol.
+ */
+export function CampanaAvisos({
+  nuevos,
+  alPresionar,
+}: {
+  nuevos: number;
+  alPresionar: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={alPresionar}
+      activeOpacity={0.8}
+      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+      accessibilityRole="button"
+      accessibilityLabel={nuevos > 0 ? `Avisos, ${nuevos} nuevos` : "Avisos"}
+      className="items-center mr-4"
+    >
+      <View className="w-12 h-12 bg-white/15 rounded-full items-center justify-center">
+        <Text className="text-xl">🔔</Text>
+        {nuevos > 0 ? (
+          <View className="absolute -top-1 -right-1 min-w-[20px] h-5 px-1 bg-red-500 rounded-full items-center justify-center">
+            <Text className="text-white text-[11px] font-bold">{nuevos > 9 ? "9+" : nuevos}</Text>
+          </View>
+        ) : null}
+      </View>
+      <Text className="text-white/70 text-[10px] mt-1">Avisos</Text>
+    </TouchableOpacity>
+  );
+}
+
 type PantallaTab = "home" | "reciclados" | "ranking";
 
 const TABS_INFO: { pantalla: PantallaTab; etiqueta: string; icono: string }[] = [

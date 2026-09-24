@@ -16,6 +16,7 @@ import RankingScreen from "./src/screens/RankingScreen";
 import RecicladosScreen from "./src/screens/RecicladosScreen";
 import CertificadoScreen from "./src/screens/CertificadoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
+import AvisosScreen from "./src/screens/AvisosScreen";
 
 export type Pantalla =
   | "home"
@@ -25,7 +26,8 @@ export type Pantalla =
   | "ranking"
   | "reciclados"
   | "certificado"
-  | "perfil";
+  | "perfil"
+  | "avisos";
 
 export interface ParamsPantalla {
   registroId?: string;
@@ -108,6 +110,9 @@ function PilaApp({ rol }: { rol: Rol }) {
       break;
     case "perfil":
       pantalla = <PerfilScreen nav={nav} />;
+      break;
+    case "avisos":
+      pantalla = <AvisosScreen nav={nav} />;
       break;
     default:
       pantalla = <HomeScreen nav={nav} />;

@@ -8,6 +8,7 @@ import { contenidoQr, idContenedor } from "../lib/qr";
 import CodigoQR from "../components/CodigoQR";
 import {
   AvatarPerfil,
+  CampanaAvisos,
   Aviso,
   Barra,
   Boton,
@@ -30,6 +31,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     rechazarRegistro,
     mision,
     guardarMision,
+    avisosNuevos,
   } = useEcoTrack();
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
@@ -79,6 +81,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
               {usuario?.nombre ?? "Administrador"} · {miTorre?.condominio ?? ""}
             </Text>
           </View>
+          <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
           <AvatarPerfil
             nombre={usuario?.nombre ?? "Administrador"}
             alPresionar={() => nav.ir("perfil")}

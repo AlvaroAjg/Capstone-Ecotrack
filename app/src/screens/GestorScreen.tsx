@@ -6,6 +6,7 @@ import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import {
   AvatarPerfil,
+  CampanaAvisos,
   Aviso,
   Boton,
   Cuerpo,
@@ -33,6 +34,7 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
     retirosConfirmadosHoy,
     errorDatos,
     confirmarRetiro,
+    avisosNuevos,
   } = useEcoTrack();
 
   const [ultimoRetiro, setUltimoRetiro] = useState<string | null>(null);
@@ -48,6 +50,7 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
               subtitulo={`${usuario?.nombre ?? "Gestor"} · contenedores por torre`}
             />
           </View>
+          <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
           <AvatarPerfil
             nombre={usuario?.nombre ?? "Gestor"}
             alPresionar={() => nav.ir("perfil")}

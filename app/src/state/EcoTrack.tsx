@@ -25,6 +25,7 @@ import {
   type Torre,
   type Usuario,
 } from "../lib/tipos";
+import { construirAvisos, esNuevo, type Aviso } from "../lib/avisos";
 import {
   misionSemanal as calcularSemanal,
   puntosDelMes,
@@ -78,6 +79,11 @@ interface EcoTrackValor {
 
   // Misión activa de mi torre (null si todavía no se ha definido una)
   mision: Mision | null;
+
+  // Avisos del avance de la cadena, según el rol (ver lib/avisos.ts)
+  avisos: Aviso[];
+  avisosNuevos: number;
+  marcarAvisosVistos: () => Promise<void>;
 
   // Misión semanal del sistema, calculada con los depósitos del residente
   misionSemanal: MisionSistema;
@@ -528,6 +534,21 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   );
 
 
+  const avisos = useMemo(
+    () => construirAvisos(usuario, registros, lotesPorRetirar),
+    [usuario, registros, lotesPorRetirar]
+  );
+
+  const avisosNuevos = useMemo(
+    () => avisos.filter((a) => esNuevo(a, usuario?.avisosVistosHasta ?? 0)).length,
+    [avisos, usuario?.avisosVistosHasta]
+  );
+
+  const marcarAvisosVistos = useCallback(async () => {
+    if (!usuario || avisosNuevos === 0) return;
+    await servicioAuth.marcarAvisosVistos(usuario.id, Date.now());
+  }, [usuario, avisosNuevos]);
+
   const retirosConfirmadosHoy = useMemo(
     () =>
       registros.filter(
@@ -557,6 +578,9 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     mision,
     misionSemanal,
     ecoPuntosMes,
+    avisos,
+    avisosNuevos,
+    marcarAvisosVistos,
     iniciarSesion,
     iniciarSesionConGoogle,
     registrarCuenta,

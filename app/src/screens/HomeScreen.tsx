@@ -6,6 +6,7 @@ import { formatKg, porcentaje } from "../lib/formato";
 import { textoAvance, type MisionSistema } from "../lib/misionesSistema";
 import {
   AvatarPerfil,
+  CampanaAvisos,
   Aviso,
   Barra,
   Cuerpo,
@@ -27,6 +28,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     mision,
     misionSemanal,
     ecoPuntosMes,
+    avisosNuevos,
   } = useEcoTrack();
 
   const nombre = usuario?.nombre ?? "Residente";
@@ -53,6 +55,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
               {miTorre?.condominio ?? ""}
             </Text>
           </TouchableOpacity>
+          <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
           <AvatarPerfil nombre={nombre} alPresionar={() => nav.ir("perfil")} />
         </View>
       </Encabezado>

@@ -40,6 +40,7 @@ export function escucharPerfil(uid: string, callback: (u: Usuario | null) => voi
         rol: (d.rol ?? "residente") as Rol,
         torreId: d.torreId ?? null,
         torreNombre: d.torreNombre ?? null,
+        avisosVistosHasta: d.avisosVistosHasta ?? 0,
       });
     },
     () => callback(null)
@@ -207,6 +208,11 @@ export async function vincularTorreAlPerfil(
   depto: string
 ): Promise<void> {
   await updateDoc(doc(db, "usuarios", uid), { torreId, torreNombre, depto });
+}
+
+/** Marca como vistos todos los avisos hasta `hasta`. Es un campo del propio perfil. */
+export async function marcarAvisosVistos(uid: string, hasta: number): Promise<void> {
+  await updateDoc(doc(db, "usuarios", uid), { avisosVistosHasta: hasta });
 }
 
 /**

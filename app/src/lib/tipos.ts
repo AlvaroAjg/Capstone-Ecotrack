@@ -36,6 +36,8 @@ export interface Usuario {
   rol: Rol;
   torreId: string | null;
   torreNombre: string | null;
+  /** Hasta cuándo vio sus avisos: los posteriores se marcan como nuevos. */
+  avisosVistosHasta: number;
 }
 
 /** Colección `registros/{id}` */
