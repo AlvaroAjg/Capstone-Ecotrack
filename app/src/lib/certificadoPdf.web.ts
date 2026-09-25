@@ -1,24 +1,33 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
-import { fechaLarga, formatKg } from "./formato";
+import { fechaCorta, fechaLarga, formatKg } from "./formato";
+import { tieneEstimados, type CertificadoMensual } from "./certificadoMensual";
 import { kgEfectivo, type Registro } from "./tipos";
 
 /**
- * Certificado de reciclaje en PDF, generado en el dispositivo.
+ * Certificado mensual de reciclaje en PDF, generado en el dispositivo.
  *
  * Se arma con pdf-lib y no con window.print(): imprimir HTML no es confiable en
  * una PWA de iPhone, y así el archivo es idéntico en cualquier dispositivo.
+ * La primera página resume el mes; después viene el detalle de cada depósito
+ * con las fechas de su paso por la cadena, en tantas páginas como haga falta.
  */
 
 export const certificadoPdfDisponible = true;
 
 const ANCHO = 595; // A4 en puntos
 const ALTO = 842;
+const MARGEN = 40;
+/** Donde termina el área útil: debajo va el pie de página. */
+const LIMITE_INFERIOR = ALTO - 80;
+const ALTO_FILA = 17;
 
 const VERDE = rgb(0.086, 0.502, 0.238); // #15803D
 const VERDE_OSCURO = rgb(0.078, 0.325, 0.176);
 const VERDE_CLARO = rgb(0.86, 0.95, 0.89);
 const GRIS = rgb(0.42, 0.45, 0.5);
+const GRIS_SUAVE = rgb(0.62, 0.64, 0.68);
 const GRIS_CLARO = rgb(0.9, 0.91, 0.93);
+const FONDO_FILA = rgb(0.97, 0.98, 0.98);
 const TEXTO = rgb(0.07, 0.09, 0.15);
 
 /**
@@ -29,7 +38,7 @@ const TEXTO = rgb(0.07, 0.09, 0.15);
 function seguro(texto: string): string {
   return texto
     .normalize("NFC")
-    .replace(/[\s  ]+/g, " ")
+    .replace(/[\s  ]+/g, " ")
     .replace(/[^\x20-\x7E¡-ÿ]/g, "?");
 }
 
@@ -39,27 +48,24 @@ interface Pincel {
   negrita: PDFFont;
 }
 
+type Color = ReturnType<typeof rgb>;
+
 /** Texto centrado horizontalmente. `arriba` se mide desde el borde superior. */
 function centrado(
   p: Pincel,
   texto: string,
   arriba: number,
   tamano: number,
-  opciones: { negrita?: boolean; color?: ReturnType<typeof rgb>; espaciado?: number } = {}
+  opciones: { negrita?: boolean; color?: Color } = {}
 ) {
   const limpio = seguro(texto);
   const fuente = opciones.negrita ? p.negrita : p.normal;
-  const espaciado = opciones.espaciado ?? 0;
-  const ancho =
-    fuente.widthOfTextAtSize(limpio, tamano) + espaciado * Math.max(0, limpio.length - 1);
-
   p.pagina.drawText(limpio, {
-    x: (ANCHO - ancho) / 2,
+    x: (ANCHO - fuente.widthOfTextAtSize(limpio, tamano)) / 2,
     y: ALTO - arriba,
     size: tamano,
     font: fuente,
     color: opciones.color ?? TEXTO,
-    characterSpacing: espaciado,
   });
 }
 
@@ -69,7 +75,7 @@ function izquierda(
   x: number,
   arriba: number,
   tamano: number,
-  opciones: { negrita?: boolean; color?: ReturnType<typeof rgb> } = {}
+  opciones: { negrita?: boolean; color?: Color } = {}
 ) {
   p.pagina.drawText(seguro(texto), {
     x,
@@ -80,166 +86,209 @@ function izquierda(
   });
 }
 
-function etapa(
-  p: Pincel,
-  arriba: number,
-  titulo: string,
-  detalle: string,
-  momento: number | null,
-  ultima: boolean
-) {
-  const x = 96;
-  if (!ultima) {
-    p.pagina.drawLine({
-      start: { x, y: ALTO - arriba - 9 },
-      end: { x, y: ALTO - arriba - 52 },
-      thickness: 1.5,
-      color: VERDE_CLARO,
-    });
-  }
-  p.pagina.drawCircle({ x, y: ALTO - arriba + 4, size: 9, color: VERDE });
-  // Marca de verificación dibujada con líneas: la fuente estándar no trae "✓".
+function linea(p: Pincel, arriba: number) {
   p.pagina.drawLine({
-    start: { x: x - 4, y: ALTO - arriba + 4 },
-    end: { x: x - 1, y: ALTO - arriba + 1 },
-    thickness: 1.6,
-    color: rgb(1, 1, 1),
+    start: { x: MARGEN, y: ALTO - arriba },
+    end: { x: ANCHO - MARGEN, y: ALTO - arriba },
+    thickness: 0.8,
+    color: GRIS_CLARO,
   });
-  p.pagina.drawLine({
-    start: { x: x - 1, y: ALTO - arriba + 1 },
-    end: { x: x + 4.5, y: ALTO - arriba + 8 },
-    thickness: 1.6,
-    color: rgb(1, 1, 1),
-  });
-
-  izquierda(p, titulo, x + 22, arriba, 11, { negrita: true });
-  izquierda(p, detalle, x + 22, arriba + 15, 9.5, { color: GRIS });
-  if (momento) izquierda(p, fechaLarga(momento), x + 22, arriba + 28, 9, { color: GRIS });
 }
 
-export async function generarCertificadoPdf(registro: Registro): Promise<Uint8Array> {
-  if (registro.estado !== "certificado" || !registro.codigo) {
-    throw new Error("Este depósito todavía no completó la cadena de verificación.");
+function kilos(r: Registro): string {
+  const kg = formatKg(kgEfectivo(r)).replace(" kg", "");
+  return r.talla ? `aprox. ${kg}` : kg;
+}
+
+/** Última columna: en qué quedó el depósito. */
+function situacion(r: Registro): string {
+  switch (r.estado) {
+    case "certificado":
+      return [r.codigoRetiro, r.codigo].filter(Boolean).join(" · ") || "Certificado";
+    case "validado":
+      return "En proceso: esperando retiro";
+    case "pendiente":
+      return "En proceso: esperando validación";
+    case "rechazado":
+      return "Rechazado: no suma";
   }
+}
 
-  const doc = await PDFDocument.create();
-  doc.setTitle(`Certificado EcoTrack ${registro.codigo}`);
-  doc.setAuthor("EcoTrack");
-  doc.setSubject("Certificado de reciclaje verificado");
+/** Columnas de la tabla de detalle: [título, x]. */
+const COLUMNAS: [string, number][] = [
+  ["DEPÓSITO", MARGEN],
+  ["MATERIAL", 110],
+  ["BOLSA", 184],
+  ["KG", 226],
+  ["VALIDADO", 280],
+  ["CERTIFICADO", 344],
+  ["RETIRO · CÓDIGO", 416],
+];
 
-  const pagina = doc.addPage([ANCHO, ALTO]);
-  const p: Pincel = {
-    pagina,
-    normal: await doc.embedFont(StandardFonts.Helvetica),
-    negrita: await doc.embedFont(StandardFonts.HelveticaBold),
-  };
+function encabezadoTabla(p: Pincel, arriba: number) {
+  for (const [titulo, x] of COLUMNAS) {
+    izquierda(p, titulo, x, arriba, 7, { negrita: true, color: GRIS });
+  }
+  linea(p, arriba + 6);
+}
 
-  // Encabezado
-  pagina.drawRectangle({ x: 0, y: ALTO - 150, width: ANCHO, height: 150, color: VERDE });
-  pagina.drawRectangle({ x: 0, y: ALTO - 150, width: ANCHO, height: 6, color: VERDE_OSCURO });
-  centrado(p, "EcoTrack", 78, 34, { negrita: true, color: rgb(1, 1, 1) });
-  centrado(p, "Reciclaje verificado, desde tu torre hacia arriba", 104, 11, {
-    color: rgb(0.86, 0.95, 0.89),
+function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
+  if (sombreada) {
+    p.pagina.drawRectangle({
+      x: MARGEN - 4,
+      y: ALTO - arriba - 5,
+      width: ANCHO - 2 * MARGEN + 8,
+      height: ALTO_FILA,
+      color: FONDO_FILA,
+    });
+  }
+  // Lo que no suma al total (en proceso o rechazado) va en gris.
+  const color = r.estado === "certificado" ? TEXTO : GRIS_SUAVE;
+  const celdas = [
+    fechaCorta(r.creadoEn),
+    r.material,
+    r.talla ? `Talla ${r.talla}` : "-",
+    kilos(r),
+    fechaCorta(r.validadoEn),
+    fechaCorta(r.certificadoEn),
+    situacion(r),
+  ];
+  celdas.forEach((texto, i) => {
+    izquierda(p, texto, COLUMNAS[i][1], arriba, i === 6 ? 7 : 8, { color });
   });
+}
 
-  // Título y beneficiario
-  centrado(p, "CERTIFICADO DE RECICLAJE VERIFICADO", 205, 17, { negrita: true });
-  pagina.drawRectangle({ x: ANCHO / 2 - 30, y: ALTO - 218, width: 60, height: 2.5, color: VERDE });
+export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint8Array> {
+  const doc = await PDFDocument.create();
+  doc.setTitle(`Certificado EcoTrack ${c.codigo}`);
+  doc.setAuthor("EcoTrack");
+  doc.setSubject(`Certificado mensual de reciclaje, ${c.etiqueta}`);
 
-  centrado(p, "Se certifica que", 252, 12, { color: GRIS });
-  centrado(p, registro.residente, 284, 24, { negrita: true });
-  centrado(p, `${registro.torreNombre} · ${registro.depto}`, 306, 12, { color: GRIS });
+  const normal = await doc.embedFont(StandardFonts.Helvetica);
+  const negrita = await doc.embedFont(StandardFonts.HelveticaBold);
+  const nuevaPagina = (): Pincel => ({ pagina: doc.addPage([ANCHO, ALTO]), normal, negrita });
 
-  centrado(p, "recicló de forma verificada", 345, 12, { color: GRIS });
-  // Con talla de bolsa los kilos son una estimación y se dice así. Se escribe
-  // "aprox." y no "≈" porque las fuentes estándar del PDF no traen ese símbolo.
-  const kilos = formatKg(kgEfectivo(registro));
-  centrado(p, registro.talla ? `aprox. ${kilos}` : kilos, 388, 42, { negrita: true, color: VERDE });
+  // ------------------------------------------------------------ página 1
+  let p = nuevaPagina();
+  const titulo = c.etiqueta.charAt(0).toUpperCase() + c.etiqueta.slice(1);
+
+  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 110, color: VERDE });
+  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 5, color: VERDE_OSCURO });
+  centrado(p, "EcoTrack", 58, 28, { negrita: true, color: rgb(1, 1, 1) });
+  centrado(p, "Reciclaje verificado, desde tu torre hacia arriba", 80, 10, { color: VERDE_CLARO });
+
+  centrado(p, "CERTIFICADO MENSUAL DE RECICLAJE", 148, 16, { negrita: true });
+  centrado(p, titulo, 168, 12, { negrita: true, color: VERDE });
+
+  centrado(p, "Se certifica que", 202, 10, { color: GRIS });
+  centrado(p, c.residente, 226, 20, { negrita: true });
+  centrado(p, `${c.torreNombre} · ${c.depto}`, 244, 10, { color: GRIS });
+
+  centrado(p, "recicló de forma verificada", 274, 10, { color: GRIS });
+  const total = formatKg(c.kgCertificados);
+  centrado(p, tieneEstimados(c) ? `aprox. ${total}` : total, 310, 32, {
+    negrita: true,
+    color: VERDE,
+  });
   centrado(
     p,
-    registro.talla
-      ? `${registro.material} · bolsa talla ${registro.talla} (kilos estimados por tamaño)`
-      : registro.material,
-    412,
-    registro.talla ? 12 : 15,
+    `en ${c.certificados.length} depósito${c.certificados.length === 1 ? "" : "s"} que completaron la cadena de verificación`,
+    328,
+    10,
+    { color: GRIS }
+  );
+  centrado(
+    p,
+    c.porMaterial
+      .map((m) => `${m.material}: ${formatKg(m.kg)} (${m.depositos})`)
+      .join("   ·   "),
+    348,
+    9,
     { negrita: true }
   );
 
-  // Código
-  const cajaAncho = 300;
-  const cajaAlto = 62;
-  pagina.drawRectangle({
+  // Código del certificado
+  const cajaAncho = 260;
+  p.pagina.drawRectangle({
     x: (ANCHO - cajaAncho) / 2,
-    y: ALTO - 452 - cajaAlto,
+    y: ALTO - 418,
     width: cajaAncho,
-    height: cajaAlto,
-    color: rgb(0.97, 0.98, 0.98),
+    height: 50,
+    color: FONDO_FILA,
     borderColor: GRIS_CLARO,
     borderWidth: 1,
   });
-  centrado(p, "CÓDIGO DE VERIFICACIÓN", 472, 8.5, { color: GRIS, espaciado: 1.2 });
-  centrado(p, registro.codigo, 498, 22, { negrita: true, espaciado: 3 });
-  if (registro.codigoRetiro) {
-    centrado(p, `Retirado en el lote ${registro.codigoRetiro}`, 538, 10, { color: GRIS });
+  centrado(p, "CÓDIGO DEL CERTIFICADO", 385, 8, { color: GRIS });
+  centrado(p, c.codigo, 406, 18, { negrita: true });
+
+  if (c.enCurso) {
+    centrado(
+      p,
+      `Mes en curso: este certificado se completa con cada retiro. Estado al ${fechaLarga(Date.now())}`,
+      436,
+      8.5,
+      { color: GRIS }
+    );
   }
 
-  // Trazabilidad
-  izquierda(p, "TRAZABILIDAD", 72, 582, 9, { negrita: true, color: GRIS });
-  pagina.drawLine({
-    start: { x: 72, y: ALTO - 590 },
-    end: { x: ANCHO - 72, y: ALTO - 590 },
-    thickness: 0.8,
-    color: GRIS_CLARO,
-  });
-
-  etapa(
+  // ------------------------------------------------------------ detalle
+  let arriba = 470;
+  izquierda(p, "DETALLE DE DEPÓSITOS DEL MES", MARGEN, arriba, 9, { negrita: true, color: GRIS });
+  izquierda(
     p,
-    620,
-    "Depósito registrado",
-    `${registro.residente} · contenedor ${registro.contenedor}`,
-    registro.creadoEn,
-    false
-  );
-  etapa(
-    p,
-    680,
-    "Validado por el administrador",
-    "Confirmó la correcta deposición en el contenedor",
-    registro.validadoEn,
-    false
-  );
-  etapa(
-    p,
-    740,
-    "Confirmado por el gestor",
-    `Retiró el contenedor de ${registro.torreNombre}${
-      registro.codigoRetiro ? ` (lote ${registro.codigoRetiro})` : ""
-    }`,
-    registro.certificadoEn,
-    true
-  );
-
-  // Pie
-  pagina.drawLine({
-    start: { x: 72, y: 62 },
-    end: { x: ANCHO - 72, y: 62 },
-    thickness: 0.8,
-    color: GRIS_CLARO,
-  });
-  centrado(
-    p,
-    `Emitido el ${fechaLarga(registro.certificadoEn ?? registro.creadoEn)} · EcoTrack`,
-    ALTO - 46,
-    8.5,
-    { color: GRIS }
-  );
-  centrado(
-    p,
-    "El código identifica este certificado de forma única en el registro de EcoTrack.",
-    ALTO - 34,
+    "Fecha de cada etapa: depósito, validación del administrador y retiro del gestor.",
+    MARGEN,
+    arriba + 13,
     8,
     { color: GRIS }
   );
+  arriba += 34;
+  encabezadoTabla(p, arriba);
+  arriba += ALTO_FILA + 4;
+
+  c.registros.forEach((r, i) => {
+    if (arriba > LIMITE_INFERIOR) {
+      p = nuevaPagina();
+      izquierda(p, `EcoTrack · Certificado mensual · ${titulo} · ${c.codigo}`, MARGEN, 50, 9, {
+        negrita: true,
+        color: GRIS,
+      });
+      izquierda(p, `${c.residente} · ${c.torreNombre} · ${c.depto}`, MARGEN, 63, 8.5, {
+        color: GRIS,
+      });
+      arriba = 92;
+      encabezadoTabla(p, arriba);
+      arriba += ALTO_FILA + 4;
+    }
+    filaTabla(p, r, arriba, i % 2 === 0);
+    arriba += ALTO_FILA;
+  });
+
+  // ------------------------------------------------------------ pie de cada página
+  const paginas = doc.getPages();
+  paginas.forEach((pagina, i) => {
+    const pie: Pincel = { pagina, normal, negrita };
+    pagina.drawLine({
+      start: { x: MARGEN, y: 58 },
+      end: { x: ANCHO - MARGEN, y: 58 },
+      thickness: 0.8,
+      color: GRIS_CLARO,
+    });
+    centrado(
+      pie,
+      `Emitido el ${fechaLarga(Date.now())} · Certificado ${c.codigo} · Página ${i + 1} de ${paginas.length}`,
+      ALTO - 44,
+      8,
+      { color: GRIS }
+    );
+    centrado(
+      pie,
+      "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados por el tamaño de la bolsa.",
+      ALTO - 32,
+      6.5,
+      { color: GRIS }
+    );
+  });
 
   return doc.save();
 }
@@ -259,9 +308,9 @@ function esTactil(): boolean {
  * descarga directamente. Debe llamarse dentro del gesto del usuario (un toque):
  * iOS rechaza compartir si pasó demasiado tiempo desde el toque.
  */
-export async function descargarCertificado(registro: Registro): Promise<ResultadoDescarga> {
-  const bytes = await generarCertificadoPdf(registro);
-  const nombre = `EcoTrack-Certificado-${registro.codigo}.pdf`;
+export async function descargarCertificado(c: CertificadoMensual): Promise<ResultadoDescarga> {
+  const bytes = await generarCertificadoPdf(c);
+  const nombre = `EcoTrack-Certificado-${c.mes}-${c.codigo}.pdf`;
   const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
 
   if (esTactil() && typeof File === "function" && navigator.canShare && navigator.share) {

@@ -104,7 +104,7 @@ function TarjetaActividad({
 
       {registro.codigo ? (
         <Text className="text-green-700 text-xs font-medium mt-3">
-          Código {registro.codigo} · toca para ver el certificado
+          Código {registro.codigo} · toca para ver tu certificado del mes
         </Text>
       ) : null}
     </Tarjeta>

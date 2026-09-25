@@ -46,7 +46,7 @@ realmente funciona hoy, contra Firebase real, no simulado:
 | 1 — Incorporación | ✅ Implementado | Registro (residente o gestor con código), vinculación a torre por código, y promoción a administrador con el código propio de esa torre. Nadie se autoasigna un rol: lo exigen las reglas de Firestore, no la app. |
 | 2 — Registro de reciclaje | 🔶 Parcial | Escaneo con cámara real, selección de material y talla de bolsa (S, M, L o XL) en vez de peso: la app estima los kilos con una tabla por material que las reglas del servidor exigen, así que no se pueden inventar. En la versión web instalada. En el teléfono nativo (Expo Go) el código del contenedor se ingresa a mano. |
 | 3 — Validación en 2 etapas | 🔶 Parcial | Las dos etapas (administrador → gestor) funcionan y están garantizadas por el servidor. Avisos de avance dentro de la app para los tres roles: un banner emergente en el momento en que ocurre el evento (con la app abierta) y una 🔔 con contador de nuevos: al residente cuando su depósito es validado, rechazado o certificado; al administrador por cada depósito nuevo por validar; al gestor por cada contenedor listo para retiro. Falta la validación diaria por lote como una sola operación atómica, y notificaciones push con la app cerrada (requieren plan Blaze de Firebase). |
-| 4 — Certificado digital | 🔶 Parcial | El PDF se genera y se descarga o comparte desde la versión web instalada. No está disponible todavía en el teléfono nativo. |
+| 4 — Certificado digital | 🔶 Parcial | Certificado **mensual** por residente (no uno por depósito, que no tenía sentido para una botella suelta): total de kilos certificados del mes, desglose por material, código único y el detalle de cada depósito con la fecha de depósito, validación y retiro. El PDF se genera y se descarga o comparte desde la versión web instalada. No está disponible todavía en el teléfono nativo. |
 | 5 — Gamificación colectiva | 🔶 Parcial | Ranking semanal entre torres, misión de la torre con incentivo editable por el administrador, y misión semanal del sistema con EcoPuntos (también por torre en el ranking), funcionando. Falta un marcador en tiempo real dedicado (hoy las métricas viven en el panel). |
 | 6 — Panel del administrador | 🔶 Parcial | Validación de depósitos, edición de la misión/incentivo y métricas básicas de la torre. Falta gestión de usuarios y exportación de reportes mensuales en PDF. |
 
@@ -73,7 +73,7 @@ Escaneo de código QR en el contenedor, selección del material (papel/cartón, 
 El usuario recibe notificaciones de avance en un plazo máximo de 24 horas por etapa.
 
 ### Módulo 4 — Certificado Digital
-Generación automática de un PDF descargable con código de verificación único al completar ambas etapas de validación.
+Generación automática de un PDF descargable con código de verificación único al completar ambas etapas de validación. En la implementación el certificado es mensual: cada depósito certificado suma al certificado de su mes, que detalla todos los depósitos con las fechas de cada etapa.
 
 ### Módulo 5 — Gamificación Colectiva
 Competencia enfocada en la torre (kg acumulados y % de departamentos participantes). Incluye:

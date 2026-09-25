@@ -74,6 +74,14 @@ export function fechaLarga(timestamp: number): string {
   });
 }
 
+/** "23/09 14:05": para tablas y detalles donde el año ya está dado por el contexto. */
+export function fechaCorta(timestamp: number | null): string {
+  if (!timestamp) return "-";
+  const f = new Date(timestamp);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${dos(f.getDate())}/${dos(f.getMonth() + 1)} ${dos(f.getHours())}:${dos(f.getMinutes())}`;
+}
+
 /** Las métricas de torre y ranking se calculan sobre el mes calendario en curso. */
 export function esDelMesActual(timestamp: number | null): boolean {
   if (!timestamp) return false;

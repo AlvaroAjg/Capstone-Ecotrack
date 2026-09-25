@@ -70,7 +70,7 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
         id: `${r.id}-certificado`,
         emoji: "📄",
         titulo: "Reciclaje certificado por el gestor",
-        detalle: `${descripcion(r)} · toca para ver tu certificado`,
+        detalle: `${descripcion(r)} · ya suma a tu certificado del mes`,
         fecha: r.certificadoEn,
         registroId: r.id,
       });

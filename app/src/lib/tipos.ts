@@ -20,7 +20,7 @@ export const MATERIALES: { nombre: Material; emoji: string }[] = [
 export type Talla = "S" | "M" | "L" | "XL";
 
 export const TALLAS: { valor: Talla; referencia: string; litros: number }[] = [
-  { valor: "S", referencia: "Bolsa de pan o un puñado de latas", litros: 5 },
+  { valor: "S", referencia: "Una botella, unas latas o una bolsa de pan", litros: 5 },
   { valor: "M", referencia: "Bolsa de supermercado llena", litros: 15 },
   { valor: "L", referencia: "Bolsa de basura de cocina", litros: 30 },
   { valor: "XL", referencia: "Bolsa de basura grande", litros: 60 },

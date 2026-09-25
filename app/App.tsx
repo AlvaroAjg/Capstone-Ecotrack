@@ -32,6 +32,8 @@ export type Pantalla =
 
 export interface ParamsPantalla {
   registroId?: string;
+  /** Mes del certificado, como "2026-09". */
+  mes?: string;
 }
 
 export interface Navegacion {

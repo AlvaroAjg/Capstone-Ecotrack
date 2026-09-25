@@ -65,7 +65,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         metricas={[
           { valor: formatKg(misKgDelMes), etiqueta: "Certificado este mes" },
           { valor: `${miPosicionRanking}°`, etiqueta: "Ranking de tu torre" },
-          { valor: `${misCertificados.length}`, etiqueta: "Certificados" },
+          { valor: `${misCertificados.length}`, etiqueta: "Depósitos certificados" },
         ]}
       />
 
@@ -88,9 +88,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
 
       <View className="px-6 mt-4">
         <TouchableOpacity
-          onPress={() =>
-            misCertificados[0] && nav.ir("certificado", { registroId: misCertificados[0].id })
-          }
+          onPress={() => nav.ir("certificado")}
           disabled={misCertificados.length === 0}
           accessibilityRole="button"
           className={`bg-white rounded-2xl p-4 items-center shadow-sm ${
@@ -98,8 +96,27 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           }`}
         >
           <Text className="text-2xl mb-1">📄</Text>
-          <Text className="text-gray-700 text-xs font-medium">Último certificado</Text>
+          <Text className="text-gray-700 text-xs font-medium">Certificado del mes</Text>
         </TouchableOpacity>
+      </View>
+
+      {/* Una botella suelta también se puede registrar (talla S), pero no hace
+          falta bajar por cada una: el tip empuja a juntar y registrar de una vez. */}
+      <View className="px-6 mt-4">
+        <View
+          accessible
+          className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3"
+        >
+          <Text className="text-amber-900 font-semibold text-sm">
+            💡 Tip: junta tus reciclables y regístralos juntos
+          </Text>
+          <Text className="text-amber-800 text-xs mt-1 leading-5">
+            No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
+            durante la semana y regístrala de una vez: es un solo escaneo, la talla de
+            la bolsa estima mejor los kilos y todo suma igual a tu certificado del mes.
+            Si igual quieres botar una sola botella, regístrala como talla S.
+          </Text>
+        </View>
       </View>
 
       <Seccion titulo="Tu misión de la semana" etiqueta={`${ecoPuntosMes} EcoPuntos este mes`}>

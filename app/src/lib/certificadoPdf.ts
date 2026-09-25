@@ -1,4 +1,4 @@
-import type { Registro } from "./tipos";
+import type { CertificadoMensual } from "./certificadoMensual";
 
 /**
  * Versión para el teléfono nativo (Expo Go): el PDF se genera solo en la web
@@ -10,6 +10,6 @@ export const certificadoPdfDisponible = false;
 
 export type ResultadoDescarga = "compartido" | "descargado" | "cancelado";
 
-export async function descargarCertificado(_registro: Registro): Promise<ResultadoDescarga> {
+export async function descargarCertificado(_certificado: CertificadoMensual): Promise<ResultadoDescarga> {
   throw new Error("La descarga del PDF está disponible en la versión web instalada de EcoTrack.");
 }
