@@ -487,7 +487,7 @@ const { initializeApp, getApps } = SDK.app;
 const { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } = SDK.auth;
 const {
   getFirestore, collection, doc, onSnapshot, query, orderBy, limit,
-  addDoc, updateDoc, writeBatch,
+  addDoc, updateDoc, writeBatch, where, setDoc,
 } = SDK.fs;
 
 /* ------------------------------------------------------------- utilidades */
@@ -629,6 +629,12 @@ for (const s of SLOTS) {
 }
 
 let torres = [];
+/**
+ * Contenedores activos de la torre del administrador. Solo él puede listarlos
+ * (ver firestore.rules); el panel del residente los usa para "simular" el
+ * escaneo del QR de uno de ellos, como si estuviera frente al contenedor.
+ */
+let contenedoresDemo = [];
 const inicioSesionDemo = Date.now();
 
 /* -------------------------------------------------------- credenciales */
@@ -684,9 +690,20 @@ function escucharSlot(slotId) {
     }
 
     // Perfil del usuario (rol, torre, departamento)
+    let pararContenedores = null;
     const pararPerfil = onSnapshot(doc(s.db, "usuarios", u.uid), (snap) => {
       s.perfil = snap.exists() ? { id: u.uid, ...snap.data() } : null;
       s.conectado = true;
+      if (s.perfil?.rol === "administrador" && s.perfil.torreId && !pararContenedores) {
+        const deLaTorre = query(collection(s.db, "contenedores"), where("torreId", "==", s.perfil.torreId));
+        pararContenedores = onSnapshot(deLaTorre, (snapC) => {
+          contenedoresDemo = snapC.docs
+            .map((d) => ({ codigo: d.id, ...d.data() }))
+            .filter((c) => c.activo)
+            .sort((a, b) => a.creadoEn - b.creadoEn);
+          render();
+        }, () => {});
+      }
       if (s.perfil && s.perfil.rol !== s.rolEsperado) {
         s.error = `Esta cuenta tiene rol "${s.perfil.rol}", no "${s.rolEsperado}".`;
       } else {
@@ -708,7 +725,10 @@ function escucharSlot(slotId) {
       render();
     }, () => {});
 
-    s.desuscribir = () => { pararPerfil(); pararRegistros(); pararTorres(); };
+    s.desuscribir = () => {
+      pararPerfil(); pararRegistros(); pararTorres();
+      if (pararContenedores) pararContenedores();
+    };
   });
 }
 
@@ -753,11 +773,24 @@ async function accion(slotId, fn, mensajeExito) {
   }
 }
 
-async function crearRegistro(material, talla) {
+/** "Contenedor de vidrio" o "Contenedor mixto". */
+const nombreContenedor = (c) => (c.material ? `Contenedor de ${c.material.toLowerCase()}` : "Contenedor mixto");
+
+async function crearContenedor(material) {
+  const s = estado.administrador;
+  const codigo = Array.from({ length: 6 }, () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]).join("");
+  await setDoc(doc(s.db, "contenedores", codigo), {
+    torreId: s.perfil.torreId,
+    material,
+    activo: true,
+    creadoEn: Date.now(),
+  });
+}
+
+async function crearRegistro(material, talla, contenedor) {
   const s = estado.residente;
   const p = s.perfil;
   if (!p?.torreId) throw new Error("La cuenta no está vinculada a una torre.");
-  const contenedor = `${String(p.torreId).replace("torre-", "T-").toUpperCase()}-01`;
   await addDoc(collection(s.db, "registros"), {
     residenteId: p.id,
     residente: p.nombre ?? "",
@@ -1042,6 +1075,11 @@ function pintarResidente(s, destacados) {
     </div>`;
 }
 
+/** Contenedores de la torre del residente (los lista el panel del administrador). */
+function contenedoresDelResidente(s) {
+  return contenedoresDemo.filter((c) => c.torreId === s.perfil?.torreId);
+}
+
 function pintarEscaneo(s) {
   const f = s.ui.flujo;
   if (!f) return "";
@@ -1053,8 +1091,10 @@ function pintarEscaneo(s) {
       <div>
         <div class="marco-qr"><div style="font-size:46px">📷</div></div>
         <div style="font-weight:600;margin-bottom:5px">Buscando código QR...</div>
-        <div style="font-size:11px;color:#9CA3AF;margin-bottom:18px">Apunta la cámara al código del contenedor</div>
-        <button class="bp verde" data-accion="simular-qr" style="width:auto;padding:11px 20px">Simular detección de código</button>
+        <div style="font-size:11px;color:#9CA3AF;margin-bottom:18px">Apunta la cámara al QR del contenedor</div>
+        ${contenedoresDelResidente(s).length === 0
+          ? `<div style="font-size:11px;color:#FCA5A5;max-width:220px;margin:0 auto">Tu torre todavía no tiene contenedores: agrega uno en el panel del administrador.</div>`
+          : contenedoresDelResidente(s).map((c) => `<button class="bp verde" data-accion="simular-qr" data-valor="${c.codigo}" style="width:auto;padding:9px 16px;margin:0 4px 6px">${EMOJI_MATERIAL[c.material] ?? "♻️"} Escanear ${escapar(nombreContenedor(c).toLowerCase())}</button>`).join("")}
       </div>
     </div>`;
   } else if (f.paso === "material") {
@@ -1152,6 +1192,19 @@ function pintarAdministrador(s, destacados) {
         : `<button class="bp verde" style="margin-bottom:10px" data-accion="validar-tanda" ${s.ui.ocupado ? "disabled" : ""}>
              🗓️ Validar la tanda del día (${res.pendientes.length})
            </button>${pendientes}`}
+    </div>
+    <div class="seccion">
+      <div class="seccion-titulo"><h3>Contenedores</h3><span class="contador">${contenedoresDemo.length}</span></div>
+      ${contenedoresDemo.map((c) => `<div class="tarjeta"><div class="fila">
+          <div class="crecer titulo-fila" style="font-size:12px">${EMOJI_MATERIAL[c.material] ?? "♻️"} ${escapar(nombreContenedor(c))}</div>
+          <div class="sub-fila" style="letter-spacing:2px;font-weight:700">${escapar(c.codigo)}</div>
+        </div></div>`).join("")}
+      <div class="sub-fila" style="margin:4px 0 6px">Agregar contenedor:</div>
+      <div>
+        ${[["", "♻️ Mixto"], ...MATERIALES.map((m) => [m.nombre, `${m.emoji} ${m.nombre}`])]
+          .map(([valor, etiqueta]) => `<button class="bp gris" style="width:auto;padding:6px 10px;margin:0 4px 6px 0;font-size:11px" data-accion="agregar-contenedor" data-valor="${escapar(valor)}" ${s.ui.ocupado ? "disabled" : ""}>${etiqueta}</button>`)
+          .join("")}
+      </div>
     </div>
     <div class="seccion" style="padding-bottom:24px">
       <div class="seccion-titulo"><h3>Misión de la torre</h3></div>
@@ -1334,15 +1387,25 @@ pared.addEventListener("click", async (ev) => {
       const p = s.perfil;
       s.ui.flujo = {
         paso: "buscando",
-        contenedor: `${String(p.torreId ?? "").replace("torre-", "T-").toUpperCase()}-01`,
+        contenedor: null,
         material: null, talla: null,
       };
       render();
       break;
     }
-    case "simular-qr":
-      s.ui.flujo.paso = "material";
+    case "simular-qr": {
+      // Como el QR real: si el contenedor es de un material, se salta ese paso.
+      const c = contenedoresDemo.find((x) => x.codigo === btn.dataset.valor);
+      if (!c) break;
+      s.ui.flujo.contenedor = c.codigo;
+      s.ui.flujo.material = c.material;
+      s.ui.flujo.talla = null;
+      s.ui.flujo.paso = c.material ? "talla" : "material";
       render();
+      break;
+    }
+    case "agregar-contenedor":
+      await accion("administrador", () => crearContenedor(btn.dataset.valor || null), "Contenedor agregado.");
       break;
     case "elegir-material":
       s.ui.flujo.material = btn.dataset.valor;
@@ -1356,7 +1419,7 @@ pared.addEventListener("click", async (ev) => {
       break;
     case "confirmar-registro": {
       const f = s.ui.flujo;
-      await accion("residente", () => crearRegistro(f.material, f.talla));
+      await accion("residente", () => crearRegistro(f.material, f.talla, f.contenedor));
       if (!s.ui.aviso) { s.ui.flujo.paso = "listo"; render(); }
       break;
     }

@@ -43,6 +43,8 @@ export {
   MATERIALES,
   ROLES,
   TALLAS,
+  nombreContenedor,
+  type Contenedor,
   kgEfectivo,
   kgEstimado,
   type Talla,

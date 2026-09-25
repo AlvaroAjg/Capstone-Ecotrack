@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Navegacion } from "../../App";
@@ -6,6 +6,8 @@ import {
   MATERIALES,
   TALLAS,
   kgEstimado,
+  nombreContenedor,
+  type Contenedor,
   useEcoTrack,
   type Material,
   type Registro,
@@ -14,7 +16,8 @@ import {
 import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg, formatKgEstimado } from "../lib/formato";
 import { misionSemanal as calcularMision, type MisionSistema } from "../lib/misionesSistema";
-import { interpretarContenedor } from "../lib/qr";
+import { interpretarQr } from "../lib/qr";
+import { obtenerContenedor } from "../services/contenedores";
 import { Boton, CadenaVerificacion } from "../components/ui";
 import EscanerQR from "../components/EscanerQR";
 
@@ -81,21 +84,51 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   /** La misión semanal, si este depósito fue justo el que la completó. */
   const [misionCumplida, setMisionCumplida] = useState<MisionSistema | null>(null);
 
-  // Contenedor leído del QR (o escrito a mano). Se valida contra la torre del
-  // usuario antes de avanzar: no se puede depositar en el contenedor de otra torre.
-  const [contenedor, setContenedor] = useState("");
+  // Contenedor leído del QR (o escrito a mano). Se busca en Firestore antes de
+  // avanzar: tiene que existir, estar activo y ser de la torre del usuario. Si
+  // es de un material, el material queda fijado y se salta ese paso.
+  const [contenedor, setContenedor] = useState<Contenedor | null>(null);
   const [codigoManual, setCodigoManual] = useState("");
   const [errorLectura, setErrorLectura] = useState<string | null>(null);
+  const [buscando, setBuscando] = useState(false);
+  // El escáner reporta el mismo QR varias veces por segundo: se ignora mientras
+  // se consulta el anterior.
+  const buscandoRef = useRef(false);
 
-  function procesarCodigo(texto: string) {
-    const lectura = interpretarContenedor(texto, usuario?.torreId ?? null);
+  async function procesarCodigo(texto: string) {
+    const lectura = interpretarQr(texto, usuario?.torreId ?? null);
     if (!lectura.ok) {
       setErrorLectura(lectura.error);
       return;
     }
-    setErrorLectura(null);
-    setContenedor(lectura.contenedor);
-    setPaso((actual) => (actual === "escaneando" ? "material" : actual));
+    if (buscandoRef.current) return;
+    buscandoRef.current = true;
+    setBuscando(true);
+    try {
+      const encontrado = await obtenerContenedor(lectura.codigo);
+      if (!encontrado || encontrado.torreId !== usuario?.torreId) {
+        setErrorLectura("Ese código no corresponde a ningún contenedor de tu torre.");
+        return;
+      }
+      if (!encontrado.activo) {
+        setErrorLectura(
+          "Ese QR ya no está en uso: el administrador cambió el código del contenedor."
+        );
+        return;
+      }
+      setErrorLectura(null);
+      setContenedor(encontrado);
+      setMaterial(encontrado.material);
+      setTalla(null);
+      setPaso((actual) =>
+        actual === "escaneando" ? (encontrado.material ? "talla" : "material") : actual
+      );
+    } catch (e) {
+      setErrorLectura(textoDeError(e));
+    } finally {
+      buscandoRef.current = false;
+      setBuscando(false);
+    }
   }
 
   useEffect(() => {
@@ -105,10 +138,10 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   }, [paso]);
 
   async function confirmar() {
-    if (!material || !talla) return;
+    if (!material || !talla || !contenedor) return;
     setGuardando(true);
     try {
-      await crearRegistro(material, talla, contenedor);
+      await crearRegistro(material, talla, contenedor.codigo);
       // Se calcula con el depósito recién creado agregado a mano, sin esperar a
       // que Firestore lo devuelva en la próxima lectura en vivo.
       if (!misionSemanal.completada) {
@@ -157,7 +190,9 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           </View>
           <Text className="text-white text-base font-medium mb-1">Escanea el código QR</Text>
           <Text className="text-gray-400 text-sm text-center mb-4">
-            Apunta la cámara al código del contenedor de tu torre
+            {buscando
+              ? "Buscando el contenedor..."
+              : "Apunta la cámara al QR del contenedor donde vas a botar tu bolsa"}
           </Text>
 
           {errorLectura ? (
@@ -166,13 +201,15 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             </View>
           ) : null}
 
-          <Text className="text-gray-500 text-xs mb-2">¿No lee? Escribe el código del contenedor</Text>
+          <Text className="text-gray-500 text-xs mb-2">
+            ¿No lee? Escribe el código que está bajo el QR
+          </Text>
           <View className="flex-row w-full">
             <TextInput
               value={codigoManual}
               onChangeText={setCodigoManual}
               onSubmitEditing={() => procesarCodigo(codigoManual)}
-              placeholder="T-A-01"
+              placeholder="K7QM9X"
               placeholderTextColor="#6B7280"
               autoCapitalize="characters"
               autoCorrect={false}
@@ -195,7 +232,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           <View className="items-center mb-6">
             <View className="bg-green-100 rounded-full px-4 py-1 mb-3">
               <Text className="text-green-700 text-xs font-medium">
-                ✓ Código detectado · Contenedor {contenedor}
+                ✓ {contenedor ? nombreContenedor(contenedor) : "Contenedor"} · {contenedor?.codigo}
               </Text>
             </View>
             <Text className="text-gray-800 text-xl font-bold">¿Qué material depositaste?</Text>
@@ -278,13 +315,20 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             onPress={confirmar}
             className="mt-2"
           />
-          <TouchableOpacity
-            onPress={() => setPaso("material")}
-            accessibilityRole="button"
-            className="py-4 items-center"
-          >
-            <Text className="text-gray-500">Cambiar material</Text>
-          </TouchableOpacity>
+          {/* En un contenedor de un material, el material no se cambia: lo fija el QR. */}
+          {contenedor?.material ? (
+            <Text className="text-gray-400 text-xs text-center py-4">
+              {nombreContenedor(contenedor)} · {contenedor.codigo}
+            </Text>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setPaso("material")}
+              accessibilityRole="button"
+              className="py-4 items-center"
+            >
+              <Text className="text-gray-500">Cambiar material</Text>
+            </TouchableOpacity>
+          )}
         </View>
       )}
 
@@ -296,8 +340,8 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           <Text className="text-gray-800 text-xl font-bold mb-1">¡Registro enviado!</Text>
           <Text className="text-gray-500 text-sm text-center mb-1">
             {material && talla
-              ? `${material} · Bolsa ${talla} · ${formatKgEstimado(kgEstimado(material, talla))} · Contenedor ${contenedor}`
-              : `Contenedor ${contenedor}`}
+              ? `${material} · Bolsa ${talla} · ${formatKgEstimado(kgEstimado(material, talla))} · ${contenedor ? nombreContenedor(contenedor) : ""}`
+              : ""}
           </Text>
           <Text className="text-gray-400 text-xs text-center mb-8">
             Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.

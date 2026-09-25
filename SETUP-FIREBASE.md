@@ -78,6 +78,10 @@ Y las tres cuentas, ya vinculadas a su torre:
 | 🛡️ Administrador | `admin@ecotrack.cl` | `ecotrack2026` |
 | 🚛 Gestor | `gestor@ecotrack.cl` | `ecotrack2026` |
 
+Al promover la cuenta de administrador se crea también un **contenedor mixto**
+para su torre: sin contenedores nadie puede registrar depósitos. Los demás se
+agregan desde su panel (ver la demo, más abajo).
+
 La cuenta de administrador no nace administradora: se crea como residente y
 se promueve aparte, presentando el código de su torre (`ADM-DEMO-A`), exactamente
 por el mismo camino que seguiría cualquier persona real. No hay un atajo
@@ -108,13 +112,17 @@ publicar desde la terminal con `npx firebase-tools deploy --only firestore:rules
 
 Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
 
-- un residente solo crea depósitos a su nombre y en estado `pendiente`, con
-  una talla de bolsa válida y exactamente los kilos que esa talla estima
+- un residente solo crea depósitos a su nombre y en estado `pendiente`, en su
+  propia torre y en un contenedor real de ella (que exista, esté activo y, si
+  es de un material, reciba ese material), con una talla de bolsa válida y exactamente los kilos que esa talla estima
   para ese material (nadie puede escribir los kilos a mano);
 - solo el administrador **de esa torre** puede pasar `pendiente → validado`
   o `rechazado`, y solo puede tocar el estado y los kilos confirmados;
 - solo el gestor puede pasar `validado → certificado`, y solo puede tocar los
   campos de certificación;
+- los contenedores solo los crea, lista y desactiva el administrador de su
+  torre; cualquiera puede leer uno **si conoce su código**, que es aleatorio y
+  solo aparece en el QR pegado en el contenedor;
 - nadie puede cambiar su propio rol ni borrar un registro;
 - nadie se autoasigna administrador o gestor: esos roles exigen el código
   correcto de `codigosRol`, una colección que la app nunca puede leer
@@ -129,10 +137,13 @@ se porte bien, está garantizada por el servidor.
 
 Con dos teléfonos (o un teléfono + emulador):
 
-1. **Teléfono A, residente:** Escanear QR → material → talla de bolsa → registrar. El QR
-   del contenedor lo muestra el administrador en **Contenedor de la torre →
-   Mostrar QR** (en pantalla o impreso). Si la cámara no lo lee, se puede
-   escribir el código a mano (`T-A-01`). Un QR de otra torre es rechazado.
+1. **Teléfono A, residente:** Escanear QR → (material) → talla de bolsa →
+   registrar. Los QR los muestra el administrador en **Contenedores de la
+   torre → Ver QR** (en pantalla o impreso). Si el contenedor es de un
+   material, al escanearlo el material ya queda elegido; si es mixto, se
+   elige. Si la cámara no lo lee, se escribe el código de 6 caracteres que va
+   bajo el QR (p. ej. `K7QM9X`). Un QR de otra torre, uno antiguo (`T-A-01`)
+   o uno cuyo código se cambió es rechazado.
 2. **Teléfono B, administrador:** el depósito **aparece solo, sin recargar**.
    Usa **"Validar la tanda del día"** para cerrar toda la cola de una vez, que
    es como trabaja el conserje en la realidad: revisa el contenedor completo,
@@ -163,6 +174,9 @@ registros/{id}
 
 misiones/{torreId}                   ← un documento por torre; puede no existir
   metaKg, incentivo, actualizadaEn, actualizadaPor
+
+contenedores/{codigo}                ← id = código aleatorio del QR (p. ej. K7QM9X)
+  torreId, material (null = mixto), activo, creadoEn
 
 codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde las reglas
   administrador                      ← código de esa torre

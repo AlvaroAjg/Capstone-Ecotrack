@@ -61,6 +61,28 @@ export interface Torre {
   deptosTotales: number;
 }
 
+/**
+ * Colección `contenedores/{codigo}`: un documento por contenedor físico, con
+ * su QR. El id es un código aleatorio y no adivinable (p. ej. `K7QM9X`): para
+ * conocerlo hay que estar frente al contenedor y escanearlo (o leerlo bajo el
+ * QR impreso). Si el contenedor es de un material, ese depósito queda fijado a
+ * ese material: las reglas de Firestore no aceptan vidrio en el de plástico.
+ */
+export interface Contenedor {
+  codigo: string;
+  torreId: string;
+  /** Material que recibe; null si es mixto (el residente elige el material). */
+  material: Material | null;
+  /** Al cambiar el código de un contenedor, el anterior queda inactivo. */
+  activo: boolean;
+  creadoEn: number;
+}
+
+/** "Contenedor de vidrio" o "Contenedor mixto". */
+export function nombreContenedor(c: Pick<Contenedor, "material">): string {
+  return c.material ? `Contenedor de ${c.material.toLowerCase()}` : "Contenedor mixto";
+}
+
 /** Colección `usuarios/{uid}` — el id es el uid de Firebase Auth. */
 export interface Usuario {
   id: string;

@@ -111,6 +111,48 @@ service cloud.firestore {
       };
     }
 
+    // ---------------------------------------------------------- contenedores
+    // Un documento por contenedor físico, con id = el código de su QR (p. ej.
+    // "K7QM9X"), aleatorio y no adivinable. Leer uno exige conocer su código,
+    // o sea haberlo escaneado frente al contenedor; listarlos solo puede el
+    // administrador de esa torre, para imprimir sus QR. Así nadie registra un
+    // depósito desde su casa escribiendo un código que se imagina.
+    match /contenedores/{codigo} {
+      allow get: if autenticado();
+      allow list: if autenticado()
+                  && miRol() == 'administrador'
+                  && resource.data.torreId == miPerfil().torreId;
+
+      // Mixto (material null) o de uno de los materiales de la tabla.
+      allow create: if autenticado()
+                    && miRol() == 'administrador'
+                    && request.resource.data.torreId == miPerfil().torreId
+                    && request.resource.data.activo == true
+                    && (request.resource.data.material == null
+                        || request.resource.data.material in kgPorTalla())
+                    && request.resource.data.keys().hasOnly(['torreId', 'material', 'activo', 'creadoEn']);
+
+      // Lo único que se cambia es desactivarlo (al quitarlo o al cambiarle el
+      // código): los depósitos hechos en él siguen apuntando a este documento.
+      allow update: if autenticado()
+                    && miRol() == 'administrador'
+                    && resource.data.torreId == miPerfil().torreId
+                    && soloCambia(['activo'])
+                    && request.resource.data.activo == false;
+
+      allow delete: if false;
+    }
+
+    // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
+    // la torre del depósito y, si es de un material, reciba ese material.
+    function contenedorValido(deposito) {
+      let ruta = /databases/$(database)/documents/contenedores/$(deposito.contenedor);
+      return exists(ruta)
+        && get(ruta).data.torreId == deposito.torreId
+        && get(ruta).data.activo == true
+        && (get(ruta).data.material == null || get(ruta).data.material == deposito.material);
+    }
+
     match /registros/{registroId} {
       // Limitación conocida del prototipo: las reglas de Firestore autorizan
       // documentos completos, no campos sueltos. La app le muestra al gestor
@@ -121,13 +163,17 @@ service cloud.firestore {
       allow read: if autenticado();
 
       // Un depósito nace siempre a nombre de quien lo crea y en estado pendiente,
-      // con una talla de bolsa válida y exactamente los kilos que esa talla
-      // estima para ese material: nadie puede inventar los kilos a mano, ni
-      // siquiera escribiendo directo a la base de datos.
+      // en su propia torre y en un contenedor real de ella (ver
+      // contenedorValido), con una talla de bolsa válida y exactamente los kilos
+      // que esa talla estima para ese material: nadie puede inventar kilos,
+      // contenedores ni materiales, ni siquiera escribiendo directo a la base
+      // de datos.
       allow create: if autenticado()
                     && request.resource.data.residenteId == request.auth.uid
                     && request.resource.data.estado == 'pendiente'
                     && request.resource.data.codigo == null
+                    && request.resource.data.torreId == miPerfil().torreId
+                    && contenedorValido(request.resource.data)
                     && request.resource.data.material in kgPorTalla()
                     && request.resource.data.talla in ['S', 'M', 'L', 'XL']
                     && request.resource.data.kgDeclarado ==

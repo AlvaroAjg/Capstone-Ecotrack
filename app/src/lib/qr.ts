@@ -3,43 +3,40 @@ import qrcode from "qrcode-generator";
 /**
  * Código QR de un contenedor.
  *
- * El contenido del QR es `ECOTRACK:<torreId>:<contenedor>`, por ejemplo
- * `ECOTRACK:torre-a:T-A-01`. Lleva la torre para poder rechazar en el momento un
- * QR de otra torre: un residente solo puede depositar en los contenedores de la
- * torre a la que pertenece.
- *
- * El identificador corto del contenedor (`T-A-01`) también se acepta escrito a
- * mano: es el respaldo cuando la cámara no lee el código o hay poca luz.
+ * El contenido del QR es `ECOTRACK:<torreId>:<codigo>`, por ejemplo
+ * `ECOTRACK:torre-a:K7QM9X`. El código es aleatorio y no adivinable: para
+ * registrar un depósito hay que estar frente al contenedor. Bajo el QR impreso
+ * va el mismo código, que también se acepta escrito a mano cuando la cámara no
+ * lo lee. Qué material recibe y de qué torre es lo dice el documento
+ * `contenedores/{codigo}`, no el QR: así un QR alterado no sirve de nada.
  */
 const PREFIJO = "ECOTRACK";
 
-/** `torre-a` → `T-A`. Es la parte fija del identificador de sus contenedores. */
-export function siglaTorre(torreId: string): string {
-  return torreId.replace(/^torre-/, "T-").toUpperCase();
-}
+/** Sin letras ni números que se confundan al leerlos (0/O, 1/I). */
+const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const LARGO = 6;
 
-/** Identificador del n-ésimo contenedor de una torre: `torre-a`, 1 → `T-A-01`. */
-export function idContenedor(torreId: string, numero = 1): string {
-  return `${siglaTorre(torreId)}-${String(numero).padStart(2, "0")}`;
+/** Código nuevo para un contenedor, p. ej. "K7QM9X". */
+export function generarCodigoContenedor(): string {
+  return Array.from(
+    { length: LARGO },
+    () => ALFABETO[Math.floor(Math.random() * ALFABETO.length)]
+  ).join("");
 }
 
 /** Texto que se codifica en el QR impreso en el contenedor. */
-export function contenidoQr(torreId: string, numero = 1): string {
-  return `${PREFIJO}:${torreId}:${idContenedor(torreId, numero)}`;
+export function contenidoQr(torreId: string, codigo: string): string {
+  return `${PREFIJO}:${torreId}:${codigo}`;
 }
 
-export type LecturaContenedor =
-  | { ok: true; contenedor: string }
-  | { ok: false; error: string };
+export type LecturaQr = { ok: true; codigo: string } | { ok: false; error: string };
 
 /**
- * Interpreta lo que llegó de la cámara o del campo manual y comprueba que el
- * contenedor pertenezca a la torre del usuario.
+ * Saca el código de contenedor de lo que llegó de la cámara o del campo
+ * manual. Solo revisa el formato y la torre del QR: si el contenedor existe,
+ * está activo y qué material recibe se comprueba después, contra Firestore.
  */
-export function interpretarContenedor(
-  texto: string,
-  torreIdUsuario: string | null
-): LecturaContenedor {
+export function interpretarQr(texto: string, torreIdUsuario: string | null): LecturaQr {
   if (!torreIdUsuario) {
     return { ok: false, error: "Tu cuenta no está vinculada a una torre." };
   }
@@ -47,34 +44,36 @@ export function interpretarContenedor(
   const limpio = texto.trim();
   if (!limpio) return { ok: false, error: "Ingresa el código del contenedor." };
 
+  let codigo = limpio;
   const partes = limpio.split(":");
-
   if (partes[0].toUpperCase() === PREFIJO) {
     if (partes.length !== 3 || !partes[1] || !partes[2]) {
       return { ok: false, error: "El código QR no tiene el formato de EcoTrack." };
     }
-    const [, torreId, contenedor] = partes;
-    if (torreId !== torreIdUsuario) {
+    if (partes[1] !== torreIdUsuario) {
       return {
         ok: false,
-        error: "Ese contenedor es de otra torre. Solo puedes depositar en el de tu torre.",
+        error: "Ese contenedor es de otra torre. Solo puedes depositar en los de tu torre.",
       };
     }
-    return { ok: true, contenedor: contenedor.toUpperCase() };
+    codigo = partes[2];
   }
 
-  // Ingreso manual del identificador corto, p. ej. "t-a-01".
-  const corto = limpio.toUpperCase();
-  const patron = new RegExp(`^${siglaTorre(torreIdUsuario)}-\\d{2}$`);
-  if (patron.test(corto)) return { ok: true, contenedor: corto };
+  // Se toleran espacios, guiones y minúsculas al escribirlo a mano.
+  codigo = codigo.toUpperCase().replace(/[\s-]/g, "");
 
-  if (/^T-[A-Z0-9]+-\d{2}$/.test(corto)) {
+  // Los QR anteriores decían "T-A-01" ("TA01" sin guiones, 4 caracteres, así
+  // que no se confunde con un código nuevo): ya no identifican un contenedor.
+  if (/^T[A-Z]\d{2}$/.test(codigo)) {
     return {
       ok: false,
-      error: "Ese contenedor es de otra torre. Solo puedes depositar en el de tu torre.",
+      error: "Ese es un código antiguo. Pídele al administrador el QR nuevo del contenedor.",
     };
   }
-  return { ok: false, error: "No reconozco ese código. Debe verse así: T-A-01." };
+  if (codigo.length !== LARGO || [...codigo].some((c) => !ALFABETO.includes(c))) {
+    return { ok: false, error: "No reconozco ese código. Tiene 6 caracteres, como K7QM9X." };
+  }
+  return { ok: true, codigo };
 }
 
 /**

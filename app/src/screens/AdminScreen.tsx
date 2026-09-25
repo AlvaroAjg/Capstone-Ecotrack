@@ -4,8 +4,7 @@ import { Navegacion } from "../../App";
 import { useEcoTrack, type Mision, type Registro } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
 import { cantidadDeposito, formatKg, tiempoRelativo } from "../lib/formato";
-import { contenidoQr, idContenedor } from "../lib/qr";
-import CodigoQR from "../components/CodigoQR";
+import ContenedoresTorre from "../components/ContenedoresTorre";
 import {
   AvatarPerfil,
   CampanaAvisos,
@@ -36,7 +35,6 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
   const [validandoTanda, setValidandoTanda] = useState(false);
-  const [mostrarQr, setMostrarQr] = useState(false);
 
   /**
    * El conserje pasa una vez al día y revisa el contenedor completo, no
@@ -140,34 +138,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         )}
       </Seccion>
 
-      {usuario?.torreId ? (
-        <Seccion titulo="Contenedor de la torre">
-          <Tarjeta className="items-center">
-            {mostrarQr ? (
-              <>
-                <CodigoQR texto={contenidoQr(usuario.torreId)} tamano={240} />
-                <Text className="text-gray-900 font-bold text-lg tracking-widest mt-3">
-                  {idContenedor(usuario.torreId)}
-                </Text>
-                <Text className="text-gray-400 text-xs text-center mt-1 mb-4">
-                  Imprímelo y pégalo en el contenedor. Los residentes lo escanean al depositar.
-                </Text>
-              </>
-            ) : (
-              <Text className="text-gray-500 text-xs text-center mb-4">
-                Cada contenedor tiene un QR propio. Solo los residentes de esta torre pueden
-                registrar depósitos con él.
-              </Text>
-            )}
-            <Boton
-              titulo={mostrarQr ? "Ocultar QR" : "Mostrar QR del contenedor"}
-              variante="secundario"
-              onPress={() => setMostrarQr((v) => !v)}
-              className="py-3 self-stretch"
-            />
-          </Tarjeta>
-        </Seccion>
-      ) : null}
+      {usuario?.torreId ? <ContenedoresTorre torreId={usuario.torreId} /> : null}
 
       <Seccion titulo="Misión de la torre">
         <TarjetaMision

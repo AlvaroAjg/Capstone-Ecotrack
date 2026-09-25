@@ -3,6 +3,7 @@ import { doc, setDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import { CODIGO_GESTOR_DEMO, CODIGOS_ADMIN_DEMO, CUENTAS_DEMO } from "../lib/demo";
 import { promoverAAdministrador } from "./auth";
+import { crearContenedor } from "./contenedores";
 import { sembrarTorres } from "./torres";
 
 export interface ResultadoPreparacion {
@@ -71,6 +72,10 @@ export async function prepararDemo(
           cuenta.torreNombre ?? cuenta.torreId,
           CODIGOS_ADMIN_DEMO[cuenta.torreId] ?? `ADM-${cuenta.torreId.toUpperCase()}`
         );
+        // Ya como administrador, un contenedor mixto para su torre: sin
+        // contenedores nadie puede registrar depósitos. Los demás (uno por
+        // material, si el punto los tiene separados) se agregan en su panel.
+        await crearContenedor(cuenta.torreId, null);
       }
 
       cuentasCreadas++;
