@@ -20,13 +20,55 @@ import EscanerQR from "../components/EscanerQR";
 
 type Paso = "escaneando" | "material" | "talla" | "listo";
 
-/** Tamaño del ícono de la bolsa en cada botón, para que la talla se lea a la vista. */
-const TAMANO_ICONO: Record<Talla, string> = {
-  S: "text-xl",
-  M: "text-2xl",
-  L: "text-3xl",
-  XL: "text-4xl",
+/** Ancho y alto del cuerpo de la bolsa dibujada: crece con la talla. */
+const TAMANO_BOLSA: Record<Talla, { ancho: number; alto: number }> = {
+  S: { ancho: 20, alto: 22 },
+  M: { ancho: 25, alto: 28 },
+  L: { ancho: 30, alto: 34 },
+  XL: { ancho: 36, alto: 40 },
 };
+
+/**
+ * Bolsa dibujada con formas simples (nudo arriba y cuerpo redondeado) con la
+ * letra de la talla adentro. Reemplaza al emoji 🛍️, que se ve distinto en cada
+ * teléfono y agrandado queda tosco.
+ */
+function BolsaTalla({ talla, activa }: { talla: Talla; activa: boolean }) {
+  const { ancho, alto } = TAMANO_BOLSA[talla];
+  const relleno = activa ? "#FFFFFF" : "#BBF7D0";
+  // Borde y nudo en verde intenso: sin ellos la bolsa casi no se ve sobre el fondo gris.
+  const trazo = activa ? "#FFFFFF" : "#22C55E";
+  const texto = activa ? "#15803D" : "#166534";
+  return (
+    <View style={{ alignItems: "center" }}>
+      {/* Nudo: dos orejitas sobre un cuello angosto */}
+      <View style={{ flexDirection: "row" }}>
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: trazo, marginRight: 1, transform: [{ rotate: "-30deg" }] }} />
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: trazo, marginLeft: 1, transform: [{ rotate: "30deg" }] }} />
+      </View>
+      <View style={{ width: ancho * 0.35, height: 3, backgroundColor: trazo, borderRadius: 1.5 }} />
+      <View
+        style={{
+          width: ancho,
+          height: alto,
+          backgroundColor: relleno,
+          borderWidth: 1.5,
+          borderColor: trazo,
+          borderTopLeftRadius: ancho * 0.25,
+          borderTopRightRadius: ancho * 0.25,
+          borderBottomLeftRadius: ancho * 0.4,
+          borderBottomRightRadius: ancho * 0.4,
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Text style={{ color: texto, fontWeight: "700", fontSize: talla === "S" ? 10 : 12 }}>
+          {talla}
+        </Text>
+      </View>
+    </View>
+  );
+}
 
 export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   const { usuario, crearRegistro, misRegistros, misionSemanal } = useEcoTrack();
@@ -205,8 +247,8 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
                   activo ? "bg-green-700 border-green-700" : "bg-gray-50 border-gray-200"
                 }`}
               >
-                <View className="w-12 items-center mr-3">
-                  <Text className={TAMANO_ICONO[t.valor]}>🛍️</Text>
+                <View className="w-12 h-14 items-center justify-end mr-3">
+                  <BolsaTalla talla={t.valor} activa={activo} />
                 </View>
                 <View className="flex-1 min-w-0">
                   <Text className={`font-bold ${activo ? "text-white" : "text-gray-800"}`}>
