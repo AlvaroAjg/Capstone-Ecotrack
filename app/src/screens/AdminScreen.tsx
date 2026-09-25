@@ -1,10 +1,11 @@
 import React, { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
-import { useEcoTrack, type Mision, type Registro } from "../state/EcoTrack";
+import { useEcoTrack, type Mision } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import { cantidadDeposito, formatKg, tiempoRelativo } from "../lib/formato";
+import { formatKg } from "../lib/formato";
 import ContenedoresTorre from "../components/ContenedoresTorre";
+import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
   AvatarPerfil,
   CampanaAvisos,
@@ -37,9 +38,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
   const [validandoTanda, setValidandoTanda] = useState(false);
 
   /**
-   * El conserje pasa una vez al día y revisa el contenedor completo, no
-   * depósito por depósito. Esta acción cierra toda la cola pendiente de una vez,
-   * con los kilos estimados por la talla de bolsa que declaró cada residente.
+   * El conserje pasa una vez al día y revisa los contenedores, no depósito por
+   * depósito. Esta acción valida todos los contenedores de una vez, con los
+   * kilos estimados por la talla que se declaró en cada depósito.
    */
   async function validarTanda() {
     const pendientes = resumen.pendientes;
@@ -49,7 +50,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
       "Validar la tanda del día",
       `Se validarán ${pendientes.length} depósito${
         pendientes.length === 1 ? "" : "s"
-      } con la talla de bolsa declarada por cada residente. Si alguno no está en el contenedor, recházalo antes uno a uno.`,
+      } de todos los contenedores, con la talla declarada en cada uno. Si un contenedor no cuadra con lo que se declaró, márcalo antes con "No cuadra".`,
       "Validar todo"
     );
     if (!acepta) return;
@@ -120,20 +121,19 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
                     ? "Validando..."
                     : `Validar la tanda del día (${resumen.pendientes.length})`
                 }
-                icono="🗓️"
                 cargando={validandoTanda}
                 onPress={validarTanda}
                 className="py-3"
               />
             </View>
-            {resumen.pendientes.map((p) => (
-              <TarjetaPendiente
-                key={p.id}
-                registro={p}
+            {usuario?.torreId ? (
+              <ValidacionContenedores
+                torreId={usuario.torreId}
+                pendientes={resumen.pendientes}
                 alValidar={validarRegistro}
                 alRechazar={rechazarRegistro}
               />
-            ))}
+            ) : null}
           </>
         )}
       </Seccion>
@@ -274,76 +274,3 @@ function TarjetaMision({
   );
 }
 
-/**
- * Depósito pendiente. Lo normal es validar la tanda completa de una vez; esta
- * tarjeta queda para las excepciones: rechazar un depósito que no está en el
- * contenedor, o validar uno suelto. No se corrige bolsa por bolsa.
- */
-function TarjetaPendiente({
-  registro,
-  alValidar,
-  alRechazar,
-}: {
-  registro: Registro;
-  alValidar: (registro: Registro) => Promise<void>;
-  alRechazar: (id: string) => Promise<void>;
-}) {
-  const [ocupado, setOcupado] = useState(false);
-
-  async function ejecutar(accion: () => Promise<void>) {
-    setOcupado(true);
-    try {
-      await accion();
-    } catch (e) {
-      avisar("No se pudo completar", textoDeError(e));
-      setOcupado(false);
-    }
-  }
-
-  return (
-    <Tarjeta className="mb-3">
-      <View className="flex-row justify-between items-start mb-3">
-        <View className="flex-1 min-w-0 pr-2">
-          <Text className="text-gray-800 font-medium">{registro.residente}</Text>
-          <Text className="text-gray-400 text-xs mt-1">
-            {registro.depto} · {registro.material}
-          </Text>
-          <Text className="text-gray-700 text-xs font-medium mt-1">
-            {cantidadDeposito(registro)}
-          </Text>
-          <Text className="text-gray-400 text-xs mt-1">
-            Contenedor {registro.contenedor}
-          </Text>
-        </View>
-        <Text className="text-gray-400 text-xs shrink-0" numberOfLines={1}>
-          {tiempoRelativo(registro.creadoEn)}
-        </Text>
-      </View>
-
-      <View className="flex-row">
-        <TouchableOpacity
-          onPress={() => ejecutar(() => alValidar(registro))}
-          disabled={ocupado}
-          accessibilityRole="button"
-          accessibilityLabel={`Validar depósito de ${registro.residente}`}
-          className={`flex-1 bg-green-700 rounded-xl py-3 items-center mr-2 ${
-            ocupado ? "opacity-50" : ""
-          }`}
-        >
-          <Text className="text-white font-medium text-sm">Validar</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          onPress={() => ejecutar(() => alRechazar(registro.id))}
-          disabled={ocupado}
-          accessibilityRole="button"
-          accessibilityLabel={`Rechazar depósito de ${registro.residente}`}
-          className={`flex-1 border border-red-300 rounded-xl py-3 items-center ${
-            ocupado ? "opacity-50" : ""
-          }`}
-        >
-          <Text className="text-red-600 font-medium text-sm">Rechazar</Text>
-        </TouchableOpacity>
-      </View>
-    </Tarjeta>
-  );
-}

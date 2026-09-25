@@ -31,7 +31,10 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
   const [ocupado, setOcupado] = useState(false);
 
   useEffect(
-    () => servicioContenedores.escucharContenedores(torreId, setContenedores),
+    () =>
+      servicioContenedores.escucharContenedores(torreId, (todos) =>
+        setContenedores(todos.filter((c) => c.activo))
+      ),
     [torreId]
   );
 

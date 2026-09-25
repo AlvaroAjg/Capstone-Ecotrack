@@ -192,7 +192,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           <Text className="text-gray-400 text-sm text-center mb-4">
             {buscando
               ? "Buscando el contenedor..."
-              : "Apunta la cámara al QR del contenedor donde vas a botar tu bolsa"}
+              : "Apunta la cámara al QR del contenedor donde vas a vaciar tus reciclables"}
           </Text>
 
           {errorLectura ? (
@@ -264,9 +264,9 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
             <View className="bg-green-100 rounded-full px-4 py-1 mb-3">
               <Text className="text-green-700 text-xs font-medium">{material}</Text>
             </View>
-            <Text className="text-gray-800 text-xl font-bold">¿De qué tamaño es la bolsa?</Text>
+            <Text className="text-gray-800 text-xl font-bold">¿Cuánto traes?</Text>
             <Text className="text-gray-500 text-sm mt-1 text-center">
-              No hace falta pesarla: la app estima los kilos
+              Según la bolsa en que lo trajiste. No hace falta pesarlo: la app estima los kilos
             </Text>
           </View>
 
@@ -307,8 +307,8 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
               guardando
                 ? "Guardando..."
                 : talla
-                  ? `Registrar bolsa ${talla} de ${material}`
-                  : "Elige el tamaño de la bolsa"
+                  ? `Registrar talla ${talla} de ${material.toLowerCase()}`
+                  : "Elige cuánto traes"
             }
             cargando={guardando}
             deshabilitado={!talla}
@@ -340,12 +340,24 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           <Text className="text-gray-800 text-xl font-bold mb-1">¡Registro enviado!</Text>
           <Text className="text-gray-500 text-sm text-center mb-1">
             {material && talla
-              ? `${material} · Bolsa ${talla} · ${formatKgEstimado(kgEstimado(material, talla))} · ${contenedor ? nombreContenedor(contenedor) : ""}`
+              ? `${material} · Talla ${talla} · ${formatKgEstimado(kgEstimado(material, talla))} · ${contenedor ? nombreContenedor(contenedor) : ""}`
               : ""}
           </Text>
-          <Text className="text-gray-400 text-xs text-center mb-8">
+          <Text className="text-gray-400 text-xs text-center mb-4">
             Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.
           </Text>
+
+          {/* La bolsa es solo la referencia de cuánto trajo: dentro del
+              contenedor contamina el reciclaje. */}
+          <View className="w-full bg-green-50 border border-green-200 rounded-2xl p-4 mb-4">
+            <Text className="text-green-900 font-semibold text-sm text-center">
+              Vacía tu bolsa en el contenedor y guárdala
+            </Text>
+            <Text className="text-green-800 text-xs mt-1 text-center leading-5">
+              No la botes adentro: una bolsa plástica contamina el reciclaje. Reutilízala
+              para la próxima vez.
+            </Text>
+          </View>
 
           {misionCumplida ? (
             <View

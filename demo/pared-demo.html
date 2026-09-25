@@ -553,8 +553,8 @@ const KG_POR_TALLA = {
   "Vidrio": { S: 1.5, M: 4, L: 8, XL: 12 },
 };
 const kgEstimado = (material, talla) => KG_POR_TALLA[material][talla];
-/** "Bolsa M · ≈ 1,2 kg", o solo los kilos en depósitos antiguos sin talla. */
-const cantidad = (r) => (r.talla ? `Bolsa ${r.talla} · ≈ ${formatKg(kgEfectivo(r))}` : formatKg(kgEfectivo(r)));
+/** "Talla M · ≈ 1,2 kg", o solo los kilos en depósitos antiguos sin talla. */
+const cantidad = (r) => (r.talla ? `Talla ${r.talla} · ≈ ${formatKg(kgEfectivo(r))}` : formatKg(kgEfectivo(r)));
 
 const ASPECTO = {
   pendiente:   { texto: "Esperando administrador", clase: "est-pendiente",   emoji: "⏳" },
@@ -1114,21 +1114,25 @@ function pintarEscaneo(s) {
       <div style="text-align:center;margin-bottom:12px">
         <span class="insignia est-certificado">${escapar(f.material)}</span>
       </div>
-      <h4>¿De qué tamaño es la bolsa?</h4>
-      <p class="pie">No hace falta pesarla: la app estima los kilos</p>
+      <h4>¿Cuánto traes?</h4>
+      <p class="pie">Según la bolsa en que lo trajiste. No hace falta pesarlo: la app estima los kilos</p>
       <div class="rejilla-peso" style="grid-template-columns:repeat(2,1fr)">
         ${TALLAS.map((t) => `<button class="opcion ${t.valor === f.talla ? "activa" : ""}" data-accion="elegir-talla" data-valor="${t.valor}" title="${escapar(t.referencia)}">
           <b>Talla ${t.valor}</b><br><small>≈ ${formatKg(kgEstimado(f.material, t.valor))}</small></button>`).join("")}
       </div>
       <button class="bp verde grande" data-accion="confirmar-registro" ${s.ui.ocupado || !f.talla ? "disabled" : ""}>
-        ${s.ui.ocupado ? "Guardando..." : f.talla ? `Registrar bolsa ${f.talla} de ${escapar(f.material)}` : "Elige el tamaño de la bolsa"}
+        ${s.ui.ocupado ? "Guardando..." : f.talla ? `Registrar talla ${f.talla} de ${escapar(f.material.toLowerCase())}` : "Elige cuánto traes"}
       </button>
     </div></div>`;
   } else if (f.paso === "listo") {
     cuerpo = `<div class="sup-cuerpo"><div class="hoja" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:var(--p-verde-100);display:grid;place-items:center;font-size:30px;margin-bottom:14px">✅</div>
       <h4>¡Registro enviado!</h4>
-      <p class="pie">${escapar(f.material)} · Bolsa ${f.talla} · ≈ ${formatKg(kgEstimado(f.material, f.talla))} · Contenedor ${escapar(f.contenedor)}</p>
+      <p class="pie">${escapar(f.material)} · Talla ${f.talla} · ≈ ${formatKg(kgEstimado(f.material, f.talla))} · Contenedor ${escapar(f.contenedor)}</p>
+      <div style="width:100%;background:#F0FDF4;border:1px solid #BBF7D0;border-radius:14px;padding:12px;margin:4px 0 8px">
+        <div style="font-weight:600;font-size:12px;color:#14532D">Vacía tu bolsa en el contenedor y guárdala</div>
+        <div style="font-size:11px;color:#166534;margin-top:3px">No la botes adentro: una bolsa plástica contamina el reciclaje.</div>
+      </div>
       <div style="width:100%;background:var(--p-fondo);border-radius:14px;padding:14px;margin:6px 0 18px">
         ${cadenaHTML("pendiente")}
       </div>
@@ -1155,20 +1159,31 @@ function pintarAdministrador(s, destacados) {
 
   // Lo normal es "Validar la tanda": el admin revisa el contenedor completo,
   // no bolsa por bolsa. Cada tarjeta queda para rechazar una excepción.
-  const pendientes = res.pendientes.map((r) => {
-    return `<div class="tarjeta ${destacados.has(r.id) ? "destacar" : ""}">
+  // Igual que en la app: el admin no sabe de quién es cada cosa dentro del
+  // contenedor, así que valida contenedor por contenedor comparando a la vista.
+  const porContenedor = new Map();
+  for (const r of res.pendientes) porContenedor.set(r.contenedor, [...(porContenedor.get(r.contenedor) ?? []), r]);
+  const pendientes = Array.from(porContenedor.entries()).map(([codigo, regs]) => {
+    const c = contenedoresDemo.find((x) => x.codigo === codigo);
+    const tallas = ["S", "M", "L", "XL"]
+      .map((t) => [t, regs.filter((r) => r.talla === t).length])
+      .filter(([, n]) => n > 0)
+      .map(([t, n]) => `${n} de talla ${t}`)
+      .join(", ");
+    const kg = sumaKg(regs.map(kgEfectivo));
+    return `<div class="tarjeta ${regs.some((r) => destacados.has(r.id)) ? "destacar" : ""}">
       <div class="fila" style="align-items:flex-start">
         <div class="crecer">
-          <div class="titulo-fila">${escapar(r.residente)}</div>
-          <div class="sub-fila">${escapar(r.depto)} · ${escapar(r.material)}</div>
-          <div class="sub-fila"><b>${cantidad(r)}</b></div>
-          <div class="sub-fila">Contenedor ${escapar(r.contenedor)}</div>
+          <div class="titulo-fila">${escapar(c ? nombreContenedor(c) : "Contenedor " + codigo)}</div>
+          <div class="sub-fila" style="letter-spacing:2px">${escapar(codigo)}</div>
+          <div class="sub-fila" style="margin-top:4px"><b>${regs.length} depósito${regs.length === 1 ? "" : "s"}${tallas ? ": " + tallas : ""}</b></div>
+          <div class="sub-fila">Míralo y compara: ¿cuadra con lo que hay adentro?</div>
         </div>
-        <span class="sub-fila">${tiempoRelativo(r.creadoEn)}</span>
+        <span class="sub-fila">≈ ${formatKg(kg)}</span>
       </div>
       <div class="par">
-        <button class="bp verde" data-accion="validar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Validar</button>
-        <button class="bp rojo" data-accion="rechazar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Rechazar</button>
+        <button class="bp verde" data-accion="validar-contenedor" data-valor="${escapar(codigo)}" ${s.ui.ocupado ? "disabled" : ""}>Validar contenedor</button>
+        <button class="bp rojo" data-accion="rechazar-contenedor" data-valor="${escapar(codigo)}" ${s.ui.ocupado ? "disabled" : ""}>No cuadra</button>
       </div>
     </div>`;
   }).join("");
@@ -1436,6 +1451,18 @@ pared.addEventListener("click", async (ev) => {
     case "rechazar":
       await accion("administrador", () => rechazar(id));
       break;
+    case "validar-contenedor":
+    case "rechazar-contenedor": {
+      const res = resumenTorre(s.registros, s.perfil.torreId);
+      const delContenedor = res.pendientes.filter((r) => r.contenedor === btn.dataset.valor);
+      await accion("administrador", async () => {
+        for (const r of delContenedor) {
+          if (a === "validar-contenedor") await validar(r);
+          else await rechazar(r.id);
+        }
+      }, `Contenedor ${a === "validar-contenedor" ? "validado" : "rechazado"}: ${delContenedor.length} depósito(s).`);
+      break;
+    }
     case "validar-tanda": {
       const res = resumenTorre(s.registros, s.perfil.torreId);
       await accion("administrador", async () => {

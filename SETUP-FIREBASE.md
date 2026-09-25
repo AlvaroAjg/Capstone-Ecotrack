@@ -145,9 +145,12 @@ Con dos teléfonos (o un teléfono + emulador):
    bajo el QR (p. ej. `K7QM9X`). Un QR de otra torre, uno antiguo (`T-A-01`)
    o uno cuyo código se cambió es rechazado.
 2. **Teléfono B, administrador:** el depósito **aparece solo, sin recargar**.
-   Usa **"Validar la tanda del día"** para cerrar toda la cola de una vez, que
-   es como trabaja el conserje en la realidad: revisa el contenedor completo,
-   no bolsa por bolsa. Si algún depósito no está, lo rechaza antes, uno a uno.
+   Los pendientes aparecen agrupados por contenedor, con lo que se declaró en
+   cada uno. El administrador mira el contenedor y compara: **Validar
+   contenedor** si cuadra, **No cuadra** si no. **"Validar la tanda del día"**
+   valida todos los contenedores de una vez. No se revisa persona por persona,
+   porque dentro del contenedor no se sabe de quién es cada cosa; eso queda
+   plegado en "Ver depósitos", para excepciones.
 3. **Teléfono B, gestor** (cerrar sesión y entrar con la cuenta de gestor):
    confirmar retiro → se emite el certificado con código único.
 4. **Teléfono A:** el estado cambió a *Certificado* en vivo, con su código.

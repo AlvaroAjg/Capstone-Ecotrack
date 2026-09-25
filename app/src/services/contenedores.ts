@@ -24,9 +24,11 @@ function aContenedor(codigo: string, d: any): Contenedor {
 }
 
 /**
- * Contenedores activos de una torre, en vivo. Solo lo usa el administrador de
- * esa torre: las reglas no dejan listar los de otra, ni a un residente listar
- * ninguno (así nadie descubre los códigos sin estar frente al contenedor).
+ * Contenedores de una torre, en vivo, incluidos los inactivos (un depósito
+ * pendiente puede estar en un contenedor al que después le cambiaron el
+ * código). Solo lo usa el administrador de esa torre: las reglas no dejan
+ * listar los de otra, ni a un residente listar ninguno (así nadie descubre los
+ * códigos sin estar frente al contenedor).
  */
 export function escucharContenedores(
   torreId: string,
@@ -37,7 +39,6 @@ export function escucharContenedores(
     callback(
       snap.docs
         .map((d) => aContenedor(d.id, d.data()))
-        .filter((c) => c.activo)
         .sort((a, b) => a.creadoEn - b.creadoEn)
     );
   });

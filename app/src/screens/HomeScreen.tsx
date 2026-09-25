@@ -118,13 +118,14 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3"
         >
           <Text className="text-amber-900 font-semibold text-sm">
-            💡 Tip: junta tus reciclables y regístralos juntos
+            Tip: junta tus reciclables y regístralos juntos
           </Text>
           <Text className="text-amber-800 text-xs mt-1 leading-5">
             No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
-            durante la semana y regístrala de una vez: es un solo escaneo, la talla de
-            la bolsa estima mejor los kilos y todo suma igual a tu certificado del mes.
-            Si igual quieres botar una sola botella, regístrala como talla S.
+            durante la semana y regístralos de una vez: es un solo escaneo, la talla
+            estima mejor los kilos y todo suma igual a tu certificado del mes. En el
+            contenedor, vacía la bolsa y guárdala: no la botes adentro, porque contamina
+            el reciclaje. Si igual quieres botar una sola botella, regístrala como talla S.
           </Text>
         </View>
       </View>

@@ -12,8 +12,10 @@ export const MATERIALES: { nombre: Material; emoji: string }[] = [
 ];
 
 /**
- * Nadie pesa su bolsa antes de bajarla: el residente declara el tamaño de la
- * bolsa y la app estima los kilos. Las reglas de Firestore solo aceptan los
+ * Nadie pesa lo que recicla: el residente declara cuánto trae según el tamaño
+ * de la bolsa en que lo trajo, y la app estima los kilos. La bolsa es solo una
+ * referencia de volumen: el material se vacía suelto en el contenedor y la
+ * bolsa se guarda, porque una bolsa plástica dentro del reciclaje lo contamina. Las reglas de Firestore solo aceptan los
  * kilos de esta tabla, así que no se pueden inventar a mano. El administrador
  * no revisa bolsa por bolsa: valida la tanda del contenedor completa.
  */

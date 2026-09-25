@@ -118,7 +118,7 @@ function situacion(r: Registro): string {
 const COLUMNAS: [string, number][] = [
   ["DEPÓSITO", MARGEN],
   ["MATERIAL", 110],
-  ["BOLSA", 184],
+  ["TALLA", 184],
   ["KG", 226],
   ["VALIDADO", 280],
   ["CERTIFICADO", 344],
@@ -283,7 +283,7 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
     );
     centrado(
       pie,
-      "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados por el tamaño de la bolsa.",
+      "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada.",
       ALTO - 32,
       6.5,
       { color: GRIS }
