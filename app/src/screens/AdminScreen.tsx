@@ -3,7 +3,7 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Mision, type Registro } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import { formatKg, tiempoRelativo } from "../lib/formato";
+import { cantidadDeposito, formatKg, tiempoRelativo } from "../lib/formato";
 import { contenidoQr, idContenedor } from "../lib/qr";
 import CodigoQR from "../components/CodigoQR";
 import {
@@ -41,7 +41,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
   /**
    * El conserje pasa una vez al día y revisa el contenedor completo, no
    * depósito por depósito. Esta acción cierra toda la cola pendiente de una vez,
-   * tomando el peso declarado por cada residente.
+   * con los kilos estimados por la talla de bolsa que declaró cada residente.
    */
   async function validarTanda() {
     const pendientes = resumen.pendientes;
@@ -51,7 +51,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
       "Validar la tanda del día",
       `Se validarán ${pendientes.length} depósito${
         pendientes.length === 1 ? "" : "s"
-      } con el peso declarado por cada residente. Los que necesiten corrección puedes ajustarlos uno a uno.`,
+      } con la talla de bolsa declarada por cada residente. Si alguno no está en el contenedor, recházalo antes uno a uno.`,
       "Validar todo"
     );
     if (!acepta) return;
@@ -59,7 +59,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     setValidandoTanda(true);
     try {
       for (const p of pendientes) {
-        await validarRegistro(p.id, p.kgDeclarado);
+        await validarRegistro(p);
       }
     } catch (e) {
       avisar("No se pudo completar", textoDeError(e));
@@ -303,11 +303,10 @@ function TarjetaMision({
   );
 }
 
-const PASO_KG = 0.5;
-
 /**
- * Tarjeta de validación individual. El administrador no tiene balanza: estima
- * el peso a la vista y puede ajustar lo que declaró el residente antes de validar.
+ * Depósito pendiente. Lo normal es validar la tanda completa de una vez; esta
+ * tarjeta queda para las excepciones: rechazar un depósito que no está en el
+ * contenedor, o validar uno suelto. No se corrige bolsa por bolsa.
  */
 function TarjetaPendiente({
   registro,
@@ -315,12 +314,10 @@ function TarjetaPendiente({
   alRechazar,
 }: {
   registro: Registro;
-  alValidar: (id: string, kg: number) => Promise<void>;
+  alValidar: (registro: Registro) => Promise<void>;
   alRechazar: (id: string) => Promise<void>;
 }) {
-  const [kg, setKg] = useState(registro.kgDeclarado);
   const [ocupado, setOcupado] = useState(false);
-  const ajustado = Math.abs(kg - registro.kgDeclarado) > 0.01;
 
   async function ejecutar(accion: () => Promise<void>) {
     setOcupado(true);
@@ -340,6 +337,9 @@ function TarjetaPendiente({
           <Text className="text-gray-400 text-xs mt-1">
             {registro.depto} · {registro.material}
           </Text>
+          <Text className="text-gray-700 text-xs font-medium mt-1">
+            {cantidadDeposito(registro)}
+          </Text>
           <Text className="text-gray-400 text-xs mt-1">
             Contenedor {registro.contenedor}
           </Text>
@@ -349,42 +349,9 @@ function TarjetaPendiente({
         </Text>
       </View>
 
-      <View className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 mb-3">
-        <Text className="text-gray-500 text-[11px] mb-2">
-          Peso declarado: {formatKg(registro.kgDeclarado)} · ajústalo si a la vista
-          difiere
-        </Text>
-        <View className="flex-row items-center justify-between">
-          <TouchableOpacity
-            onPress={() => setKg((v) => Math.max(PASO_KG, Math.round((v - PASO_KG) * 10) / 10))}
-            accessibilityRole="button"
-            accessibilityLabel="Disminuir peso"
-            className="w-11 h-11 rounded-xl bg-white border border-gray-300 items-center justify-center"
-          >
-            <Text className="text-gray-700 text-xl">−</Text>
-          </TouchableOpacity>
-
-          <View className="items-center">
-            <Text className="text-gray-900 text-lg font-bold">{formatKg(kg)}</Text>
-            {ajustado ? (
-              <Text className="text-amber-600 text-[10px] mt-0.5">peso corregido</Text>
-            ) : null}
-          </View>
-
-          <TouchableOpacity
-            onPress={() => setKg((v) => Math.round((v + PASO_KG) * 10) / 10)}
-            accessibilityRole="button"
-            accessibilityLabel="Aumentar peso"
-            className="w-11 h-11 rounded-xl bg-white border border-gray-300 items-center justify-center"
-          >
-            <Text className="text-gray-700 text-xl">+</Text>
-          </TouchableOpacity>
-        </View>
-      </View>
-
       <View className="flex-row">
         <TouchableOpacity
-          onPress={() => ejecutar(() => alValidar(registro.id, kg))}
+          onPress={() => ejecutar(() => alValidar(registro))}
           disabled={ocupado}
           accessibilityRole="button"
           accessibilityLabel={`Validar depósito de ${registro.residente}`}
@@ -392,7 +359,7 @@ function TarjetaPendiente({
             ocupado ? "opacity-50" : ""
           }`}
         >
-          <Text className="text-white font-medium text-sm">Validar {formatKg(kg)}</Text>
+          <Text className="text-white font-medium text-sm">Validar</Text>
         </TouchableOpacity>
         <TouchableOpacity
           onPress={() => ejecutar(() => alRechazar(registro.id))}

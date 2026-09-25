@@ -103,13 +103,16 @@ producción, y se puede volver a tocar sin problema: si algo ya existe, lo salta
 ## 4. Aplicar las reglas de seguridad
 
 Recién ahora, en **Firestore Database → Reglas**, reemplaza todo por el
-contenido de `firestore.rules` (raíz del repo) y publica.
+contenido de `firestore.rules` (raíz del repo) y publica. También se pueden
+publicar desde la terminal con `npx firebase-tools deploy --only firestore:rules`.
 
 Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
 
-- un residente solo crea depósitos a su nombre y en estado `pendiente`;
+- un residente solo crea depósitos a su nombre y en estado `pendiente`, con
+  una talla de bolsa válida y exactamente los kilos que esa talla estima
+  para ese material (nadie puede escribir los kilos a mano);
 - solo el administrador **de esa torre** puede pasar `pendiente → validado`
-  o `rechazado`, y solo puede tocar el estado y el peso confirmado;
+  o `rechazado`, y solo puede tocar el estado y los kilos confirmados;
 - solo el gestor puede pasar `validado → certificado`, y solo puede tocar los
   campos de certificación;
 - nadie puede cambiar su propio rol ni borrar un registro;
@@ -126,14 +129,14 @@ se porte bien, está garantizada por el servidor.
 
 Con dos teléfonos (o un teléfono + emulador):
 
-1. **Teléfono A, residente:** Escanear QR → material → peso → registrar. El QR
+1. **Teléfono A, residente:** Escanear QR → material → talla de bolsa → registrar. El QR
    del contenedor lo muestra el administrador en **Contenedor de la torre →
    Mostrar QR** (en pantalla o impreso). Si la cámara no lo lee, se puede
    escribir el código a mano (`T-A-01`). Un QR de otra torre es rechazado.
 2. **Teléfono B, administrador:** el depósito **aparece solo, sin recargar**.
-   Ajusta el peso si a la vista difiere, y valida. O usa
-   **"Validar la tanda del día"** para cerrar toda la cola de una vez, que es
-   como trabaja el conserje en la realidad.
+   Usa **"Validar la tanda del día"** para cerrar toda la cola de una vez, que
+   es como trabaja el conserje en la realidad: revisa el contenedor completo,
+   no bolsa por bolsa. Si algún depósito no está, lo rechaza antes, uno a uno.
 3. **Teléfono B, gestor** (cerrar sesión y entrar con la cuenta de gestor):
    confirmar retiro → se emite el certificado con código único.
 4. **Teléfono A:** el estado cambió a *Certificado* en vivo, con su código.
@@ -154,7 +157,7 @@ usuarios/{uid}                       ← uid de Firebase Auth
 
 registros/{id}
   residenteId, residente, depto, torreId, torreNombre,
-  material, kgDeclarado, kgConfirmado, contenedor, estado,
+  material, talla, kgDeclarado, kgConfirmado, contenedor, estado,
   creadoEn, validadoEn, validadoPor,
   certificadoEn, certificadoPor, codigo, codigoRetiro
 
@@ -168,10 +171,14 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
 
 **Decisiones a defender:**
 
-- `kgDeclarado` vs `kgConfirmado`: no hay balanza, la validación es visual. El
-  residente estima, el administrador corrige a ojo al validar. Las métricas y
-  el certificado usan el peso confirmado; si no existe, el declarado. La app
-  muestra al residente cuando su peso fue ajustado.
+- **Talla de bolsa en vez de kilos:** nadie pesa su bolsa antes de bajarla. El
+  residente elige la talla (S, M, L o XL) y los kilos salen de una tabla por
+  material y talla (`KG_POR_TALLA` en `app/src/lib/tipos.ts`, repetida en
+  `firestore.rules`, que no acepta otro valor). Las métricas y el certificado
+  los muestran como estimados ("≈ 1,2 kg"). El administrador valida la tanda
+  completa sin corregir bolsa por bolsa, así que `kgConfirmado` copia el
+  estimado. Los depósitos antiguos, registrados en kilos, se muestran igual que
+  antes. La tabla es referencial: conviene calibrarla pesando bolsas reales.
 - `torreNombre` y `residente` están **desnormalizados** en cada registro. Es
   práctica estándar en Firestore: evita una lectura extra por fila al mostrar
   la cola del gestor.

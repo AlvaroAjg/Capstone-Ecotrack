@@ -99,6 +99,18 @@ service cloud.firestore {
     }
 
     // ------------------------------------------------------------- registros
+
+    // Kilos estimados por material y talla de bolsa. Debe coincidir con
+    // KG_POR_TALLA en app/src/lib/tipos.ts: si se calibra uno, se calibra el otro.
+    function kgPorTalla() {
+      return {
+        'Plástico':     {'S': 0.1, 'M': 0.4, 'L': 0.8, 'XL': 1.5},
+        'Papel/cartón': {'S': 0.4, 'M': 1.2, 'L': 2.5, 'XL': 5},
+        'Metal':        {'S': 0.2, 'M': 0.5, 'L': 1,   'XL': 2},
+        'Vidrio':       {'S': 1.5, 'M': 4,   'L': 8,   'XL': 12}
+      };
+    }
+
     match /registros/{registroId} {
       // Limitación conocida del prototipo: las reglas de Firestore autorizan
       // documentos completos, no campos sueltos. La app le muestra al gestor
@@ -108,11 +120,18 @@ service cloud.firestore {
       // través de Cloud Functions. Queda documentado como trabajo futuro.
       allow read: if autenticado();
 
-      // Un depósito nace siempre a nombre de quien lo crea y en estado pendiente.
+      // Un depósito nace siempre a nombre de quien lo crea y en estado pendiente,
+      // con una talla de bolsa válida y exactamente los kilos que esa talla
+      // estima para ese material: nadie puede inventar los kilos a mano, ni
+      // siquiera escribiendo directo a la base de datos.
       allow create: if autenticado()
                     && request.resource.data.residenteId == request.auth.uid
                     && request.resource.data.estado == 'pendiente'
-                    && request.resource.data.codigo == null;
+                    && request.resource.data.codigo == null
+                    && request.resource.data.material in kgPorTalla()
+                    && request.resource.data.talla in ['S', 'M', 'L', 'XL']
+                    && request.resource.data.kgDeclarado ==
+                       kgPorTalla()[request.resource.data.material][request.resource.data.talla];
 
       allow update: if autenticado() && (
         // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente,

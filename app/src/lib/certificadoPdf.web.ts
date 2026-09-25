@@ -151,8 +151,19 @@ export async function generarCertificadoPdf(registro: Registro): Promise<Uint8Ar
   centrado(p, `${registro.torreNombre} · ${registro.depto}`, 306, 12, { color: GRIS });
 
   centrado(p, "recicló de forma verificada", 345, 12, { color: GRIS });
-  centrado(p, formatKg(kgEfectivo(registro)), 388, 42, { negrita: true, color: VERDE });
-  centrado(p, registro.material, 412, 15, { negrita: true });
+  // Con talla de bolsa los kilos son una estimación y se dice así. Se escribe
+  // "aprox." y no "≈" porque las fuentes estándar del PDF no traen ese símbolo.
+  const kilos = formatKg(kgEfectivo(registro));
+  centrado(p, registro.talla ? `aprox. ${kilos}` : kilos, 388, 42, { negrita: true, color: VERDE });
+  centrado(
+    p,
+    registro.talla
+      ? `${registro.material} · bolsa talla ${registro.talla} (kilos estimados por tamaño)`
+      : registro.material,
+    412,
+    registro.talla ? 12 : 15,
+    { negrita: true }
+  );
 
   // Código
   const cajaAncho = 300;

@@ -2,23 +2,37 @@ import React, { useEffect, useState } from "react";
 import { Text, TextInput, TouchableOpacity, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Navegacion } from "../../App";
-import { MATERIALES, useEcoTrack, type Material, type Registro } from "../state/EcoTrack";
+import {
+  MATERIALES,
+  TALLAS,
+  kgEstimado,
+  useEcoTrack,
+  type Material,
+  type Registro,
+  type Talla,
+} from "../state/EcoTrack";
 import { avisar, textoDeError } from "../lib/dialogos";
-import { formatKg } from "../lib/formato";
+import { formatKg, formatKgEstimado } from "../lib/formato";
 import { misionSemanal as calcularMision, type MisionSistema } from "../lib/misionesSistema";
 import { interpretarContenedor } from "../lib/qr";
 import { Boton, CadenaVerificacion } from "../components/ui";
 import EscanerQR from "../components/EscanerQR";
 
-type Paso = "escaneando" | "material" | "peso" | "listo";
+type Paso = "escaneando" | "material" | "talla" | "listo";
 
-const PESOS_SUGERIDOS = [0.5, 1, 1.5, 2, 3, 4];
+/** Tamaño del ícono de la bolsa en cada botón, para que la talla se lea a la vista. */
+const TAMANO_ICONO: Record<Talla, string> = {
+  S: "text-xl",
+  M: "text-2xl",
+  L: "text-3xl",
+  XL: "text-4xl",
+};
 
 export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   const { usuario, crearRegistro, misRegistros, misionSemanal } = useEcoTrack();
   const [paso, setPaso] = useState<Paso>("escaneando");
   const [material, setMaterial] = useState<Material | null>(null);
-  const [kg, setKg] = useState<number>(1);
+  const [talla, setTalla] = useState<Talla | null>(null);
   const [segundos, setSegundos] = useState(0);
 
   const [guardando, setGuardando] = useState(false);
@@ -49,17 +63,18 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   }, [paso]);
 
   async function confirmar() {
-    if (!material) return;
+    if (!material || !talla) return;
     setGuardando(true);
     try {
-      await crearRegistro(material, kg, contenedor);
+      await crearRegistro(material, talla, contenedor);
       // Se calcula con el depósito recién creado agregado a mano, sin esperar a
       // que Firestore lo devuelva en la próxima lectura en vivo.
       if (!misionSemanal.completada) {
         const nuevo = {
           creadoEn: Date.now(),
           material,
-          kgDeclarado: kg,
+          talla,
+          kgDeclarado: kgEstimado(material, talla),
           kgConfirmado: null,
           estado: "pendiente",
         } as Registro;
@@ -150,7 +165,8 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
                 key={m.nombre}
                 onPress={() => {
                   setMaterial(m.nombre);
-                  setPaso("peso");
+                  setTalla(null);
+                  setPaso("talla");
                 }}
                 accessibilityRole="button"
                 className="w-[48%] bg-gray-50 border border-gray-200 rounded-2xl py-6 items-center mb-4"
@@ -163,47 +179,62 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
         </View>
       )}
 
-      {paso === "peso" && (
+      {paso === "talla" && material && (
         <View className="flex-1 bg-white rounded-t-3xl px-6 pt-8">
           <View className="items-center mb-6">
             <View className="bg-green-100 rounded-full px-4 py-1 mb-3">
               <Text className="text-green-700 text-xs font-medium">{material}</Text>
             </View>
-            <Text className="text-gray-800 text-xl font-bold">¿Cuánto pesa aproximadamente?</Text>
+            <Text className="text-gray-800 text-xl font-bold">¿De qué tamaño es la bolsa?</Text>
             <Text className="text-gray-500 text-sm mt-1 text-center">
-              El administrador confirmará el peso al validar
+              No hace falta pesarla: la app estima los kilos
             </Text>
           </View>
 
-          <View className="flex-row flex-wrap justify-between mb-6">
-            {PESOS_SUGERIDOS.map((valor) => {
-              const activo = valor === kg;
-              return (
-                <TouchableOpacity
-                  key={valor}
-                  onPress={() => setKg(valor)}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: activo }}
-                  className={`w-[31%] rounded-2xl py-5 items-center mb-3 border ${
-                    activo ? "bg-green-700 border-green-700" : "bg-gray-50 border-gray-200"
-                  }`}
-                >
-                  <Text
-                    className={`font-semibold ${activo ? "text-white" : "text-gray-700"}`}
-                  >
-                    {formatKg(valor)}
+          {TALLAS.map((t) => {
+            const activo = t.valor === talla;
+            const kg = kgEstimado(material, t.valor);
+            return (
+              <TouchableOpacity
+                key={t.valor}
+                onPress={() => setTalla(t.valor)}
+                accessibilityRole="button"
+                accessibilityState={{ selected: activo }}
+                accessibilityLabel={`Talla ${t.valor}: ${t.referencia}, aproximadamente ${formatKg(kg)}`}
+                className={`flex-row items-center rounded-2xl px-4 py-3 mb-3 border ${
+                  activo ? "bg-green-700 border-green-700" : "bg-gray-50 border-gray-200"
+                }`}
+              >
+                <View className="w-12 items-center mr-3">
+                  <Text className={TAMANO_ICONO[t.valor]}>🛍️</Text>
+                </View>
+                <View className="flex-1 min-w-0">
+                  <Text className={`font-bold ${activo ? "text-white" : "text-gray-800"}`}>
+                    Talla {t.valor}
                   </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+                  <Text className={`text-xs mt-0.5 ${activo ? "text-green-100" : "text-gray-500"}`}>
+                    {t.referencia}
+                  </Text>
+                </View>
+                <Text className={`text-xs font-medium ${activo ? "text-white" : "text-gray-400"}`}>
+                  {formatKgEstimado(kg)}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
 
           <Boton
             titulo={
-              guardando ? "Guardando..." : `Registrar ${formatKg(kg)} de ${material}`
+              guardando
+                ? "Guardando..."
+                : talla
+                  ? `Registrar bolsa ${talla} de ${material}`
+                  : "Elige el tamaño de la bolsa"
             }
             cargando={guardando}
+            deshabilitado={!talla}
             onPress={confirmar}
+            className="mt-2"
           />
           <TouchableOpacity
             onPress={() => setPaso("material")}
@@ -222,7 +253,9 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           </View>
           <Text className="text-gray-800 text-xl font-bold mb-1">¡Registro enviado!</Text>
           <Text className="text-gray-500 text-sm text-center mb-1">
-            {material} · {formatKg(kg)} · Contenedor {contenedor}
+            {material && talla
+              ? `${material} · Bolsa ${talla} · ${formatKgEstimado(kgEstimado(material, talla))} · Contenedor ${contenedor}`
+              : `Contenedor ${contenedor}`}
           </Text>
           <Text className="text-gray-400 text-xs text-center mb-8">
             Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.

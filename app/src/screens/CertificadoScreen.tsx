@@ -4,7 +4,7 @@ import { Navegacion } from "../../App";
 import { kgEfectivo, useEcoTrack } from "../state/EcoTrack";
 import { descargarCertificado } from "../lib/certificadoPdf";
 import { avisar, textoDeError } from "../lib/dialogos";
-import { fechaLarga, formatKg, tiempoRelativo } from "../lib/formato";
+import { fechaLarga, formatKg, formatKgEstimado, tiempoRelativo } from "../lib/formato";
 import {
   Boton,
   CadenaVerificacion,
@@ -82,8 +82,17 @@ export default function CertificadoScreen({ nav }: { nav: Navegacion }) {
           </Text>
 
           <Text className="text-gray-500 text-sm text-center mt-5">recicló de forma verificada</Text>
-          <Text className="text-green-700 text-3xl font-bold mt-1">{formatKg(kgEfectivo(registro))}</Text>
-          <Text className="text-gray-700 font-medium">{registro.material}</Text>
+          <Text className="text-green-700 text-3xl font-bold mt-1">
+            {registro.talla
+              ? formatKgEstimado(kgEfectivo(registro))
+              : formatKg(kgEfectivo(registro))}
+          </Text>
+          <Text className="text-gray-700 font-medium">
+            {registro.talla ? `${registro.material} · Bolsa ${registro.talla}` : registro.material}
+          </Text>
+          {registro.talla ? (
+            <Text className="text-gray-400 text-[11px] mt-1">Kilos estimados por el tamaño de la bolsa</Text>
+          ) : null}
 
           <View className="bg-gray-50 border border-gray-200 rounded-xl px-5 py-3 mt-6 items-center">
             <Text className="text-gray-400 text-xs mb-1">Código de verificación</Text>

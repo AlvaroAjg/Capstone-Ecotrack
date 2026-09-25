@@ -1,3 +1,5 @@
+import { kgEfectivo, type Registro } from "./tipos";
+
 const MINUTO = 60 * 1000;
 const HORA = 60 * MINUTO;
 const DIA = 24 * HORA;
@@ -18,6 +20,20 @@ export function tiempoRelativo(timestamp: number): string {
 
 export function formatKg(kg: number): string {
   return `${kg.toFixed(1).replace(".", ",")} kg`;
+}
+
+/** Kilos estimados a partir de una talla de bolsa: se muestran con "≈". */
+export function formatKgEstimado(kg: number): string {
+  return `≈ ${formatKg(kg)}`;
+}
+
+/**
+ * Cantidad de un depósito para mostrar: "Bolsa M · ≈ 1,2 kg" si se declaró por
+ * talla, o "2,0 kg" en los depósitos antiguos, registrados en kilos.
+ */
+export function cantidadDeposito(r: Registro): string {
+  if (!r.talla) return formatKg(kgEfectivo(r));
+  return `Bolsa ${r.talla} · ${formatKgEstimado(kgEfectivo(r))}`;
 }
 
 export function sumaKg(kgs: number[]): number {

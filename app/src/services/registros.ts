@@ -11,7 +11,7 @@ import {
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { generarCodigoRetiro, generarCodigoVerificacion } from "../lib/formato";
-import type { Material, Registro, Usuario } from "../lib/tipos";
+import { kgEstimado, type Material, type Registro, type Talla, type Usuario } from "../lib/tipos";
 
 /**
  * Se escucha la colección completa (acotada) y se filtra en memoria por rol.
@@ -29,6 +29,7 @@ function aRegistro(id: string, d: any): Registro {
     torreId: d.torreId ?? "",
     torreNombre: d.torreNombre ?? "",
     material: d.material as Material,
+    talla: d.talla ?? null,
     kgDeclarado: d.kgDeclarado ?? 0,
     kgConfirmado: d.kgConfirmado ?? null,
     contenedor: d.contenedor ?? "",
@@ -62,7 +63,7 @@ export function escucharRegistros(
 export async function crearRegistro(
   usuario: Usuario,
   material: Material,
-  kg: number,
+  talla: Talla,
   contenedor: string
 ): Promise<string> {
   if (!usuario.torreId) {
@@ -76,7 +77,10 @@ export async function crearRegistro(
     torreId: usuario.torreId,
     torreNombre: usuario.torreNombre ?? "",
     material,
-    kgDeclarado: kg,
+    talla,
+    // Los kilos salen de la tabla, nunca de lo que escriba el usuario: las
+    // reglas de Firestore rechazan cualquier otro valor.
+    kgDeclarado: kgEstimado(material, talla),
     kgConfirmado: null,
     contenedor,
     estado: "pendiente",
@@ -92,15 +96,15 @@ export async function crearRegistro(
   return referencia.id;
 }
 
-/** Etapa 1 de la cadena: el administrador confirma la deposición y el peso. */
-export async function validarRegistro(
-  id: string,
-  adminUid: string,
-  kgConfirmado: number
-): Promise<void> {
-  await updateDoc(doc(db, "registros", id), {
+/**
+ * Etapa 1 de la cadena: el administrador confirma que el depósito está en el
+ * contenedor. Valida la tanda completa, no bolsa por bolsa, así que se
+ * confirman los kilos estimados por la talla declarada.
+ */
+export async function validarRegistro(registro: Registro, adminUid: string): Promise<void> {
+  await updateDoc(doc(db, "registros", registro.id), {
     estado: "validado",
-    kgConfirmado,
+    kgConfirmado: registro.kgDeclarado,
     validadoEn: Date.now(),
     validadoPor: adminUid,
   });

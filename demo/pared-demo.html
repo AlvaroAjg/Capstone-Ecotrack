@@ -538,7 +538,23 @@ const MATERIALES = [
   { nombre: "Vidrio", emoji: "🍾" },
   { nombre: "Metal", emoji: "🥫" },
 ];
-const PESOS = [0.5, 1, 1.5, 2, 3, 4];
+// Tallas de bolsa y kilos estimados: iguales a app/src/lib/tipos.ts y a
+// firestore.rules, que rechaza cualquier otro valor.
+const TALLAS = [
+  { valor: "S", referencia: "Bolsa de pan o un puñado de latas" },
+  { valor: "M", referencia: "Bolsa de supermercado llena" },
+  { valor: "L", referencia: "Bolsa de basura de cocina" },
+  { valor: "XL", referencia: "Bolsa de basura grande" },
+];
+const KG_POR_TALLA = {
+  "Plástico": { S: 0.1, M: 0.4, L: 0.8, XL: 1.5 },
+  "Papel/cartón": { S: 0.4, M: 1.2, L: 2.5, XL: 5 },
+  "Metal": { S: 0.2, M: 0.5, L: 1, XL: 2 },
+  "Vidrio": { S: 1.5, M: 4, L: 8, XL: 12 },
+};
+const kgEstimado = (material, talla) => KG_POR_TALLA[material][talla];
+/** "Bolsa M · ≈ 1,2 kg", o solo los kilos en depósitos antiguos sin talla. */
+const cantidad = (r) => (r.talla ? `Bolsa ${r.talla} · ≈ ${formatKg(kgEfectivo(r))}` : formatKg(kgEfectivo(r)));
 
 const ASPECTO = {
   pendiente:   { texto: "Esperando administrador", clase: "est-pendiente",   emoji: "⏳" },
@@ -607,7 +623,7 @@ for (const s of SLOTS) {
     conectado: false,
     error: null,
     desuscribir: null,
-    ui: {},      // estado local de la interfaz (flujo de escaneo, pesos ajustados)
+    ui: {},      // estado local de la interfaz (flujo de escaneo)
     vistos: new Map(), // id -> estado, para detectar cambios y destacar
   };
 }
@@ -737,7 +753,7 @@ async function accion(slotId, fn, mensajeExito) {
   }
 }
 
-async function crearRegistro(material, kg) {
+async function crearRegistro(material, talla) {
   const s = estado.residente;
   const p = s.perfil;
   if (!p?.torreId) throw new Error("La cuenta no está vinculada a una torre.");
@@ -749,7 +765,8 @@ async function crearRegistro(material, kg) {
     torreId: p.torreId,
     torreNombre: p.torreNombre ?? "",
     material,
-    kgDeclarado: kg,
+    talla,
+    kgDeclarado: kgEstimado(material, talla),
     kgConfirmado: null,
     contenedor,
     estado: "pendiente",
@@ -760,10 +777,10 @@ async function crearRegistro(material, kg) {
   });
 }
 
-async function validar(id, kg) {
+async function validar(r) {
   const s = estado.administrador;
-  await updateDoc(doc(s.db, "registros", id), {
-    estado: "validado", kgConfirmado: kg,
+  await updateDoc(doc(s.db, "registros", r.id), {
+    estado: "validado", kgConfirmado: r.kgDeclarado,
     validadoEn: Date.now(), validadoPor: s.perfil.id,
   });
 }
@@ -978,7 +995,7 @@ function pintarResidente(s, destacados) {
           <div class="fila" style="align-items:flex-start">
             <div class="avatar-estado ${a.clase}">${a.emoji}</div>
             <div class="crecer">
-              <div class="titulo-fila">${escapar(r.material)} · ${formatKg(kgEfectivo(r))}</div>
+              <div class="titulo-fila">${escapar(r.material)} · ${cantidad(r)}</div>
               <div class="sub-fila">Contenedor ${escapar(r.contenedor)} · ${tiempoRelativo(r.creadoEn)}</div>
               ${ajustado ? `<div class="sub-fila" style="color:#B45309">Peso ajustado por el administrador (declaraste ${formatKg(r.kgDeclarado)})</div>` : ""}
               <span class="insignia ${a.clase}" style="display:inline-block;margin-top:7px">${a.texto}</span>
@@ -1052,25 +1069,26 @@ function pintarEscaneo(s) {
           <span class="emoji">${m.emoji}</span>${escapar(m.nombre)}</button>`).join("")}
       </div>
     </div></div>`;
-  } else if (f.paso === "peso") {
+  } else if (f.paso === "talla") {
     cuerpo = `<div class="sup-cuerpo"><div class="hoja">
       <div style="text-align:center;margin-bottom:12px">
         <span class="insignia est-certificado">${escapar(f.material)}</span>
       </div>
-      <h4>¿Cuánto pesa aproximadamente?</h4>
-      <p class="pie">El administrador confirmará el peso al validar</p>
-      <div class="rejilla-peso">
-        ${PESOS.map((v) => `<button class="opcion ${v === f.kg ? "activa" : ""}" data-accion="elegir-peso" data-valor="${v}">${formatKg(v)}</button>`).join("")}
+      <h4>¿De qué tamaño es la bolsa?</h4>
+      <p class="pie">No hace falta pesarla: la app estima los kilos</p>
+      <div class="rejilla-peso" style="grid-template-columns:repeat(2,1fr)">
+        ${TALLAS.map((t) => `<button class="opcion ${t.valor === f.talla ? "activa" : ""}" data-accion="elegir-talla" data-valor="${t.valor}" title="${escapar(t.referencia)}">
+          <b>Talla ${t.valor}</b><br><small>≈ ${formatKg(kgEstimado(f.material, t.valor))}</small></button>`).join("")}
       </div>
-      <button class="bp verde grande" data-accion="confirmar-registro" ${s.ui.ocupado ? "disabled" : ""}>
-        ${s.ui.ocupado ? "Guardando..." : `Registrar ${formatKg(f.kg)} de ${escapar(f.material)}`}
+      <button class="bp verde grande" data-accion="confirmar-registro" ${s.ui.ocupado || !f.talla ? "disabled" : ""}>
+        ${s.ui.ocupado ? "Guardando..." : f.talla ? `Registrar bolsa ${f.talla} de ${escapar(f.material)}` : "Elige el tamaño de la bolsa"}
       </button>
     </div></div>`;
   } else if (f.paso === "listo") {
     cuerpo = `<div class="sup-cuerpo"><div class="hoja" style="display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center">
       <div style="width:64px;height:64px;border-radius:50%;background:var(--p-verde-100);display:grid;place-items:center;font-size:30px;margin-bottom:14px">✅</div>
       <h4>¡Registro enviado!</h4>
-      <p class="pie">${escapar(f.material)} · ${formatKg(f.kg)} · Contenedor ${escapar(f.contenedor)}</p>
+      <p class="pie">${escapar(f.material)} · Bolsa ${f.talla} · ≈ ${formatKg(kgEstimado(f.material, f.talla))} · Contenedor ${escapar(f.contenedor)}</p>
       <div style="width:100%;background:var(--p-fondo);border-radius:14px;padding:14px;margin:6px 0 18px">
         ${cadenaHTML("pendiente")}
       </div>
@@ -1095,31 +1113,21 @@ function pintarAdministrador(s, destacados) {
   const p = s.perfil;
   const res = resumenTorre(s.registros, p.torreId);
 
+  // Lo normal es "Validar la tanda": el admin revisa el contenedor completo,
+  // no bolsa por bolsa. Cada tarjeta queda para rechazar una excepción.
   const pendientes = res.pendientes.map((r) => {
-    const kg = s.ui.pesos?.[r.id] ?? r.kgDeclarado;
-    const ajustado = Math.abs(kg - r.kgDeclarado) > 0.01;
     return `<div class="tarjeta ${destacados.has(r.id) ? "destacar" : ""}">
       <div class="fila" style="align-items:flex-start">
         <div class="crecer">
           <div class="titulo-fila">${escapar(r.residente)}</div>
           <div class="sub-fila">${escapar(r.depto)} · ${escapar(r.material)}</div>
+          <div class="sub-fila"><b>${cantidad(r)}</b></div>
           <div class="sub-fila">Contenedor ${escapar(r.contenedor)}</div>
         </div>
         <span class="sub-fila">${tiempoRelativo(r.creadoEn)}</span>
       </div>
-      <div class="peso-caja">
-        <div class="nota">Peso declarado: ${formatKg(r.kgDeclarado)} · ajústalo si a la vista difiere</div>
-        <div class="peso-fila">
-          <button class="paso" data-accion="peso-menos" data-id="${r.id}">−</button>
-          <div style="text-align:center">
-            <div class="peso-valor">${formatKg(kg)}</div>
-            ${ajustado ? '<div class="peso-ajustado">peso corregido</div>' : ""}
-          </div>
-          <button class="paso" data-accion="peso-mas" data-id="${r.id}">+</button>
-        </div>
-      </div>
       <div class="par">
-        <button class="bp verde" data-accion="validar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Validar ${formatKg(kg)}</button>
+        <button class="bp verde" data-accion="validar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Validar</button>
         <button class="bp rojo" data-accion="rechazar" data-id="${r.id}" ${s.ui.ocupado ? "disabled" : ""}>Rechazar</button>
       </div>
     </div>`;
@@ -1327,7 +1335,7 @@ pared.addEventListener("click", async (ev) => {
       s.ui.flujo = {
         paso: "buscando",
         contenedor: `${String(p.torreId ?? "").replace("torre-", "T-").toUpperCase()}-01`,
-        material: null, kg: 1,
+        material: null, talla: null,
       };
       render();
       break;
@@ -1338,16 +1346,17 @@ pared.addEventListener("click", async (ev) => {
       break;
     case "elegir-material":
       s.ui.flujo.material = btn.dataset.valor;
-      s.ui.flujo.paso = "peso";
+      s.ui.flujo.talla = null;
+      s.ui.flujo.paso = "talla";
       render();
       break;
-    case "elegir-peso":
-      s.ui.flujo.kg = Number(btn.dataset.valor);
+    case "elegir-talla":
+      s.ui.flujo.talla = btn.dataset.valor;
       render();
       break;
     case "confirmar-registro": {
       const f = s.ui.flujo;
-      await accion("residente", () => crearRegistro(f.material, f.kg));
+      await accion("residente", () => crearRegistro(f.material, f.talla));
       if (!s.ui.aviso) { s.ui.flujo.paso = "listo"; render(); }
       break;
     }
@@ -1356,20 +1365,9 @@ pared.addEventListener("click", async (ev) => {
       render();
       break;
 
-    case "peso-menos":
-    case "peso-mas": {
-      s.ui.pesos = s.ui.pesos ?? {};
-      const reg = s.registros.find((r) => r.id === id);
-      const actual = s.ui.pesos[id] ?? reg.kgDeclarado;
-      const delta = a === "peso-mas" ? 0.5 : -0.5;
-      s.ui.pesos[id] = Math.max(0.5, Math.round((actual + delta) * 10) / 10);
-      render();
-      break;
-    }
     case "validar": {
       const reg = s.registros.find((r) => r.id === id);
-      const kg = s.ui.pesos?.[id] ?? reg.kgDeclarado;
-      await accion("administrador", () => validar(id, kg));
+      await accion("administrador", () => validar(reg));
       break;
     }
     case "rechazar":
@@ -1379,7 +1377,7 @@ pared.addEventListener("click", async (ev) => {
       const res = resumenTorre(s.registros, s.perfil.torreId);
       await accion("administrador", async () => {
         for (const r of res.pendientes) {
-          await validar(r.id, s.ui.pesos?.[r.id] ?? r.kgDeclarado);
+          await validar(r);
         }
       }, `Tanda validada: ${res.pendientes.length} depósito(s).`);
       break;

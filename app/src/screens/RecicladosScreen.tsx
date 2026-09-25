@@ -1,8 +1,8 @@
 import React from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
-import { kgEfectivo, useEcoTrack, type Registro } from "../state/EcoTrack";
-import { formatKg, tiempoRelativo } from "../lib/formato";
+import { useEcoTrack, type Registro } from "../state/EcoTrack";
+import { cantidadDeposito, formatKg, tiempoRelativo } from "../lib/formato";
 import {
   ASPECTO_ESTADO,
   CadenaVerificacion,
@@ -64,6 +64,8 @@ function TarjetaActividad({
   alAbrir?: () => void;
 }) {
   const aspecto = ASPECTO_ESTADO[registro.estado];
+  // Solo pasa en depósitos antiguos, registrados en kilos: con talla de bolsa
+  // el administrador valida la tanda y no corrige depósito por depósito.
   const pesoCorregido =
     registro.kgConfirmado !== null &&
     Math.abs(registro.kgConfirmado - registro.kgDeclarado) > 0.01;
@@ -81,7 +83,7 @@ function TarjetaActividad({
         </View>
         <View className="flex-1 min-w-0">
           <Text className="text-gray-800 font-medium">
-            {registro.material} · {formatKg(kgEfectivo(registro))}
+            {registro.material} · {cantidadDeposito(registro)}
           </Text>
           <Text className="text-gray-400 text-xs mt-1">
             Contenedor {registro.contenedor} · {tiempoRelativo(registro.creadoEn)}

@@ -44,7 +44,7 @@ realmente funciona hoy, contra Firebase real, no simulado:
 | Módulo | Estado | Detalle |
 |---|---|---|
 | 1 — Incorporación | ✅ Implementado | Registro (residente o gestor con código), vinculación a torre por código, y promoción a administrador con el código propio de esa torre. Nadie se autoasigna un rol: lo exigen las reglas de Firestore, no la app. |
-| 2 — Registro de reciclaje | 🔶 Parcial | Escaneo con cámara real y selección de material, en la versión web instalada. En el teléfono nativo (Expo Go) el código del contenedor se ingresa a mano. |
+| 2 — Registro de reciclaje | 🔶 Parcial | Escaneo con cámara real, selección de material y talla de bolsa (S, M, L o XL) en vez de peso: la app estima los kilos con una tabla por material que las reglas del servidor exigen, así que no se pueden inventar. En la versión web instalada. En el teléfono nativo (Expo Go) el código del contenedor se ingresa a mano. |
 | 3 — Validación en 2 etapas | 🔶 Parcial | Las dos etapas (administrador → gestor) funcionan y están garantizadas por el servidor. Avisos de avance dentro de la app para los tres roles: un banner emergente en el momento en que ocurre el evento (con la app abierta) y una 🔔 con contador de nuevos: al residente cuando su depósito es validado, rechazado o certificado; al administrador por cada depósito nuevo por validar; al gestor por cada contenedor listo para retiro. Falta la validación diaria por lote como una sola operación atómica, y notificaciones push con la app cerrada (requieren plan Blaze de Firebase). |
 | 4 — Certificado digital | 🔶 Parcial | El PDF se genera y se descarga o comparte desde la versión web instalada. No está disponible todavía en el teléfono nativo. |
 | 5 — Gamificación colectiva | 🔶 Parcial | Ranking semanal entre torres, misión de la torre con incentivo editable por el administrador, y misión semanal del sistema con EcoPuntos (también por torre en el ranking), funcionando. Falta un marcador en tiempo real dedicado (hoy las métricas viven en el panel). |
@@ -64,7 +64,7 @@ Detalle técnico completo en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).
 Registro de usuarios en Android/iOS y vinculación obligatoria a una torre específica mediante invitación directa o código del administrador. Un usuario solo puede pertenecer a una torre a la vez.
 
 ### Módulo 2 — Registro de Reciclaje
-Escaneo de código QR en el contenedor y selección del material (papel/cartón, plástico, vidrio, metal). El proceso no debe superar los 30 segundos.
+Escaneo de código QR en el contenedor, selección del material (papel/cartón, plástico, vidrio, metal) y del tamaño de la bolsa (S, M, L o XL). No se pide el peso: la app estima los kilos según material y talla. El proceso no debe superar los 30 segundos.
 
 ### Módulo 3 — Validación en 2 Etapas
 - **Administrador de la torre:** confirma la correcta deposición en el contenedor.

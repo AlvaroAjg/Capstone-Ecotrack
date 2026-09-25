@@ -11,6 +11,38 @@ export const MATERIALES: { nombre: Material; emoji: string }[] = [
   { nombre: "Metal", emoji: "🥫" },
 ];
 
+/**
+ * Nadie pesa su bolsa antes de bajarla: el residente declara el tamaño de la
+ * bolsa y la app estima los kilos. Las reglas de Firestore solo aceptan los
+ * kilos de esta tabla, así que no se pueden inventar a mano. El administrador
+ * no revisa bolsa por bolsa: valida la tanda del contenedor completa.
+ */
+export type Talla = "S" | "M" | "L" | "XL";
+
+export const TALLAS: { valor: Talla; referencia: string; litros: number }[] = [
+  { valor: "S", referencia: "Bolsa de pan o un puñado de latas", litros: 5 },
+  { valor: "M", referencia: "Bolsa de supermercado llena", litros: 15 },
+  { valor: "L", referencia: "Bolsa de basura de cocina", litros: 30 },
+  { valor: "XL", referencia: "Bolsa de basura grande", litros: 60 },
+];
+
+/**
+ * Kilos estimados por talla y material, con densidades típicas de material
+ * suelto sin compactar. Son referenciales: conviene calibrarlos pesando unas
+ * pocas bolsas reales. Si se cambian, hay que cambiarlos también en
+ * firestore.rules (función kgPorTalla), que los exige tal cual.
+ */
+export const KG_POR_TALLA: Record<Material, Record<Talla, number>> = {
+  "Plástico": { S: 0.1, M: 0.4, L: 0.8, XL: 1.5 },
+  "Papel/cartón": { S: 0.4, M: 1.2, L: 2.5, XL: 5 },
+  "Metal": { S: 0.2, M: 0.5, L: 1, XL: 2 },
+  "Vidrio": { S: 1.5, M: 4, L: 8, XL: 12 },
+};
+
+export function kgEstimado(material: Material, talla: Talla): number {
+  return KG_POR_TALLA[material][talla];
+}
+
 export const ROLES: { valor: Rol; etiqueta: string }[] = [
   { valor: "residente", etiqueta: "🏠 Residente" },
   { valor: "administrador", etiqueta: "🛡️ Admin." },
@@ -49,9 +81,11 @@ export interface Registro {
   torreId: string;
   torreNombre: string;
   material: Material;
-  /** Peso estimado por el residente al depositar. */
+  /** Talla de bolsa declarada por el residente. null en depósitos antiguos, registrados en kilos. */
+  talla: Talla | null;
+  /** Kilos declarados: la estimación de `talla`, o el peso escrito en depósitos antiguos. */
   kgDeclarado: number;
-  /** Peso confirmado visualmente por el administrador al validar. */
+  /** Kilos con que el administrador validó el depósito. */
   kgConfirmado: number | null;
   contenedor: string;
   estado: EstadoRegistro;

@@ -22,6 +22,7 @@ import {
   type Registro,
   type ResumenTorre,
   type Rol,
+  type Talla,
   type Torre,
   type Usuario,
 } from "../lib/tipos";
@@ -41,7 +42,10 @@ import * as servicioTorres from "../services/torres";
 export {
   MATERIALES,
   ROLES,
+  TALLAS,
   kgEfectivo,
+  kgEstimado,
+  type Talla,
   type EstadoRegistro,
   type FilaRanking,
   type LoteRetiro,
@@ -109,8 +113,8 @@ interface EcoTrackValor {
   prepararDemo: (
     alAvanzar?: (mensaje: string) => void
   ) => Promise<servicioDemo.ResultadoPreparacion>;
-  crearRegistro: (material: Material, kg: number, contenedor: string) => Promise<string>;
-  validarRegistro: (id: string, kgConfirmado: number) => Promise<void>;
+  crearRegistro: (material: Material, talla: Talla, contenedor: string) => Promise<string>;
+  validarRegistro: (registro: Registro) => Promise<void>;
   rechazarRegistro: (id: string) => Promise<void>;
   confirmarRetiro: (torreId: string) => Promise<string>;
   registroPorId: (id: string) => Registro | undefined;
@@ -332,17 +336,17 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const crearRegistro = useCallback(
-    async (material: Material, kg: number, contenedor: string) => {
+    async (material: Material, talla: Talla, contenedor: string) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      return servicioRegistros.crearRegistro(usuario, material, kg, contenedor);
+      return servicioRegistros.crearRegistro(usuario, material, talla, contenedor);
     },
     [usuario]
   );
 
   const validarRegistro = useCallback(
-    async (id: string, kgConfirmado: number) => {
+    async (registro: Registro) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      await servicioRegistros.validarRegistro(id, usuario.id, kgConfirmado);
+      await servicioRegistros.validarRegistro(registro, usuario.id);
     },
     [usuario]
   );

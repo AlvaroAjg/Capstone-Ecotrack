@@ -6,7 +6,7 @@
 // saber cuáles son nuevos. No suenan con el teléfono bloqueado (eso exigiría
 // notificaciones push con un servidor); se ven al abrir la app.
 
-import { formatKg } from "./formato";
+import { cantidadDeposito, formatKg } from "./formato";
 import { kgEfectivo, type LoteRetiro, type Registro, type Usuario } from "./tipos";
 
 export interface Aviso {
@@ -36,7 +36,7 @@ export function esNuevo(aviso: Aviso, vistosHasta: number, ahora: number = Date.
 }
 
 function descripcion(r: Registro): string {
-  return `${r.material} · ${formatKg(kgEfectivo(r))}`;
+  return `${r.material} · ${cantidadDeposito(r)}`;
 }
 
 /** Residente: cada paso de la cadena de sus propios depósitos. */
