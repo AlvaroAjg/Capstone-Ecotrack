@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import {
+  CONTAMINANTES,
   TALLAS,
   kgEfectivo,
   nombreContenedor,
+  type Contaminante,
   type Contenedor,
   type Registro,
 } from "../lib/tipos";
@@ -52,21 +54,33 @@ function resumenMateriales(registros: Registro[]): string {
  * contenedor con lo que se declaró en él, y el administrador compara a la
  * vista: si cuadra, valida el contenedor completo; si no, lo rechaza. La
  * revisión depósito por depósito queda plegada, solo para excepciones.
+ *
+ * Si encuentra algo que no corresponde (vidrio picado en el de cartón), lo
+ * reporta: los depósitos declarados se validan igual, porque no se sabe quién
+ * fue, y el reporte avisa al gestor y a la torre.
  */
 export default function ValidacionContenedores({
   torreId,
   pendientes,
   alValidar,
   alRechazar,
+  alReportar,
 }: {
   torreId: string;
   pendientes: Registro[];
   alValidar: (registro: Registro) => Promise<void>;
   alRechazar: (id: string) => Promise<void>;
+  alReportar: (datos: {
+    contenedor: string;
+    contenedorNombre: string;
+    contaminante: Contaminante;
+  }) => Promise<void>;
 }) {
   const [contenedores, setContenedores] = useState<Contenedor[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
+  /** Contenedor en el que se está eligiendo qué contaminante se encontró. */
+  const [reportando, setReportando] = useState<string | null>(null);
 
   useEffect(() => escucharContenedores(torreId, setContenedores), [torreId]);
 
@@ -102,6 +116,20 @@ export default function ValidacionContenedores({
     if (!acepta) return;
     await ejecutar(g.codigo, async () => {
       for (const r of g.registros) await alRechazar(r.id);
+    });
+  }
+
+  async function reportar(g: Grupo, nombre: string, contaminante: Contaminante) {
+    const acepta = await confirmar(
+      "Reportar contaminación",
+      `Se registrará ${contaminante.toLowerCase()} en el ${nombre.toLowerCase()}. Los ${g.registros.length} depósitos declarados se validan igual, porque no se sabe quién fue. Se avisará al gestor para que lo retire con precaución y a los residentes de la torre.`,
+      "Reportar y validar"
+    );
+    if (!acepta) return;
+    await ejecutar(g.codigo, async () => {
+      await alReportar({ contenedor: g.codigo, contenedorNombre: nombre, contaminante });
+      for (const r of g.registros) await alValidar(r);
+      setReportando(null);
     });
   }
 
@@ -170,6 +198,47 @@ export default function ValidacionContenedores({
                 className="flex-1 py-3"
               />
             </View>
+
+            {reportando === g.codigo ? (
+              <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                <Text className="text-amber-900 text-sm font-medium mb-1">
+                  ¿Qué encontraste que no corresponde?
+                </Text>
+                <Text className="text-amber-800 text-xs mb-3">
+                  Si es poco y es seguro, sácalo (con guantes si es vidrio) y repórtalo igual.
+                </Text>
+                <View className="flex-row flex-wrap">
+                  {CONTAMINANTES.filter((c) => c !== g.contenedor?.material).map((c) => (
+                    <TouchableOpacity
+                      key={c}
+                      onPress={() => reportar(g, nombre, c)}
+                      disabled={ocupado !== null}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Reportar ${c.toLowerCase()} en el ${nombre.toLowerCase()}`}
+                      className="bg-white border border-amber-300 rounded-full px-3 py-1.5 mr-2 mb-2"
+                    >
+                      <Text className="text-amber-900 text-xs font-medium">{c}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+                <TouchableOpacity
+                  onPress={() => setReportando(null)}
+                  accessibilityRole="button"
+                  className="items-center pt-1"
+                >
+                  <Text className="text-amber-700 text-xs">Cancelar</Text>
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setReportando(g.codigo)}
+                disabled={ocupado !== null}
+                accessibilityRole="button"
+                className="items-center pt-3"
+              >
+                <Text className="text-amber-700 text-xs font-medium">Reportar contaminación</Text>
+              </TouchableOpacity>
+            )}
 
             <TouchableOpacity
               onPress={() => setAbierto(verDetalle ? null : g.codigo)}

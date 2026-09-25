@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
-import { MATERIALES, useEcoTrack, type LoteRetiro } from "../state/EcoTrack";
+import { MATERIALES, useEcoTrack, type Incidencia, type LoteRetiro } from "../state/EcoTrack";
 import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg, tiempoRelativo } from "../lib/formato";
 import {
@@ -35,6 +35,7 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
     errorDatos,
     confirmarRetiro,
     avisosNuevos,
+    incidencias,
   } = useEcoTrack();
 
   const [ultimoRetiro, setUltimoRetiro] = useState<string | null>(null);
@@ -96,6 +97,7 @@ export default function GestorScreen({ nav }: { nav: Navegacion }) {
             <TarjetaLote
               key={lote.torreId}
               lote={lote}
+              advertencias={incidencias.filter((i) => i.torreId === lote.torreId && !i.atendida)}
               alConfirmar={confirmarRetiro}
               alConfirmado={setUltimoRetiro}
             />
@@ -113,10 +115,13 @@ const EMOJI_MATERIAL: Record<string, string> = Object.fromEntries(
 
 function TarjetaLote({
   lote,
+  advertencias,
   alConfirmar,
   alConfirmado,
 }: {
   lote: LoteRetiro;
+  /** Contenedores de esta torre que el administrador encontró contaminados. */
+  advertencias: Incidencia[];
   alConfirmar: (torreId: string) => Promise<string>;
   alConfirmado: (codigo: string) => void;
 }) {
@@ -144,6 +149,18 @@ function TarjetaLote({
           {tiempoRelativo(lote.esperandoDesde)}
         </Text>
       </View>
+
+      {advertencias.length > 0 ? (
+        <View className="bg-amber-50 border border-amber-300 rounded-xl p-3 mb-3">
+          <Text className="text-amber-900 text-sm font-semibold">Retirar con precaución</Text>
+          {advertencias.map((i) => (
+            <Text key={i.id} className="text-amber-800 text-xs mt-1">
+              {i.contaminante} en el {i.contenedorNombre.toLowerCase()} · reportado{" "}
+              {tiempoRelativo(i.reportadoEn)}
+            </Text>
+          ))}
+        </View>
+      ) : null}
 
       <View className="bg-gray-50 border border-gray-200 rounded-xl p-4 items-center mb-3">
         <Text className="text-green-700 text-3xl font-bold">{formatKg(lote.kgTotal)}</Text>

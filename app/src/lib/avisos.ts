@@ -7,7 +7,13 @@
 // notificaciones push con un servidor); se ven al abrir la app.
 
 import { cantidadDeposito, formatKg } from "./formato";
-import { kgEfectivo, type LoteRetiro, type Registro, type Usuario } from "./tipos";
+import {
+  kgEfectivo,
+  type Incidencia,
+  type LoteRetiro,
+  type Registro,
+  type Usuario,
+} from "./tipos";
 
 export interface Aviso {
   id: string;
@@ -116,18 +122,49 @@ function avisosGestor(lotes: LoteRetiro[]): Aviso[] {
   });
 }
 
+/**
+ * Residente: un contenedor de su torre apareció contaminado. Es un aviso para
+ * toda la torre, porque no se sabe quién fue: educa sin señalar a nadie.
+ */
+function avisosContaminacionTorre(incidencias: Incidencia[]): Aviso[] {
+  const desde = Date.now() - VENTANA_RESIDENTE;
+  return incidencias
+    .filter((i) => i.reportadoEn >= desde)
+    .map((i) => ({
+      id: `${i.id}-contaminacion`,
+      emoji: "!",
+      titulo: `Se encontró ${i.contaminante.toLowerCase()} en el ${i.contenedorNombre.toLowerCase()}`,
+      detalle: "Recuerda botar cada material en su contenedor. Es un aviso para toda la torre.",
+      fecha: i.reportadoEn,
+    }));
+}
+
+/** Gestor: un contenedor por retirar viene contaminado. Es una advertencia de seguridad. */
+function avisosPrecaucion(incidencias: Incidencia[]): Aviso[] {
+  return incidencias
+    .filter((i) => !i.atendida)
+    .map((i) => ({
+      id: `${i.id}-precaucion`,
+      emoji: "!",
+      titulo: `Precaución en ${i.torreNombre}`,
+      detalle: `${i.contaminante} en el ${i.contenedorNombre.toLowerCase()}: retíralo con cuidado.`,
+      fecha: i.reportadoEn,
+    }));
+}
+
 /** Los avisos del usuario según su rol, del más reciente al más antiguo. */
 export function construirAvisos(
   usuario: Usuario | null,
   registros: Registro[],
-  lotes: LoteRetiro[]
+  lotes: LoteRetiro[],
+  incidencias: Incidencia[] = []
 ): Aviso[] {
   if (!usuario) return [];
   const avisos =
     usuario.rol === "residente"
-      ? avisosResidente(usuario, registros)
+      ? [...avisosResidente(usuario, registros), ...avisosContaminacionTorre(incidencias)]
       : usuario.rol === "administrador"
         ? avisosAdministrador(usuario, registros)
-        : avisosGestor(lotes);
+        : [...avisosGestor(lotes), ...avisosPrecaucion(incidencias)];
   return avisos.sort((a, b) => b.fecha - a.fecha).slice(0, MAXIMO);
 }

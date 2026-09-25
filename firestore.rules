@@ -143,6 +143,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ----------------------------------------------------------- incidencias
+    // Contenedor encontrado contaminado (p. ej. vidrio en el de cartón). Lo
+    // reporta el administrador de esa torre; el gestor lo marca como atendido
+    // al retirar el contenedor. Se lee sin restricción de torre porque no lleva
+    // datos personales: no se sabe quién fue, y por eso no señala a nadie.
+    match /incidencias/{incidenciaId} {
+      allow read: if autenticado();
+
+      allow create: if autenticado()
+                    && miRol() == 'administrador'
+                    && request.resource.data.torreId == miPerfil().torreId
+                    && request.resource.data.reportadoPor == request.auth.uid
+                    && request.resource.data.atendida == false
+                    && request.resource.data.contaminante in
+                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común'];
+
+      allow update: if autenticado()
+                    && miRol() == 'gestor'
+                    && resource.data.atendida == false
+                    && request.resource.data.atendida == true
+                    && soloCambia(['atendida', 'atendidaEn', 'codigoRetiro']);
+
+      // Un reporte forma parte del historial de calidad de la torre: no se borra.
+      allow delete: if false;
+    }
+
     // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
     // la torre del depósito y, si es de un material, reciba ese material.
     function contenedorValido(deposito) {

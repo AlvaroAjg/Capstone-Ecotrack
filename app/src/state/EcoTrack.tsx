@@ -21,6 +21,8 @@ import {
   type Mision,
   type Registro,
   type ResumenTorre,
+  type Contaminante,
+  type Incidencia,
   type Rol,
   type Talla,
   type Torre,
@@ -34,6 +36,7 @@ import {
 } from "../lib/misionesSistema";
 import * as servicioAuth from "../services/auth";
 import * as servicioDemo from "../services/demo";
+import * as servicioIncidencias from "../services/incidencias";
 import * as servicioMisiones from "../services/misiones";
 import * as servicioRegistros from "../services/registros";
 import * as servicioTorres from "../services/torres";
@@ -50,6 +53,7 @@ export {
   type Talla,
   type EstadoRegistro,
   type FilaRanking,
+  type Incidencia,
   type LoteRetiro,
   type Material,
   type Mision,
@@ -85,6 +89,15 @@ interface EcoTrackValor {
 
   // Misión activa de mi torre (null si todavía no se ha definido una)
   mision: Mision | null;
+
+  // Contenedores reportados como contaminados: los de mi torre (admin y
+  // residente) o los que el gestor todavía no retira
+  incidencias: Incidencia[];
+  reportarContaminacion: (datos: {
+    contenedor: string;
+    contenedorNombre: string;
+    contaminante: Contaminante;
+  }) => Promise<void>;
 
   // Avisos del avance de la cadena, según el rol (ver lib/avisos.ts)
   avisos: Aviso[];
@@ -136,6 +149,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
   const [preparandoDemo, setPreparandoDemo] = useState(false);
   const [mision, setMision] = useState<Mision | null>(null);
+  const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
 
   // Entre `createUser` y la creación del documento de perfil hay una ventana en
   // la que el usuario está autenticado pero aún no tiene perfil. Esta bandera
@@ -226,6 +240,18 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     }
     return servicioMisiones.escucharMision(torreId, setMision);
   }, [usuario?.torreId]);
+
+  // 5. Incidencias de contaminación. El gestor ve las pendientes de todas las
+  // torres (son advertencias para su retiro); los demás, las de su torre.
+  useEffect(() => {
+    if (usuario?.rol === "gestor") {
+      return servicioIncidencias.escucharIncidenciasPendientes(setIncidencias);
+    }
+    if (usuario?.torreId) {
+      return servicioIncidencias.escucharIncidenciasDeTorre(usuario.torreId, setIncidencias);
+    }
+    setIncidencias([]);
+  }, [usuario?.rol, usuario?.torreId]);
 
   const miTorre = useMemo(
     () => torres.find((t) => t.id === usuario?.torreId) ?? null,
@@ -534,15 +560,37 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
       if (!usuario) throw new Error("No hay una sesión activa.");
       const lote = lotesPorRetirar.find((l) => l.torreId === torreId);
       if (!lote) throw new Error("Ese lote ya no está disponible.");
-      return servicioRegistros.confirmarRetiroDeTorre(lote.registros, usuario.id);
+      const codigo = await servicioRegistros.confirmarRetiroDeTorre(lote.registros, usuario.id);
+      // Con el contenedor retirado, sus advertencias de contaminación ya se
+      // atendieron. Si esto fallara, el retiro igual quedó hecho.
+      await servicioIncidencias
+        .marcarAtendidas(
+          incidencias.filter((i) => i.torreId === torreId && !i.atendida),
+          codigo
+        )
+        .catch(() => undefined);
+      return codigo;
     },
-    [usuario, lotesPorRetirar]
+    [usuario, lotesPorRetirar, incidencias]
   );
 
 
   const avisos = useMemo(
-    () => construirAvisos(usuario, registros, lotesPorRetirar),
-    [usuario, registros, lotesPorRetirar]
+    () => construirAvisos(usuario, registros, lotesPorRetirar, incidencias),
+    [usuario, registros, lotesPorRetirar, incidencias]
+  );
+
+  const reportarContaminacion = useCallback(
+    async (datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante }) => {
+      if (!usuario?.torreId) throw new Error("No hay una sesión activa.");
+      await servicioIncidencias.reportarContaminacion({
+        ...datos,
+        torreId: usuario.torreId,
+        torreNombre: usuario.torreNombre ?? usuario.torreId,
+        adminUid: usuario.id,
+      });
+    },
+    [usuario]
   );
 
   const avisosNuevos = useMemo(
@@ -584,6 +632,8 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     mision,
     misionSemanal,
     ecoPuntosMes,
+    incidencias,
+    reportarContaminacion,
     avisos,
     avisosNuevos,
     marcarAvisosVistos,

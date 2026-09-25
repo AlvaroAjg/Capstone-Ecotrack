@@ -123,6 +123,8 @@ Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
 - los contenedores solo los crea, lista y desactiva el administrador de su
   torre; cualquiera puede leer uno **si conoce su código**, que es aleatorio y
   solo aparece en el QR pegado en el contenedor;
+- una incidencia de contaminación solo la crea el administrador de esa torre y
+  solo la marca como atendida el gestor al retirar; nadie la borra;
 - nadie puede cambiar su propio rol ni borrar un registro;
 - nadie se autoasigna administrador o gestor: esos roles exigen el código
   correcto de `codigosRol`, una colección que la app nunca puede leer
@@ -150,7 +152,9 @@ Con dos teléfonos (o un teléfono + emulador):
    contenedor** si cuadra, **No cuadra** si no. **"Validar la tanda del día"**
    valida todos los contenedores de una vez. No se revisa persona por persona,
    porque dentro del contenedor no se sabe de quién es cada cosa; eso queda
-   plegado en "Ver depósitos", para excepciones.
+   plegado en "Ver depósitos", para excepciones. Si encuentra algo que no
+   corresponde (vidrio en el de cartón), usa **Reportar contaminación**: valida
+   igual lo declarado y avisa al gestor y a la torre.
 3. **Teléfono B, gestor** (cerrar sesión y entrar con la cuenta de gestor):
    confirmar retiro → se emite el certificado con código único.
 4. **Teléfono A:** el estado cambió a *Certificado* en vivo, con su código.
@@ -180,6 +184,10 @@ misiones/{torreId}                   ← un documento por torre; puede no existi
 
 contenedores/{codigo}                ← id = código aleatorio del QR (p. ej. K7QM9X)
   torreId, material (null = mixto), activo, creadoEn
+
+incidencias/{id}                     ← contenedor encontrado contaminado; no señala a nadie
+  torreId, torreNombre, contenedor, contenedorNombre, contaminante,
+  reportadoEn, reportadoPor, atendida, atendidaEn, codigoRetiro
 
 codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde las reglas
   administrador                      ← código de esa torre

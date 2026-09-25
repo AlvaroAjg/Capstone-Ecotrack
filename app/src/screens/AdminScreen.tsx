@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Mision } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import { formatKg } from "../lib/formato";
+import { esDelMesActual, formatKg } from "../lib/formato";
 import ContenedoresTorre from "../components/ContenedoresTorre";
 import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
@@ -32,9 +32,13 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     mision,
     guardarMision,
     avisosNuevos,
+    incidencias,
+    reportarContaminacion,
   } = useEcoTrack();
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
+  // Calidad de separación: contenedores que se encontraron contaminados este mes.
+  const contaminadosMes = incidencias.filter((i) => esDelMesActual(i.reportadoEn)).length;
   const [validandoTanda, setValidandoTanda] = useState(false);
 
   /**
@@ -110,6 +114,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         titulo="Validaciones pendientes"
         etiqueta={`${resumen.pendientes.length} en cola`}
       >
+        <Text className="text-gray-400 text-xs mb-3">
+          Contenedores reportados como contaminados este mes: {contaminadosMes}
+        </Text>
         {resumen.pendientes.length === 0 ? (
           <Vacio emoji="✅" texto="No hay depósitos pendientes en tu torre." />
         ) : (
@@ -132,6 +139,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
                 pendientes={resumen.pendientes}
                 alValidar={validarRegistro}
                 alRechazar={rechazarRegistro}
+                alReportar={reportarContaminacion}
               />
             ) : null}
           </>

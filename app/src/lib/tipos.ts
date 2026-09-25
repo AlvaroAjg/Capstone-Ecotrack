@@ -85,6 +85,42 @@ export function nombreContenedor(c: Pick<Contenedor, "material">): string {
   return c.material ? `Contenedor de ${c.material.toLowerCase()}` : "Contenedor mixto";
 }
 
+/**
+ * Lo que el administrador puede encontrar donde no corresponde. La misma lista
+ * está en firestore.rules (incidencias): si se cambia una, se cambia la otra.
+ */
+export const CONTAMINANTES = [
+  "Vidrio",
+  "Plástico",
+  "Papel/cartón",
+  "Metal",
+  "Orgánico",
+  "Basura común",
+] as const;
+export type Contaminante = (typeof CONTAMINANTES)[number];
+
+/**
+ * Colección `incidencias/{id}`: un contenedor que el administrador encontró
+ * contaminado (p. ej. vidrio picado en el de papel/cartón). No se sabe quién
+ * fue, así que no castiga a nadie: los depósitos declarados se validan igual.
+ * Sirve para advertir al gestor antes de retirar (seguridad), avisar a toda la
+ * torre (educación) y medir la calidad de separación del mes.
+ */
+export interface Incidencia {
+  id: string;
+  torreId: string;
+  torreNombre: string;
+  contenedor: string;
+  contenedorNombre: string;
+  contaminante: Contaminante;
+  reportadoEn: number;
+  reportadoPor: string;
+  /** El gestor ya retiró ese contenedor: la advertencia deja de mostrarse. */
+  atendida: boolean;
+  atendidaEn: number | null;
+  codigoRetiro: string | null;
+}
+
 /** Colección `usuarios/{uid}` — el id es el uid de Firebase Auth. */
 export interface Usuario {
   id: string;
