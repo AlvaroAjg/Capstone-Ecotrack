@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Registro } from "../state/EcoTrack";
 import { cantidadDeposito, formatKg, tiempoRelativo } from "../lib/formato";
+import { etiquetaMes, mesDe } from "../lib/certificadoMensual";
+import { useDescargaCertificado } from "../lib/useDescargaCertificado";
 import {
   ASPECTO_ESTADO,
   CadenaVerificacion,
@@ -22,6 +24,20 @@ import {
  */
 export default function RecicladosScreen({ nav }: { nav: Navegacion }) {
   const { misRegistros } = useEcoTrack();
+  const { descargar, generando } = useDescargaCertificado();
+
+  // Agrupados por el mes en que se hicieron, que es el mes de su certificado.
+  // misRegistros ya viene del más reciente al más antiguo.
+  const porMes = useMemo(() => {
+    const grupos: { mes: string; registros: Registro[] }[] = [];
+    for (const r of misRegistros) {
+      const mes = mesDe(r.creadoEn);
+      const grupo = grupos[grupos.length - 1];
+      if (grupo?.mes === mes) grupo.registros.push(r);
+      else grupos.push({ mes, registros: [r] });
+    }
+    return grupos;
+  }, [misRegistros]);
 
   return (
     <Cuerpo>
@@ -29,29 +45,52 @@ export default function RecicladosScreen({ nav }: { nav: Navegacion }) {
         <TituloEncabezado titulo="Mis reciclados" subtitulo="Todo tu historial de depósitos" />
       </Encabezado>
 
-      <Seccion
-        titulo="Actividad"
-        etiqueta={`${misRegistros.length} registro${misRegistros.length === 1 ? "" : "s"}`}
-      >
-        {misRegistros.length === 0 ? (
+      {misRegistros.length === 0 ? (
+        <Seccion titulo="Actividad">
           <Vacio
             emoji="♻️"
             texto="Aún no registras reciclaje. Escanea el QR del contenedor para empezar."
           />
-        ) : (
-          misRegistros.map((r) => (
-            <TarjetaActividad
-              key={r.id}
-              registro={r}
-              alAbrir={
-                r.estado === "certificado"
-                  ? () => nav.ir("certificado", { registroId: r.id })
-                  : undefined
-              }
-            />
-          ))
-        )}
-      </Seccion>
+        </Seccion>
+      ) : (
+        porMes.map(({ mes, registros }) => {
+          const conCertificado = registros.some((r) => r.estado === "certificado");
+          const titulo = etiquetaMes(mes);
+          return (
+            <View key={mes} className="px-6 mt-6">
+              <View className="flex-row justify-between items-center mb-3">
+                <Text className="text-gray-800 font-semibold">
+                  {titulo.charAt(0).toUpperCase() + titulo.slice(1)}
+                  <Text className="text-gray-400 font-normal text-xs">
+                    {"  "}
+                    {registros.length} registro{registros.length === 1 ? "" : "s"}
+                  </Text>
+                </Text>
+                {conCertificado ? (
+                  <TouchableOpacity
+                    onPress={() => descargar(mes)}
+                    disabled={generando !== null}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Descargar certificado de ${titulo}`}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Text className="text-green-700 text-xs font-semibold">
+                      {generando === mes ? "Generando..." : "⬇️ Certificado"}
+                    </Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+              {registros.map((r) => (
+                <TarjetaActividad
+                  key={r.id}
+                  registro={r}
+                  alAbrir={() => nav.ir("deposito", { registroId: r.id })}
+                />
+              ))}
+            </View>
+          );
+        })
+      )}
     </Cuerpo>
   );
 }
@@ -104,7 +143,7 @@ function TarjetaActividad({
 
       {registro.codigo ? (
         <Text className="text-green-700 text-xs font-medium mt-3">
-          Código {registro.codigo} · toca para ver tu certificado del mes
+          Código {registro.codigo}
         </Text>
       ) : null}
     </Tarjeta>

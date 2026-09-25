@@ -15,7 +15,7 @@ import ScanQRScreen from "./src/screens/ScanQRScreen";
 import GestorScreen from "./src/screens/GestorScreen";
 import RankingScreen from "./src/screens/RankingScreen";
 import RecicladosScreen from "./src/screens/RecicladosScreen";
-import CertificadoScreen from "./src/screens/CertificadoScreen";
+import DepositoScreen from "./src/screens/DepositoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 import AvisosScreen from "./src/screens/AvisosScreen";
 
@@ -26,14 +26,12 @@ export type Pantalla =
   | "gestor"
   | "ranking"
   | "reciclados"
-  | "certificado"
+  | "deposito"
   | "perfil"
   | "avisos";
 
 export interface ParamsPantalla {
   registroId?: string;
-  /** Mes del certificado, como "2026-09". */
-  mes?: string;
 }
 
 export interface Navegacion {
@@ -108,8 +106,8 @@ function PilaApp({ rol }: { rol: Rol }) {
     case "reciclados":
       pantalla = <RecicladosScreen nav={nav} />;
       break;
-    case "certificado":
-      pantalla = <CertificadoScreen nav={nav} />;
+    case "deposito":
+      pantalla = <DepositoScreen nav={nav} />;
       break;
     case "perfil":
       pantalla = <PerfilScreen nav={nav} />;
@@ -126,12 +124,12 @@ function PilaApp({ rol }: { rol: Rol }) {
   const mostrarBarra = rol === "residente" && nav.raiz;
 
   // El banner de avisos va encima de todo, en cualquier pantalla. Tocarlo abre
-  // el certificado si el aviso tiene uno; si no, la lista de avisos.
+  // el depósito del aviso, si tiene uno; si no, la lista de avisos.
   const banner = (
     <BannerAvisos
       alAbrir={(aviso) =>
         aviso.registroId
-          ? ir("certificado", { registroId: aviso.registroId })
+          ? ir("deposito", { registroId: aviso.registroId })
           : actual.pantalla !== "avisos" && ir("avisos")
       }
     />

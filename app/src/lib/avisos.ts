@@ -15,7 +15,7 @@ export interface Aviso {
   titulo: string;
   detalle: string;
   fecha: number;
-  /** Certificado que abre el aviso al tocarlo, si corresponde. */
+  /** Depósito que abre el aviso al tocarlo, si corresponde. */
   registroId?: string;
 }
 
@@ -54,6 +54,7 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
         titulo: "Depósito rechazado",
         detalle: `${descripcion(r)} · el administrador no lo encontró en el contenedor`,
         fecha: r.validadoEn,
+        registroId: r.id,
       });
     }
     if ((r.estado === "validado" || r.estado === "certificado") && r.validadoEn && r.validadoEn >= desde) {
@@ -63,6 +64,7 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
         titulo: "Depósito validado por el administrador",
         detalle: `${descripcion(r)} · ahora espera el retiro del gestor`,
         fecha: r.validadoEn,
+        registroId: r.id,
       });
     }
     if (r.estado === "certificado" && r.certificadoEn && r.certificadoEn >= desde) {

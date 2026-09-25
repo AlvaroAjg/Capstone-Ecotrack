@@ -3,6 +3,8 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack } from "../state/EcoTrack";
 import { formatKg, porcentaje } from "../lib/formato";
+import { mesesConCertificado } from "../lib/certificadoMensual";
+import { useDescargaCertificado } from "../lib/useDescargaCertificado";
 import { textoAvance, type MisionSistema } from "../lib/misionesSistema";
 import {
   AvatarPerfil,
@@ -23,6 +25,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     errorDatos,
     misKgDelMes,
     misCertificados,
+    misRegistros,
     miPosicionRanking,
     resumenTorre,
     mision,
@@ -30,6 +33,11 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     ecoPuntosMes,
     avisosNuevos,
   } = useEcoTrack();
+
+  const { descargar, generando } = useDescargaCertificado();
+  // El más reciente con depósitos certificados: al empezar un mes, el
+  // certificado del anterior sigue a mano hasta que haya uno nuevo.
+  const ultimoMes = mesesConCertificado(misRegistros)[0];
 
   const nombre = usuario?.nombre ?? "Residente";
   const resumen = resumenTorre(usuario?.torreId ?? null);
@@ -88,15 +96,17 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
 
       <View className="px-6 mt-4">
         <TouchableOpacity
-          onPress={() => nav.ir("certificado")}
-          disabled={misCertificados.length === 0}
+          onPress={() => ultimoMes && descargar(ultimoMes)}
+          disabled={!ultimoMes || generando !== null}
           accessibilityRole="button"
           className={`bg-white rounded-2xl p-4 items-center shadow-sm ${
-            misCertificados.length === 0 ? "opacity-40" : ""
+            !ultimoMes ? "opacity-40" : ""
           }`}
         >
           <Text className="text-2xl mb-1">📄</Text>
-          <Text className="text-gray-700 text-xs font-medium">Certificado del mes</Text>
+          <Text className="text-gray-700 text-xs font-medium">
+            {generando ? "Generando PDF..." : "Descargar certificado del mes"}
+          </Text>
         </TouchableOpacity>
       </View>
 

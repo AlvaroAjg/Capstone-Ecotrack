@@ -58,7 +58,7 @@ export default function AvisosScreen({ nav }: { nav: Navegacion }) {
               nuevo={esNuevo(a, vistosAlEntrar)}
               alAbrir={
                 a.registroId
-                  ? () => nav.ir("certificado", { registroId: a.registroId })
+                  ? () => nav.ir("deposito", { registroId: a.registroId })
                   : undefined
               }
             />
