@@ -178,7 +178,10 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
   los muestran como estimados ("≈ 1,2 kg"). El administrador valida la tanda
   completa sin corregir bolsa por bolsa, así que `kgConfirmado` copia el
   estimado. Los depósitos antiguos, registrados en kilos, se muestran igual que
-  antes. La tabla es referencial: conviene calibrarla pesando bolsas reales.
+  antes. La tabla parte de los factores de volumen a peso de la EPA para
+  material suelto (vidrio ~0,36 kg/L, latas de aluminio ~0,04 y de acero ~0,09,
+  botellas plásticas ~0,02), ajustados a bolsas que no van llenas al máximo; el
+  metal promedia aluminio y acero. Conviene calibrarla pesando bolsas reales.
 - `torreNombre` y `residente` están **desnormalizados** en cada registro. Es
   práctica estándar en Firestore: evita una lectura extra por fila al mostrar
   la cola del gestor.

@@ -35,7 +35,9 @@ export const TALLAS: { valor: Talla; referencia: string; litros: number }[] = [
 export const KG_POR_TALLA: Record<Material, Record<Talla, number>> = {
   "Plástico": { S: 0.1, M: 0.4, L: 0.8, XL: 1.5 },
   "Papel/cartón": { S: 0.4, M: 1.2, L: 2.5, XL: 5 },
-  "Metal": { S: 0.2, M: 0.5, L: 1, XL: 2 },
+  // Promedio entre latas de aluminio (bebidas) y de acero (conservas): según
+  // los factores de la EPA, las de acero pesan más del doble por volumen.
+  "Metal": { S: 0.3, M: 0.8, L: 1.5, XL: 3 },
   "Vidrio": { S: 1.5, M: 4, L: 8, XL: 12 },
 };
 
