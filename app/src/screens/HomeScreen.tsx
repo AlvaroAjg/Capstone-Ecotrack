@@ -110,6 +110,8 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </TouchableOpacity>
       </View>
 
+      <TipReciclaje />
+
       <Seccion titulo="Tu misión de la semana" etiqueta={`${ecoPuntosMes} EcoPuntos este mes`}>
         <Tarjeta>
           <FilaMision mision={misionSemanal} />
@@ -138,8 +140,6 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           ) : null}
         </Tarjeta>
       </Seccion>
-
-      <TipReciclaje />
     </Cuerpo>
   );
 }
@@ -168,24 +168,24 @@ function FilaMision({ mision }: { mision: MisionSistema }) {
 }
 
 /**
- * Tip plegable al final de Inicio: lo principal son las misiones, así que el
- * tip queda como una línea discreta que se abre solo si interesa. Empuja a
+ * Tip plegable sobre las misiones: una línea en verde suave que se abre solo
+ * si interesa, para no competir con las misiones. Empuja a
  * juntar los reciclables y registrarlos de una vez (una botella suelta igual
  * se puede registrar como talla S) y a vaciar la bolsa en vez de botarla.
  */
 function TipReciclaje() {
   const [abierto, setAbierto] = useState(false);
   return (
-    <View className="px-6 mt-6">
+    <View className="px-6 mt-4">
       <TouchableOpacity
         onPress={() => setAbierto((v) => !v)}
         activeOpacity={0.8}
         accessibilityRole="button"
         accessibilityState={{ expanded: abierto }}
-        className="border border-gray-200 rounded-2xl px-4 py-3"
+        className="bg-green-50 border border-green-200 rounded-2xl px-4 py-3"
       >
         <View className="flex-row items-center">
-          <Text className="text-gray-700 text-sm font-medium flex-1 pr-2">
+          <Text className="text-green-900 text-sm font-medium flex-1 pr-2">
             Tip: junta tus reciclables y regístralos juntos
           </Text>
           <Text className="text-green-700 text-xs font-semibold">
@@ -193,7 +193,7 @@ function TipReciclaje() {
           </Text>
         </View>
         {abierto ? (
-          <Text className="text-gray-500 text-xs mt-2 leading-5">
+          <Text className="text-green-800 text-xs mt-2 leading-5">
             No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
             durante la semana y regístralos de una vez: es un solo escaneo, la talla
             estima mejor los kilos y todo suma igual a tu certificado del mes. En el
