@@ -3,7 +3,7 @@ import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Mision } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import { esDelMesActual, formatKg } from "../lib/formato";
+import { esDelMesActual, formatKg, tiempoRelativo } from "../lib/formato";
 import ContenedoresTorre from "../components/ContenedoresTorre";
 import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
@@ -38,7 +38,10 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
   // Calidad de separación: contenedores que se encontraron contaminados este mes.
-  const contaminadosMes = incidencias.filter((i) => esDelMesActual(i.reportadoEn)).length;
+  const contaminacionesMes = incidencias.filter((i) => esDelMesActual(i.reportadoEn));
+  const contaminadosMes = contaminacionesMes.length;
+  // Las incidencias llegan de la más reciente a la más antigua.
+  const ultimaContaminacion = contaminacionesMes[0];
   const [validandoTanda, setValidandoTanda] = useState(false);
 
   /**
@@ -114,9 +117,33 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         titulo="Validaciones pendientes"
         etiqueta={`${resumen.pendientes.length} en cola`}
       >
-        <Text className="text-gray-400 text-xs mb-3">
-          Contenedores reportados como contaminados este mes: {contaminadosMes}
-        </Text>
+        {/* Calidad de separación del mes: en rojo si hubo contenedores contaminados. */}
+        {contaminadosMes > 0 ? (
+          <View className="bg-red-50 border-2 border-red-300 rounded-2xl p-4 mb-3 flex-row items-center">
+            <Text className="text-red-700 text-4xl font-bold mr-4">{contaminadosMes}</Text>
+            <View className="flex-1 min-w-0">
+              <Text className="text-red-800 font-semibold">
+                {contaminadosMes === 1
+                  ? "Contenedor contaminado este mes"
+                  : "Contenedores contaminados este mes"}
+              </Text>
+              {ultimaContaminacion ? (
+                <Text className="text-red-700 text-xs mt-1">
+                  Último: {ultimaContaminacion.contaminante.toLowerCase()} en el{" "}
+                  {ultimaContaminacion.contenedorNombre.toLowerCase()} ·{" "}
+                  {tiempoRelativo(ultimaContaminacion.reportadoEn)}
+                </Text>
+              ) : null}
+            </View>
+          </View>
+        ) : (
+          <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-3 flex-row items-center">
+            <Text className="text-green-700 text-4xl font-bold mr-4">0</Text>
+            <Text className="text-gray-600 text-sm flex-1">
+              Contenedores contaminados este mes. La torre está separando bien.
+            </Text>
+          </View>
+        )}
         {resumen.pendientes.length === 0 ? (
           <Vacio emoji="✅" texto="No hay depósitos pendientes en tu torre." />
         ) : (

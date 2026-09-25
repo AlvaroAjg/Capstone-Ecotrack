@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack } from "../state/EcoTrack";
@@ -110,26 +110,6 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </TouchableOpacity>
       </View>
 
-      {/* Una botella suelta también se puede registrar (talla S), pero no hace
-          falta bajar por cada una: el tip empuja a juntar y registrar de una vez. */}
-      <View className="px-6 mt-4">
-        <View
-          accessible
-          className="bg-amber-50 border border-amber-200 rounded-2xl px-4 py-3"
-        >
-          <Text className="text-amber-900 font-semibold text-sm">
-            Tip: junta tus reciclables y regístralos juntos
-          </Text>
-          <Text className="text-amber-800 text-xs mt-1 leading-5">
-            No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
-            durante la semana y regístralos de una vez: es un solo escaneo, la talla
-            estima mejor los kilos y todo suma igual a tu certificado del mes. En el
-            contenedor, vacía la bolsa y guárdala: no la botes adentro, porque contamina
-            el reciclaje. Si igual quieres botar una sola botella, regístrala como talla S.
-          </Text>
-        </View>
-      </View>
-
       <Seccion titulo="Tu misión de la semana" etiqueta={`${ecoPuntosMes} EcoPuntos este mes`}>
         <Tarjeta>
           <FilaMision mision={misionSemanal} />
@@ -158,6 +138,8 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
           ) : null}
         </Tarjeta>
       </Seccion>
+
+      <TipReciclaje />
     </Cuerpo>
   );
 }
@@ -181,6 +163,45 @@ function FilaMision({ mision }: { mision: MisionSistema }) {
       </View>
       <Barra avance={porcentaje(mision.progreso, mision.meta)} />
       <Text className="text-gray-400 text-xs mt-2">{estado}</Text>
+    </View>
+  );
+}
+
+/**
+ * Tip plegable al final de Inicio: lo principal son las misiones, así que el
+ * tip queda como una línea discreta que se abre solo si interesa. Empuja a
+ * juntar los reciclables y registrarlos de una vez (una botella suelta igual
+ * se puede registrar como talla S) y a vaciar la bolsa en vez de botarla.
+ */
+function TipReciclaje() {
+  const [abierto, setAbierto] = useState(false);
+  return (
+    <View className="px-6 mt-6">
+      <TouchableOpacity
+        onPress={() => setAbierto((v) => !v)}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: abierto }}
+        className="border border-gray-200 rounded-2xl px-4 py-3"
+      >
+        <View className="flex-row items-center">
+          <Text className="text-gray-700 text-sm font-medium flex-1 pr-2">
+            Tip: junta tus reciclables y regístralos juntos
+          </Text>
+          <Text className="text-green-700 text-xs font-semibold">
+            {abierto ? "Ocultar" : "Ver"}
+          </Text>
+        </View>
+        {abierto ? (
+          <Text className="text-gray-500 text-xs mt-2 leading-5">
+            No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
+            durante la semana y regístralos de una vez: es un solo escaneo, la talla
+            estima mejor los kilos y todo suma igual a tu certificado del mes. En el
+            contenedor, vacía la bolsa y guárdala: no la botes adentro, porque contamina
+            el reciclaje. Si igual quieres botar una sola botella, regístrala como talla S.
+          </Text>
+        ) : null}
+      </TouchableOpacity>
     </View>
   );
 }

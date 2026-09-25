@@ -72,6 +72,7 @@ export default function BannerAvisos({
 
   if (!actual) return null;
   const { aviso, masCantidad } = actual;
+  const alerta = aviso.tono === "alerta";
 
   return (
     <Animated.View
@@ -88,7 +89,9 @@ export default function BannerAvisos({
       {/* El cuerpo y la ✕ son botones hermanos, no anidados: en la web un
           botón dentro de otro no es HTML válido. */}
       <View
-        className="bg-white rounded-2xl pl-4 pr-2 py-3 flex-row items-center border border-gray-200"
+        className={`rounded-2xl pl-4 pr-2 py-3 flex-row items-center border ${
+          alerta ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
+        }`}
         style={{
           shadowColor: "#000",
           shadowOpacity: 0.18,
@@ -108,12 +111,19 @@ export default function BannerAvisos({
           accessibilityLabel={`Aviso nuevo: ${aviso.titulo}. ${aviso.detalle}`}
           className="flex-1 flex-row items-center min-w-0"
         >
-          <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center mr-3">
-            <Text className="text-lg">{aviso.emoji}</Text>
+          <View
+            className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
+              alerta ? "bg-red-600" : "bg-green-100"
+            }`}
+          >
+            <Text className={`text-lg ${alerta ? "text-white font-bold" : ""}`}>{aviso.emoji}</Text>
           </View>
           <View className="flex-1 min-w-0">
             <Text className="text-gray-400 text-[10px] font-semibold">ECOTRACK · AHORA</Text>
-            <Text className="text-gray-800 font-semibold text-sm" numberOfLines={1}>
+            <Text
+              className={`font-semibold text-sm ${alerta ? "text-red-800" : "text-gray-800"}`}
+              numberOfLines={1}
+            >
               {aviso.titulo}
             </Text>
             <Text className="text-gray-500 text-xs" numberOfLines={1}>

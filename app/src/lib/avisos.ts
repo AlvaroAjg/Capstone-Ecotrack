@@ -23,6 +23,8 @@ export interface Aviso {
   fecha: number;
   /** Depósito que abre el aviso al tocarlo, si corresponde. */
   registroId?: string;
+  /** "alerta": se muestra en rojo (contaminación, precaución). */
+  tono?: "alerta";
 }
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -133,6 +135,7 @@ function avisosContaminacionTorre(incidencias: Incidencia[]): Aviso[] {
     .map((i) => ({
       id: `${i.id}-contaminacion`,
       emoji: "!",
+      tono: "alerta" as const,
       titulo: `Se encontró ${i.contaminante.toLowerCase()} en el ${i.contenedorNombre.toLowerCase()}`,
       detalle: "Recuerda botar cada material en su contenedor. Es un aviso para toda la torre.",
       fecha: i.reportadoEn,
@@ -146,6 +149,7 @@ function avisosPrecaucion(incidencias: Incidencia[]): Aviso[] {
     .map((i) => ({
       id: `${i.id}-precaucion`,
       emoji: "!",
+      tono: "alerta" as const,
       titulo: `Precaución en ${i.torreNombre}`,
       detalle: `${i.contaminante} en el ${i.contenedorNombre.toLowerCase()}: retíralo con cuidado.`,
       fecha: i.reportadoEn,

@@ -78,26 +78,43 @@ function FilaAviso({
   nuevo: boolean;
   alAbrir?: () => void;
 }) {
-  const contenido = (
-    <Tarjeta className={`mb-3 ${nuevo ? "border-2 border-green-500" : ""}`}>
-      <View className="flex-row items-start">
-        <View className="w-10 h-10 bg-gray-100 rounded-full items-center justify-center mr-3">
-          <Text>{aviso.emoji}</Text>
-        </View>
-        <View className="flex-1 min-w-0">
-          <View className="flex-row items-center">
-            <Text className="text-gray-800 font-medium flex-1 pr-2">{aviso.titulo}</Text>
-            {nuevo ? (
-              <View className="bg-green-100 rounded-full px-2 py-0.5">
-                <Text className="text-green-700 text-[10px] font-semibold">Nuevo</Text>
-              </View>
-            ) : null}
-          </View>
-          <Text className="text-gray-500 text-xs mt-1">{aviso.detalle}</Text>
-          <Text className="text-gray-400 text-[11px] mt-1">{tiempoRelativo(aviso.fecha)}</Text>
-        </View>
+  // Contaminación y precaución van en rojo: tienen que notarse entre los demás.
+  const alerta = aviso.tono === "alerta";
+
+  const cuerpo = (
+    <View className="flex-row items-start">
+      <View
+        className={`w-10 h-10 rounded-full items-center justify-center mr-3 ${
+          alerta ? "bg-red-600" : "bg-gray-100"
+        }`}
+      >
+        <Text className={alerta ? "text-white font-bold text-lg" : ""}>{aviso.emoji}</Text>
       </View>
-    </Tarjeta>
+      <View className="flex-1 min-w-0">
+        <View className="flex-row items-center">
+          <Text
+            className={`font-medium flex-1 pr-2 ${alerta ? "text-red-800" : "text-gray-800"}`}
+          >
+            {aviso.titulo}
+          </Text>
+          {nuevo ? (
+            <View className="bg-green-100 rounded-full px-2 py-0.5">
+              <Text className="text-green-700 text-[10px] font-semibold">Nuevo</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text className={`text-xs mt-1 ${alerta ? "text-red-700" : "text-gray-500"}`}>
+          {aviso.detalle}
+        </Text>
+        <Text className="text-gray-400 text-[11px] mt-1">{tiempoRelativo(aviso.fecha)}</Text>
+      </View>
+    </View>
+  );
+
+  const contenido = alerta ? (
+    <View className="bg-red-50 border-2 border-red-300 rounded-2xl p-5 mb-3">{cuerpo}</View>
+  ) : (
+    <Tarjeta className={`mb-3 ${nuevo ? "border-2 border-green-500" : ""}`}>{cuerpo}</Tarjeta>
   );
 
   const etiqueta = `${nuevo ? "Nuevo. " : ""}${aviso.titulo}. ${aviso.detalle}. ${tiempoRelativo(aviso.fecha)}.`;
