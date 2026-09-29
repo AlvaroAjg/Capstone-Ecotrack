@@ -201,29 +201,36 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     });
   }, [uid]);
 
-  // 3. Datos compartidos: torres y registros, en tiempo real.
+  // 3. Datos compartidos, en tiempo real: las torres, con la sesión.
   useEffect(() => {
     if (!uid) {
-      setRegistros([]);
       setTorres([]);
+      return;
+    }
+    return servicioTorres.escucharTorres(setTorres);
+  }, [uid]);
+
+  // 3b. Los registros dependen del rol y la torre (ver consultasPara en
+  // services/registros.ts), así que esperan al perfil y se vuelven a pedir si
+  // cambian, por ejemplo al promoverse a administrador.
+  const idPerfil = usuario?.id ?? null;
+  const rolPerfil = usuario?.rol ?? null;
+  const torrePerfil = usuario?.torreId ?? null;
+  useEffect(() => {
+    if (!idPerfil || !rolPerfil) {
+      setRegistros([]);
       setErrorDatos(null);
       return;
     }
-
-    const dejarTorres = servicioTorres.escucharTorres(setTorres);
-    const dejarRegistros = servicioRegistros.escucharRegistros(
+    return servicioRegistros.escucharRegistros(
+      { id: idPerfil, rol: rolPerfil, torreId: torrePerfil },
       (lista) => {
         setRegistros(lista);
         setErrorDatos(null);
       },
       (error) => setErrorDatos(servicioAuth.mensajeError(error))
     );
-
-    return () => {
-      dejarTorres();
-      dejarRegistros();
-    };
-  }, [uid]);
+  }, [idPerfil, rolPerfil, torrePerfil]);
 
   // 4. Misión activa de mi torre. El gestor no tiene torre, así que nunca escucha una.
   useEffect(() => {

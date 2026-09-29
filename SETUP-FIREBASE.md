@@ -225,9 +225,15 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
   no campos, así que la privacidad frente al gestor es de capa de aplicación.
   Hacerla efectiva requeriría Cloud Functions, y está documentado como trabajo
   futuro.
-- Se escucha la colección `registros` completa (acotada a 300) y se filtra en
-  memoria por rol. Para 2 torres es lo más simple y evita índices compuestos.
-  Al escalar conviene una consulta por torre y estado.
+- Cada rol escucha solo las consultas de `registros` que necesita, sin límite
+  por cantidad, así ningún depósito queda afuera por antiguo: todos, los del
+  mes en curso (desde el lunes de su primera semana) y los certificados del
+  mes, para el ranking; el residente, además, todos los suyos; el
+  administrador, los pendientes de su torre; el gestor, todos los validados.
+  Ninguna necesita índice compuesto. El ranking todavía se calcula en cada
+  teléfono con los depósitos del mes de todas las torres: para un piloto es
+  poco, pero con muchas torres convendría guardar un resumen por torre con
+  Cloud Functions.
 
 ---
 

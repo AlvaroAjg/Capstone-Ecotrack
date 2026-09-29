@@ -34,7 +34,7 @@ function inicioDelDia(fecha: Date): Date {
 }
 
 /** Lunes 00:00 local de la semana de `fecha`. */
-function inicioDeSemana(fecha: Date): Date {
+export function inicioDeSemana(fecha: Date): Date {
   const dia = inicioDelDia(fecha);
   const desdeLunes = (dia.getDay() + 6) % 7;
   return new Date(dia.getFullYear(), dia.getMonth(), dia.getDate() - desdeLunes);

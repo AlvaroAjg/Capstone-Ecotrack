@@ -19,11 +19,14 @@ import {
   doc,
   getDoc,
   getDocs,
+  query,
   setDoc,
   setLogLevel,
   updateDoc,
+  where,
   writeBatch,
 } from "firebase/firestore";
+import assert from "node:assert/strict";
 
 // Los rechazos esperados llenarían la salida de PERMISSION_DENIED.
 setLogLevel("silent");
@@ -634,5 +637,65 @@ describe("registros: certificación del gestor", () => {
 
   test("nadie borra un registro", async () => {
     await assertFails(deleteDoc(doc(como("gus"), "registros/validado1")));
+  });
+});
+
+// ------------------------------------------------- registros: lo que lee la app
+
+describe("registros: consultas de la app", () => {
+  // Equivalentes a consultasPara en app/src/services/registros.ts (allá el mes
+  // parte el lunes de su primera semana; aquí basta una semana antes):
+  // si cambian allá, cambian aquí.
+  const inicioMes = () => {
+    const hoy = new Date();
+    return new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime();
+  };
+  const comunes = (db) => [
+    query(collection(db, "registros"), where("creadoEn", ">=", inicioMes() - 7 * DIA)),
+    query(collection(db, "registros"), where("certificadoEn", ">=", inicioMes())),
+  ];
+
+  test("el residente lee las del mes y todas las suyas", async () => {
+    const db = como("ana");
+    for (const q of [...comunes(db), query(collection(db, "registros"), where("residenteId", "==", "ana"))]) {
+      await assertSucceeds(getDocs(q));
+    }
+  });
+
+  test("el administrador lee los pendientes de su torre", async () => {
+    const db = como("carla");
+    const pendientes = query(
+      collection(db, "registros"),
+      where("torreId", "==", "torre-a"),
+      where("estado", "==", "pendiente")
+    );
+    for (const q of [...comunes(db), pendientes]) await assertSucceeds(getDocs(q));
+  });
+
+  test("sin sesión no se lee ninguna", async () => {
+    const anonimo = entorno.unauthenticatedContext().firestore();
+    await assertFails(getDocs(comunes(anonimo)[0]));
+  });
+
+  test("con más de 300 depósitos, el gestor igual ve un validado antiguo", async () => {
+    // Antes la app leía solo los últimos 300 de todo el sistema: este
+    // depósito, validado hace dos meses, nunca le habría llegado al gestor.
+    await entorno.withSecurityRulesDisabled(async (contexto) => {
+      const db = contexto.firestore();
+      const lote = writeBatch(db);
+      for (let i = 0; i < 350; i++) {
+        lote.set(doc(db, "registros", `reciente${i}`), deposito({ creadoEn: Date.now() - i * MINUTO }));
+      }
+      lote.set(
+        doc(db, "registros/antiguo"),
+        deposito({ creadoEn: Date.now() - 60 * DIA, estado: "validado", kgConfirmado: 0.4, validadoEn: 1, validadoPor: "carla" })
+      );
+      await lote.commit();
+    });
+
+    const validados = await assertSucceeds(
+      getDocs(query(collection(como("gus"), "registros"), where("estado", "==", "validado")))
+    );
+    assert.ok(validados.docs.some((d) => d.id === "antiguo"));
   });
 });

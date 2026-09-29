@@ -2,23 +2,24 @@ import {
   addDoc,
   collection,
   doc,
-  limit,
   onSnapshot,
-  orderBy,
   query,
   updateDoc,
+  where,
   writeBatch,
+  type Query,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import { generarCodigoRetiro, generarCodigoVerificacion } from "../lib/formato";
-import { kgEstimado, type Material, type Registro, type Talla, type Usuario } from "../lib/tipos";
-
-/**
- * Se escucha la colección completa (acotada) y se filtra en memoria por rol.
- * Para el piloto (2 torres, decenas de registros) es lo más simple y evita
- * índices compuestos. Al escalar, conviene una consulta por torre y estado.
- */
-const LIMITE = 300;
+import { inicioDeSemana } from "../lib/misionesSistema";
+import {
+  kgEstimado,
+  type Material,
+  type Registro,
+  type Rol,
+  type Talla,
+  type Usuario,
+} from "../lib/tipos";
 
 function aRegistro(id: string, d: any): Registro {
   return {
@@ -44,20 +45,82 @@ function aRegistro(id: string, d: any): Registro {
   };
 }
 
+/**
+ * Las consultas que necesita cada rol. Nada queda afuera por antigüedad: antes
+ * se escuchaban los últimos 300 de todo el sistema, y al pasar de ahí los más
+ * viejos desaparecían sin aviso (del certificado, del ranking y, lo peor, de
+ * la cola del gestor, que nunca los retiraba).
+ *
+ * - Todos: los depósitos desde el lunes de la primera semana del mes, para la
+ *   participación, los EcoPuntos de cada torre (su misión semanal puede empezar
+ *   el mes anterior) y los avisos; y los certificados del mes, para los kilos
+ *   del ranking (un depósito del mes pasado puede certificarse en este).
+ * - Residente: todos los suyos, para su historial, sus certificados de meses
+ *   anteriores y su misión semanal.
+ * - Administrador: los pendientes de su torre, aunque sean de otro mes.
+ * - Gestor: todos los validados, de cualquier fecha, que son su cola de retiro.
+ *
+ * Ninguna necesita índice compuesto: son rangos sobre un campo o igualdades.
+ * Las fechas se fijan al suscribirse; si la app queda abierta al cambiar de
+ * mes, las consultas traen de más, no de menos, y los cálculos filtran igual
+ * por mes.
+ */
+function consultasPara(uid: string, rol: Rol, torreId: string | null): Query[] {
+  const registros = collection(db, "registros");
+  const hoy = new Date();
+  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+  const desdeSemana = inicioDeSemana(inicioMes).getTime();
+
+  const consultas: Query[] = [
+    query(registros, where("creadoEn", ">=", desdeSemana)),
+    query(registros, where("certificadoEn", ">=", inicioMes.getTime())),
+  ];
+  if (rol === "residente") {
+    consultas.push(query(registros, where("residenteId", "==", uid)));
+  }
+  if (rol === "administrador" && torreId) {
+    consultas.push(
+      query(registros, where("torreId", "==", torreId), where("estado", "==", "pendiente"))
+    );
+  }
+  if (rol === "gestor") {
+    consultas.push(query(registros, where("estado", "==", "validado")));
+  }
+  return consultas;
+}
+
+/**
+ * Escucha en vivo los registros que el usuario necesita (ver consultasPara) y
+ * entrega la unión, sin repetidos, del más reciente al más antiguo. Espera a
+ * que respondan todas las consultas antes del primer aviso, para no mostrar
+ * un ranking o una cola a medio cargar.
+ */
 export function escucharRegistros(
+  usuario: { id: string; rol: Rol; torreId: string | null },
   callback: (registros: Registro[]) => void,
   alFallar?: (error: Error) => void
 ) {
-  const consulta = query(
-    collection(db, "registros"),
-    orderBy("creadoEn", "desc"),
-    limit(LIMITE)
+  const consultas = consultasPara(usuario.id, usuario.rol, usuario.torreId);
+  const resultados: (Registro[] | undefined)[] = consultas.map(() => undefined);
+
+  function entregar() {
+    if (resultados.some((r) => r === undefined)) return;
+    const porId = new Map<string, Registro>();
+    for (const lista of resultados) for (const r of lista!) porId.set(r.id, r);
+    callback(Array.from(porId.values()).sort((a, b) => b.creadoEn - a.creadoEn));
+  }
+
+  const dejar = consultas.map((consulta, i) =>
+    onSnapshot(
+      consulta,
+      (snap) => {
+        resultados[i] = snap.docs.map((d) => aRegistro(d.id, d.data()));
+        entregar();
+      },
+      (error) => alFallar?.(error)
+    )
   );
-  return onSnapshot(
-    consulta,
-    (snap) => callback(snap.docs.map((d) => aRegistro(d.id, d.data()))),
-    (error) => alFallar?.(error)
-  );
+  return () => dejar.forEach((d) => d());
 }
 
 export async function crearRegistro(
