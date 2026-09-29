@@ -115,11 +115,15 @@ Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
 - un residente solo crea depósitos a su nombre y en estado `pendiente`, en su
   propia torre y en un contenedor real de ella (que exista, esté activo y, si
   es de un material, reciba ese material), con una talla de bolsa válida y exactamente los kilos que esa talla estima
-  para ese material (nadie puede escribir los kilos a mano);
+  para ese material (nadie puede escribir los kilos a mano); el nombre y el
+  departamento deben ser los de su perfil y la fecha la de ahora, así nadie
+  inventa departamentos para subir la participación ni atrasa un depósito
+  para cumplir una misión pasada;
 - solo el administrador **de esa torre** puede pasar `pendiente → validado`
-  o `rechazado`, y solo puede tocar el estado y los kilos confirmados;
-- solo el gestor puede pasar `validado → certificado`, y solo puede tocar los
-  campos de certificación;
+  o `rechazado`, firmando con su propio uid; al validar confirma exactamente
+  los kilos declarados, así no puede inflar los de su torre en el ranking;
+- solo el gestor puede pasar `validado → certificado`, firmando con su propio
+  uid, y solo puede tocar los campos de certificación;
 - los contenedores solo los crea, lista y desactiva el administrador de su
   torre; cualquiera puede leer uno **si conoce su código**, que es aleatorio y
   solo aparece en el QR pegado en el contenedor;
@@ -127,8 +131,15 @@ Las reglas hacen cumplir la cadena de verificación a nivel de base de datos:
   solo la marca como atendida el gestor al retirar; nadie la borra;
 - nadie puede cambiar su propio rol ni borrar un registro;
 - nadie se autoasigna administrador o gestor: esos roles exigen el código
-  correcto de `codigosRol`, una colección que la app nunca puede leer
-  directamente — solo estas reglas la consultan para comparar.
+  correcto de `codigosRol`, una colección que la app nunca puede leer ni
+  escribir — solo estas reglas la consultan para comparar;
+- cada quien lee solo su propio perfil (el de un administrador guarda el
+  código que presentó), y solo un residente puede cambiarse de torre: un
+  administrador queda fijo en la suya.
+
+Las reglas tienen tests automáticos contra el emulador de Firestore en
+[`pruebas-reglas/`](pruebas-reglas/README.md): cada caso de arriba tiene uno
+que comprueba que se permite y otro que comprueba que se rechaza.
 
 Es la parte defendible del proyecto: la trazabilidad no depende de que la app
 se porte bien, está garantizada por el servidor.

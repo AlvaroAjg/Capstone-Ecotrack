@@ -64,10 +64,10 @@ export const TORRES_SEMILLA: Torre[] = [
  * con `allow read: if false`); solo se comparan al crear o promover una cuenta.
  *
  * Al igual que las torres, esto solo funciona mientras el proyecto sigue en
- * modo de prueba: una vez publicadas las reglas de `firestore.rules`, escribir
- * aquí exige ya ser administrador. Si el proyecto ya está en producción y
- * necesitas sembrar torres nuevas, hazlo manualmente desde la consola de
- * Firebase.
+ * modo de prueba: una vez publicadas las reglas de `firestore.rules`, nadie
+ * puede escribir `codigosRol` desde la app, ni siquiera un administrador. Si el
+ * proyecto ya está en producción y necesitas sembrar torres o códigos nuevos,
+ * hazlo manualmente desde la consola de Firebase.
  */
 export async function sembrarTorres(): Promise<number> {
   for (const torre of TORRES_SEMILLA) {

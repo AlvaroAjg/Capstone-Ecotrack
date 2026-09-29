@@ -70,12 +70,14 @@ export async function crearRegistro(
     throw new Error("Tu cuenta no está vinculada a una torre.");
   }
 
+  // Nombre, depto y torre van tal cual están en el perfil: las reglas exigen
+  // que coincidan con él.
   const referencia = await addDoc(collection(db, "registros"), {
     residenteId: usuario.id,
     residente: usuario.nombre,
     depto: usuario.depto,
     torreId: usuario.torreId,
-    torreNombre: usuario.torreNombre ?? "",
+    torreNombre: usuario.torreNombre,
     material,
     talla,
     // Los kilos salen de la tabla, nunca de lo que escriba el usuario: las
