@@ -9,6 +9,7 @@ import {
   writeBatch,
   type Query,
 } from "firebase/firestore";
+import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
 import { generarCodigoRetiro, generarCodigoVerificacion } from "../lib/formato";
 import { inicioDeSemana } from "../lib/misionesSistema";
@@ -105,9 +106,7 @@ export function escucharRegistros(
 
   function entregar() {
     if (resultados.some((r) => r === undefined)) return;
-    const porId = new Map<string, Registro>();
-    for (const lista of resultados) for (const r of lista!) porId.set(r.id, r);
-    callback(Array.from(porId.values()).sort((a, b) => b.creadoEn - a.creadoEn));
+    callback(unirRegistros(resultados as Registro[][]));
   }
 
   const dejar = consultas.map((consulta, i) =>

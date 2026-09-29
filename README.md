@@ -222,6 +222,17 @@ npx firebase-tools deploy --only hosting
 
 Luego, en el iPhone: abrir `https://ecotrack-capstone-3f12d.web.app/` **en Safari** → botón Compartir → **Añadir a pantalla de inicio**. Se abre a pantalla completa, con su ícono y sin la barra del navegador. La sesión del ícono es independiente de la de Safari, así que hay que iniciar sesión una vez dentro de la app instalada.
 
+## Tests
+
+Hay dos grupos de tests automáticos:
+
+| Qué prueban | Dónde | Cómo se corren |
+|---|---|---|
+| **La lógica de la app**: kilos por talla, misiones y EcoPuntos, certificado mensual, avisos, lectura del QR, ranking, resumen de torre y lotes del gestor. También que la tabla de kilos y la lista de contaminantes coincidan con las de las reglas. | [`app/pruebas/`](app/pruebas) | `cd app` y `npm test` |
+| **Las reglas de seguridad de Firestore**: que nadie pueda inventar kilos o departamentos, saltarse etapas de la cadena o darse un rol, contra un emulador de Firestore. Requiere Java 21. | [`pruebas-reglas/`](pruebas-reglas/README.md) | `cd pruebas-reglas` y `npm test` |
+
+Ninguno toca la base de datos real.
+
 ## Licencia
 
 Proyecto académico desarrollado en el contexto de la asignatura APT122.

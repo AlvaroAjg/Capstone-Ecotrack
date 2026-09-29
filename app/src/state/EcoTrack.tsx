@@ -7,12 +7,8 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  esDeHoy,
-  esDelMesActual,
-  porcentaje,
-  sumaKg,
-} from "../lib/formato";
+import { esDeHoy, esDelMesActual, sumaKg } from "../lib/formato";
+import * as derivados from "../lib/derivados";
 import {
   kgEfectivo,
   type FilaRanking,
@@ -383,84 +379,17 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
 
   // --------------------------------------------------------------- derivados
 
-  /**
-   * Métricas reales, calculadas solo con datos de Firestore.
-   * No hay valores base ni pisos artificiales: si la torre no ha certificado
-   * nada este mes, el contador muestra 0.
-   */
+  // Ver lib/derivados.ts: aquí solo se memorizan.
   const resumenTorre = useCallback(
-    (torreId: string | null): ResumenTorre => {
-      const torre = torres.find((t) => t.id === torreId) ?? null;
-      const deLaTorre = registros.filter((r) => r.torreId === torreId);
-
-      const certificadosDelMes = deLaTorre.filter(
-        (r) => r.estado === "certificado" && esDelMesActual(r.certificadoEn)
-      );
-      const kgMes = sumaKg(certificadosDelMes.map(kgEfectivo));
-
-      const deptosActivos = new Set(
-        deLaTorre
-          .filter((r) => r.estado !== "rechazado" && esDelMesActual(r.creadoEn))
-          .map((r) => r.depto)
-          .filter(Boolean)
-      );
-
-      const deptosTotales = torre?.deptosTotales ?? 0;
-      // La misión de la torre, si el administrador definió una, reemplaza la
-      // meta base sembrada en Torre.metaKg. `mision` solo está cargada para la
-      // torre del usuario actual, de ahí la comprobación de torreId.
-      const metaKg =
-        mision && mision.torreId === torreId ? mision.metaKg : torre?.metaKg ?? 0;
-
-      return {
-        torre,
-        deptosActivos: deptosActivos.size,
-        deptosTotales,
-        kgMes,
-        participacion: porcentaje(deptosActivos.size, deptosTotales),
-        metaKg,
-        avanceMeta: porcentaje(kgMes, metaKg),
-        pendientes: deLaTorre.filter((r) => r.estado === "pendiente"),
-      };
-    },
+    (torreId: string | null): ResumenTorre =>
+      derivados.resumenDeTorre(torreId, torres, registros, mision),
     [registros, torres, mision]
   );
 
-  /**
-   * EcoPuntos del mes por torre: la suma de los de cada residente, calculados
-   * igual que los propios (misión semanal con sus depósitos no rechazados).
-   */
-  const ecoPuntosPorTorre = useMemo(() => {
-    const porResidente = new Map<string, { torreId: string; registros: Registro[] }>();
-    for (const r of registros) {
-      const entrada = porResidente.get(r.residenteId) ?? { torreId: r.torreId, registros: [] };
-      entrada.registros.push(r);
-      porResidente.set(r.residenteId, entrada);
-    }
-
-    const totales = new Map<string, number>();
-    for (const { torreId, registros: suyos } of porResidente.values()) {
-      totales.set(torreId, (totales.get(torreId) ?? 0) + puntosDelMes(suyos));
-    }
-    return totales;
-  }, [registros]);
-
-  const ranking = useMemo<FilaRanking[]>(() => {
-    return torres
-      .map((torre) => {
-        const resumen = resumenTorre(torre.id);
-        return {
-          torreId: torre.id,
-          nombre: torre.nombre,
-          condominio: torre.condominio,
-          kg: resumen.kgMes,
-          participacion: resumen.participacion,
-          ecoPuntos: ecoPuntosPorTorre.get(torre.id) ?? 0,
-          esMiTorre: torre.id === usuario?.torreId,
-        };
-      })
-      .sort((a, b) => b.kg - a.kg);
-  }, [torres, resumenTorre, ecoPuntosPorTorre, usuario]);
+  const ranking = useMemo(
+    () => derivados.rankingDeTorres(torres, registros, mision, usuario?.torreId ?? null),
+    [torres, registros, mision, usuario?.torreId]
+  );
 
   const misRegistros = useMemo(
     () => (usuario ? registros.filter((r) => r.residenteId === usuario.id) : []),
@@ -490,45 +419,11 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     return indice === -1 ? ranking.length : indice + 1;
   }, [ranking]);
 
-  /**
-   * Lo que ve el gestor: un lote por torre, no depósitos individuales.
-   * Refleja la operación real (se retira el contenedor de una torre) y de paso
-   * evita exponerle los nombres de los residentes.
-   */
-  const lotesPorRetirar = useMemo<LoteRetiro[]>(() => {
-    const validados = registros.filter((r) => r.estado === "validado");
-
-    const porTorre = new Map<string, Registro[]>();
-    for (const r of validados) {
-      const lista = porTorre.get(r.torreId) ?? [];
-      lista.push(r);
-      porTorre.set(r.torreId, lista);
-    }
-
-    return Array.from(porTorre.entries())
-      .map(([torreId, lista]) => {
-        const torre = torres.find((t) => t.id === torreId) ?? null;
-
-        const acumulado = new Map<Material, number>();
-        for (const r of lista) {
-          acumulado.set(r.material, (acumulado.get(r.material) ?? 0) + kgEfectivo(r));
-        }
-
-        return {
-          torreId,
-          torreNombre: torre?.nombre ?? lista[0].torreNombre ?? torreId,
-          condominio: torre?.condominio ?? "",
-          registros: lista,
-          kgTotal: sumaKg(lista.map(kgEfectivo)),
-          depositos: lista.length,
-          porMaterial: Array.from(acumulado.entries())
-            .map(([material, kg]) => ({ material, kg: Math.round(kg * 10) / 10 }))
-            .sort((a, b) => b.kg - a.kg),
-          esperandoDesde: Math.min(...lista.map((r) => r.validadoEn ?? r.creadoEn)),
-        };
-      })
-      .sort((a, b) => a.esperandoDesde - b.esperandoDesde);
-  }, [registros, torres]);
+  // Lo que ve el gestor: un lote por torre (ver lotesPorRetirar en lib/derivados.ts).
+  const lotesPorRetirar = useMemo(
+    () => derivados.lotesPorRetirar(registros, torres),
+    [registros, torres]
+  );
 
   const kgEnCola = useMemo(
     () => sumaKg(lotesPorRetirar.map((l) => l.kgTotal)),
