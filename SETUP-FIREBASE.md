@@ -30,7 +30,8 @@ la estructura de carpetas.
 2. **Firestore Database → Crear base de datos → modo de prueba** (ubicación
    `southamerica-east1`).
 
-Déjalo en modo de prueba por ahora: el paso 3 necesita escribir sin reglas.
+El modo de prueba deja la base abierta a cualquiera: publica las reglas del
+paso 4 apenas la crees.
 
 **Inicio de sesión con Google (opcional, solo versión web / PWA):**
 
@@ -49,64 +50,51 @@ y luego pasa por la vinculación a torre, igual que un registro normal.
 
 ---
 
-## 3. Preparar todo, de un toque
+## 3. Torres y códigos de rol (en la consola)
 
-Abre la app. En la pantalla de login, abajo, botón
-**"Preparar todo para la demostración"**. Tócalo una vez.
+La app no crea torres ni códigos: eso se hace a mano en **Firestore Database →
+Datos**, una vez por torre. La consola escribe con permisos de dueño del
+proyecto, así que funciona aunque las reglas ya estén publicadas.
 
-Crea en Firestore las dos torres del condominio piloto:
+Una torre es un documento en `torres/`, con id propio (p. ej. `torre-a`):
 
-| Torre | Código | Meta mensual | Deptos. |
-|---|---|---|---|
-| Torre A | `ECO-TORRE-A` | 200 kg | 24 |
-| Torre B | `ECO-TORRE-B` | 150 kg | 19 |
+| Campo | Tipo | Ejemplo |
+|---|---|---|
+| `nombre` | string | `Torre A` |
+| `condominio` | string | `Condominio Piloto` |
+| `codigoInvitacion` | string | `ECO-TORRE-A` (en mayúsculas: es el que se reparte a los residentes) |
+| `metaKg` | number | `200` |
+| `deptosTotales` | number | `24` |
 
-Junto con las torres siembra también sus códigos de rol, en una colección
-aparte que la app nunca lee (`codigosRol`):
+Los códigos de rol van en `codigosRol/`, una colección que la app nunca puede
+leer ni escribir; solo las reglas la consultan para comparar:
 
 | Documento | Campo | Valor |
 |---|---|---|
-| `codigosRol/torre-a` | `administrador` | `ADM-DEMO-A` |
-| `codigosRol/torre-b` | `administrador` | `ADM-DEMO-B` |
-| `codigosRol/gestor` | `codigo` | `GESTOR-DEMO` |
+| `codigosRol/{id de la torre}` | `administrador` | el código para ser administrador de esa torre |
+| `codigosRol/gestor` | `codigo` | el código para crear la cuenta de gestor |
 
-Y las tres cuentas, ya vinculadas a su torre:
+Elige códigos que no estén escritos en ningún lado del repositorio (es
+público) y compártelos solo con quien corresponda.
 
-| Rol | Correo | Contraseña |
-|---|---|---|
-| 🏠 Residente | `residente@ecotrack.cl` | `ecotrack2026` |
-| 🛡️ Administrador | `admin@ecotrack.cl` | `ecotrack2026` |
-| 🚛 Gestor | `gestor@ecotrack.cl` | `ecotrack2026` |
+Después, las cuentas se crean desde la app, por el mismo camino que cualquier
+persona real:
 
-Al promover la cuenta de administrador se crea también un **contenedor mixto**
-para su torre: sin contenedores nadie puede registrar depósitos. Los demás se
-agregan desde su panel (ver la demo, más abajo).
+- **Residente:** Crear cuenta → vincularse a su torre con el código de invitación.
+- **Administrador:** Crear cuenta → en la vinculación, entrar como
+  administrador con el código de invitación de la torre y su código de
+  administrador. Nadie puede elegir "administrador" al registrarse.
+- **Gestor:** Crear cuenta eligiendo gestor, con el código de gestor.
 
-La cuenta de administrador no nace administradora: se crea como residente y
-se promueve aparte, presentando el código de su torre (`ADM-DEMO-A`), exactamente
-por el mismo camino que seguiría cualquier persona real. No hay un atajo
-especial para la demo.
-
-El botón solo aparece en desarrollo (`__DEV__`), nunca en una build de
-producción, y se puede volver a tocar sin problema: si algo ya existe, lo salta.
-
-> Estas cuentas son de prueba dentro de tu propio proyecto. Antes del piloto
-> real conviene borrarlas desde Authentication en la consola. Un residente
-> real se registra desde **Crear cuenta** y se vincula a su torre con el
-> código. Nadie puede elegir "administrador" al registrarse: se llega a ese
-> rol vinculándose a una torre con el código de administrador de esa torre.
-> Un gestor sí se registra directo, pero necesita el código de gestor.
-
-> Si el proyecto ya está en producción (reglas estrictas ya publicadas) y
-> necesitas sembrar torres o códigos nuevos, este botón ya no puede escribirlos:
-> hazlo a mano desde **Firestore Database → Datos** en la consola, con la misma
-> estructura de la tabla de arriba.
+Sin contenedores nadie puede registrar depósitos: el administrador los agrega
+desde su panel, en **Contenedores de la torre**, y ahí mismo muestra o imprime
+sus QR.
 
 ---
 
 ## 4. Aplicar las reglas de seguridad
 
-Recién ahora, en **Firestore Database → Reglas**, reemplaza todo por el
+En **Firestore Database → Reglas**, reemplaza todo por el
 contenido de `firestore.rules` (raíz del repo) y publica. También se pueden
 publicar desde la terminal con `npx firebase-tools deploy --only firestore:rules`.
 
@@ -148,16 +136,19 @@ se porte bien, está garantizada por el servidor.
 
 ## 5. La demo
 
-Con dos teléfonos (o un teléfono + emulador):
+Tres sesiones abiertas a la vez, una por rol, cada una en un navegador
+distinto (o una ventana normal y otra de incógnito): la sesión de Firebase se
+guarda por navegador, así que dos pestañas del mismo navegador compartirían
+la cuenta. Proyectadas lado a lado se ve la cadena completa avanzar en vivo.
 
-1. **Teléfono A, residente:** Escanear QR → (material) → talla de bolsa →
+1. **Navegador A, residente:** Escanear QR → (material) → talla de bolsa →
    registrar. Los QR los muestra el administrador en **Contenedores de la
    torre → Ver QR** (en pantalla o impreso). Si el contenedor es de un
    material, al escanearlo el material ya queda elegido; si es mixto, se
    elige. Si la cámara no lo lee, se escribe el código de 6 caracteres que va
    bajo el QR (p. ej. `K7QM9X`). Un QR de otra torre, uno antiguo (`T-A-01`)
    o uno cuyo código se cambió es rechazado.
-2. **Teléfono B, administrador:** el depósito **aparece solo, sin recargar**.
+2. **Navegador B, administrador:** el depósito **aparece solo, sin recargar**.
    Los pendientes aparecen agrupados por contenedor, con lo que se declaró en
    cada uno. El administrador mira el contenedor y compara: **Validar
    contenedor** si cuadra, **No cuadra** si no. **"Validar la tanda del día"**
@@ -166,9 +157,9 @@ Con dos teléfonos (o un teléfono + emulador):
    plegado en "Ver depósitos", para excepciones. Si encuentra algo que no
    corresponde (vidrio en el de cartón), usa **Reportar contaminación**: valida
    igual lo declarado y avisa al gestor y a la torre.
-3. **Teléfono B, gestor** (cerrar sesión y entrar con la cuenta de gestor):
-   confirmar retiro → se emite el certificado con código único.
-4. **Teléfono A:** el estado cambió a *Certificado* en vivo, con su código.
+3. **Navegador C, gestor:** confirmar retiro → se emite el certificado con
+   código único.
+4. **Navegador A:** el estado cambió a *Certificado* en vivo, con su código.
 
 Esa es la cadena completa funcionando contra un backend real.
 
@@ -259,9 +250,9 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
 
 | Síntoma | Causa | Solución |
 |---|---|---|
-| "Missing or insufficient permissions" | Reglas publicadas antes de crear las torres | Vuelve a modo de prueba, siembra, y republica las reglas |
+| "Missing or insufficient permissions" | La acción no le corresponde a ese rol, o falta la torre en Firestore | Revisa el rol de la cuenta; crea la torre en la consola (paso 3) |
 | La app queda en la pantalla de carga | Perfil en `usuarios/` no existe | La app cierra sesión sola; vuelve a registrarte |
 | "auth/operation-not-allowed" | Falta habilitar correo/contraseña | Paso 2.1 |
 | Cambios que no se reflejan | Caché de Metro | `npx expo start -c` |
-| Códigos de torre no aparecen | No se ejecutó la siembra | Paso 3 |
-| "Código de administrador/gestor incorrecto" | No coincide con `codigosRol` | Revisa mayúsculas; si el proyecto ya está en producción, agrégalo a mano en la consola (ver nota del paso 3) |
+| "Código no válido" al vincularse | La torre no existe o su `codigoInvitacion` no está en mayúsculas | Paso 3 |
+| "Código de administrador/gestor incorrecto" | No coincide con `codigosRol` | Revisa mayúsculas y el documento en la consola (paso 3) |

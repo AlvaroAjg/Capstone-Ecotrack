@@ -39,12 +39,10 @@ service cloud.firestore {
     // habilita promoverse a administrador de esa torre. Nadie los lee desde la
     // app: `allow read: if false` los esconde incluso de un usuario
     // autenticado. Solo estas reglas los consultan con get() para comparar el
-    // código que la persona escribió contra el real. Se siembran una vez,
-    // junto con las torres, mientras el proyecto todavía está en modo de
-    // prueba (ver sembrarTorres en el código de la app); después, solo desde
-    // la consola de Firebase. Nadie los escribe desde la app: si un
-    // administrador pudiera, cambiaría el código de gestor o el de otra torre
-    // y se daría a sí mismo (o a quien quisiera) esos roles.
+    // código que la persona escribió contra el real. Se crean a mano desde la
+    // consola de Firebase, junto con las torres. Nadie los escribe desde la
+    // app: si un administrador pudiera, cambiaría el código de gestor o el de
+    // otra torre y se daría a sí mismo (o a quien quisiera) esos roles.
     match /codigosRol/{id} {
       allow read, write: if false;
     }

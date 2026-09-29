@@ -35,7 +35,6 @@ import {
   type MisionSistema,
 } from "../lib/misionesSistema";
 import * as servicioAuth from "../services/auth";
-import * as servicioDemo from "../services/demo";
 import * as servicioIncidencias from "../services/incidencias";
 import * as servicioMisiones from "../services/misiones";
 import * as servicioRegistros from "../services/registros";
@@ -67,7 +66,6 @@ export {
 interface EcoTrackValor {
   // Sesión
   cargandoSesion: boolean;
-  preparandoDemo: boolean;
   usuario: Usuario | null;
   miTorre: Torre | null;
   errorDatos: string | null;
@@ -125,9 +123,6 @@ interface EcoTrackValor {
   actualizarPerfil: (datos: { nombre: string; depto?: string }) => Promise<void>;
   cambiarContrasena: (actual: string, nueva: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
-  prepararDemo: (
-    alAvanzar?: (mensaje: string) => void
-  ) => Promise<servicioDemo.ResultadoPreparacion>;
   crearRegistro: (material: Material, talla: Talla, contenedor: string) => Promise<string>;
   validarRegistro: (registro: Registro) => Promise<void>;
   rechazarRegistro: (id: string) => Promise<void>;
@@ -147,7 +142,6 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [torres, setTorres] = useState<Torre[]>([]);
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
-  const [preparandoDemo, setPreparandoDemo] = useState(false);
   const [mision, setMision] = useState<Mision | null>(null);
   const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
 
@@ -342,26 +336,6 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const cerrarSesion = useCallback(async () => {
     await servicioAuth.cerrarSesion();
   }, []);
-
-  /**
-   * Prepara el proyecto para demostrar: torres y las tres cuentas, de una vez.
-   * Durante el proceso la sesión cambia varias veces (una por cuenta creada),
-   * por eso se marca `registrandoRef` y `preparandoDemo`: así la app no
-   * interpreta esos estados intermedios como una sesión rota.
-   */
-  const prepararDemo = useCallback(
-    async (alAvanzar?: (mensaje: string) => void) => {
-      registrandoRef.current = true;
-      setPreparandoDemo(true);
-      try {
-        return await servicioDemo.prepararDemo(alAvanzar);
-      } finally {
-        registrandoRef.current = false;
-        setPreparandoDemo(false);
-      }
-    },
-    []
-  );
 
   const crearRegistro = useCallback(
     async (material: Material, talla: Talla, contenedor: string) => {
@@ -616,7 +590,6 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
 
   const valor: EcoTrackValor = {
     cargandoSesion,
-    preparandoDemo,
     usuario,
     miTorre,
     errorDatos,
@@ -645,7 +618,6 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     actualizarPerfil,
     cambiarContrasena,
     cerrarSesion,
-    prepararDemo,
     crearRegistro,
     validarRegistro,
     rechazarRegistro,

@@ -155,15 +155,13 @@ function PilaAuth() {
 }
 
 function Raiz() {
-  const { cargandoSesion, preparandoDemo, usuario } = useEcoTrack();
+  const { cargandoSesion, usuario } = useEcoTrack();
 
-  // Al preparar la demo la sesión cambia varias veces seguidas; se mantiene la
-  // pantalla de login montada para no perder el progreso que muestra.
-  if (cargandoSesion && !preparandoDemo) {
+  if (cargandoSesion) {
     return <PantallaCargando mensaje="Conectando con EcoTrack..." />;
   }
 
-  if (!usuario || preparandoDemo) {
+  if (!usuario) {
     return <PilaAuth />;
   }
 

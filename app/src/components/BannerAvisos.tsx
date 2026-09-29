@@ -17,7 +17,7 @@ const MARGEN_MS = 60 * 1000;
  * Aviso emergente: cuando llega un aviso nuevo con la app abierta, baja un
  * banner desde arriba, como una notificación del teléfono. No usa push ni
  * permisos: sale del mismo cálculo en vivo que la lista de avisos, así que
- * funciona igual en el navegador, la app instalada y la pared de demostración.
+ * funciona igual en el navegador y en la app instalada.
  */
 export default function BannerAvisos({
   alAbrir,

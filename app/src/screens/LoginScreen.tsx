@@ -9,22 +9,17 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEcoTrack } from "../state/EcoTrack";
-import { slotDemo } from "../lib/firebase";
-import { CORREOS_DEMO, CUENTAS_DEMO, PASSWORD_DEMO } from "../lib/demo";
 import { errorDeRedireccionGoogle, googleDisponible, mensajeError } from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
 export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => void }) {
-  const { iniciarSesion, iniciarSesionConGoogle, prepararDemo } = useEcoTrack();
-  // En la pared de demostración cada panel llega con su correo prellenado.
-  const [email, setEmail] = useState(slotDemo ? CORREOS_DEMO[slotDemo] ?? "" : "");
+  const { iniciarSesion, iniciarSesionConGoogle } = useEcoTrack();
+  const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [cargandoGoogle, setCargandoGoogle] = useState(false);
-  const [sembrando, setSembrando] = useState(false);
-  const [avisoSemilla, setAvisoSemilla] = useState<string | null>(null);
 
   async function handleLogin() {
     const nuevosErrores: typeof errores = {};
@@ -70,26 +65,6 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
     }
   }
 
-  // Utilidad de desarrollo: deja el proyecto listo para demostrar en un toque.
-  // Crea las torres y las tres cuentas. Solo hace falta una vez por proyecto.
-  async function handlePrepararDemo() {
-    setSembrando(true);
-    setAvisoSemilla(null);
-    try {
-      const r = await prepararDemo(setAvisoSemilla);
-      const partes = [`${r.torres} torres`];
-      if (r.cuentasCreadas > 0) partes.push(`${r.cuentasCreadas} cuentas nuevas`);
-      if (r.cuentasExistentes > 0) partes.push(`${r.cuentasExistentes} ya existían`);
-      setAvisoSemilla(`Listo: ${partes.join(", ")}. Contraseña: ${PASSWORD_DEMO}`);
-      setEmail(CORREOS_DEMO.residente ?? "");
-      setPassword(PASSWORD_DEMO);
-    } catch (error) {
-      setAvisoSemilla(mensajeError(error));
-    } finally {
-      setSembrando(false);
-    }
-  }
-
   return (
     <LinearGradient
       colors={["#0F3D24", "#1E6B3C", "#2F9E5B"]}
@@ -130,14 +105,6 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               Tu rol queda definido por tu cuenta, no por esta pantalla.
             </Text>
 
-            {slotDemo ? (
-              <View className="bg-gray-100 rounded-lg px-3 py-2 mb-4">
-                <Text className="text-gray-500 text-[11px]">
-                  Panel de demostración: {slotDemo}
-                </Text>
-              </View>
-            ) : null}
-
             {errorGeneral ? (
               <View className="mb-4">
                 <Aviso texto={errorGeneral} />
@@ -173,8 +140,7 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               className="mt-3 mb-4"
             />
 
-            {/* En la pared de demostración cada panel usa su cuenta fija. */}
-            {googleDisponible && !slotDemo ? (
+            {googleDisponible ? (
               <>
                 <View className="flex-row items-center mb-4">
                   <View className="flex-1 h-px bg-gray-200" />
@@ -209,37 +175,6 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               </Text>
             </TouchableOpacity>
           </View>
-
-          {__DEV__ ? (
-            <View className="mt-6 bg-white/10 border border-white/20 rounded-2xl p-4">
-              <Text className="text-green-100 text-xs mb-2">
-                Configuración inicial (solo desarrollo)
-              </Text>
-              <TouchableOpacity
-                onPress={handlePrepararDemo}
-                disabled={sembrando}
-                accessibilityRole="button"
-                className={`bg-white/20 rounded-xl py-3 items-center ${
-                  sembrando ? "opacity-60" : ""
-                }`}
-              >
-                <Text className="text-white text-xs font-medium">
-                  {sembrando ? "Preparando..." : "Preparar todo para la demostración"}
-                </Text>
-              </TouchableOpacity>
-
-              <Text className="text-green-200 text-[10px] mt-2 leading-4">
-                Crea las 2 torres y las 3 cuentas ({CUENTAS_DEMO.map((c) => c.rol).join(", ")}),
-                ya vinculadas a su torre. Solo hace falta una vez.
-              </Text>
-
-              {avisoSemilla ? (
-                <Text className="text-white text-[11px] mt-2 text-center font-medium">
-                  {avisoSemilla}
-                </Text>
-              ) : null}
-            </View>
-          ) : null}
 
           <View className="flex-row justify-center items-center mt-8">
             <Text className="text-green-100 text-xs">📄 Papel</Text>

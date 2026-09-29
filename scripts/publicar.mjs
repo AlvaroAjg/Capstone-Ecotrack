@@ -4,12 +4,12 @@
  *   node scripts/publicar.mjs
  *   npx firebase-tools deploy --only hosting
  *
- * Deja en la raíz del sitio la app web exportada con Expo, y bajo /demo las dos
- * paredes de demostración. Así en la defensa basta abrir una URL: no hay que
- * instalar Node, ni levantar Metro, ni depender del notebook de nadie.
+ * Deja en la raíz del sitio la app web exportada con Expo. Así en la defensa
+ * basta abrir una URL: no hay que instalar Node, ni levantar Metro, ni depender
+ * del notebook de nadie.
  */
 import { execSync } from "node:child_process";
-import { cpSync, existsSync, mkdirSync, rmSync } from "node:fs";
+import { cpSync, existsSync, rmSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -37,12 +37,6 @@ paso("Armando la carpeta hosting/...");
 rmSync(destino, { recursive: true, force: true });
 cpSync(exportado, destino, { recursive: true });
 
-paso("Copiando las paredes de demostración a hosting/demo/...");
-mkdirSync(join(destino, "demo"), { recursive: true });
-for (const archivo of ["pared-demo.html", "pared-app.html"]) {
-  cpSync(join(raiz, "demo", archivo), join(destino, "demo", archivo));
-}
-
 console.log(`
 Listo. La carpeta hosting/ quedó preparada.
 
@@ -53,6 +47,4 @@ Ahora publica con:
 Y quedará disponible en:
 
     https://ecotrack-capstone-3f12d.web.app/
-    https://ecotrack-capstone-3f12d.web.app/demo/pared-demo.html
-    https://ecotrack-capstone-3f12d.web.app/demo/pared-app.html
 `);
