@@ -247,7 +247,7 @@ describe("usuarios: creación", () => {
     await assertSucceeds(setDoc(doc(como("nueva"), "usuarios/nueva"), nuevo()));
   });
 
-  test("un residente ya vinculado a una torre real (cuentas de demo)", async () => {
+  test("un residente que nace ya vinculado a una torre real", async () => {
     await assertSucceeds(
       setDoc(
         doc(como("nueva"), "usuarios/nueva"),
