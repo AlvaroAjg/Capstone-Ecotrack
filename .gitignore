@@ -31,3 +31,6 @@ desktop.ini
 !.vscode/extensions.json
 .idea/
 *.swp
+
+# Claude Code: configuración local de cada integrante (CLAUDE.md sí se versiona)
+.claude/
