@@ -1,99 +1,37 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
 import { fechaCorta, fechaLarga, formatKg } from "./formato";
 import { tieneEstimados, type CertificadoMensual } from "./certificadoMensual";
+import {
+  ALTO,
+  ALTO_FILA,
+  ANCHO,
+  FONDO_FILA,
+  GRIS,
+  GRIS_CLARO,
+  GRIS_SUAVE,
+  LIMITE_INFERIOR,
+  MARGEN,
+  TEXTO,
+  VERDE,
+  centrado,
+  entregarPdf,
+  franjaMarca,
+  izquierda,
+  linea,
+  nuevoDocumento,
+  piesDePagina,
+  type Pincel,
+  type ResultadoDescarga,
+} from "./pdfComun";
 import { kgEfectivo, type Registro } from "./tipos";
 
 /**
- * Certificado mensual de reciclaje en PDF, generado en el dispositivo.
- *
- * Se arma con pdf-lib y no con window.print(): imprimir HTML no es confiable en
- * una PWA de iPhone, y así el archivo es idéntico en cualquier dispositivo.
- * La primera página resume el mes; después viene el detalle de cada depósito
- * con las fechas de su paso por la cadena, en tantas páginas como haga falta.
+ * Certificado mensual de reciclaje en PDF, generado en el dispositivo (ver
+ * pdfComun.ts). La primera página resume el mes; después viene el detalle de
+ * cada depósito con las fechas de su paso por la cadena, en tantas páginas
+ * como haga falta.
  */
 
 export const certificadoPdfDisponible = true;
-
-const ANCHO = 595; // A4 en puntos
-const ALTO = 842;
-const MARGEN = 40;
-/** Donde termina el área útil: debajo va el pie de página. */
-const LIMITE_INFERIOR = ALTO - 80;
-const ALTO_FILA = 17;
-
-const VERDE = rgb(0.086, 0.502, 0.238); // #15803D
-const VERDE_OSCURO = rgb(0.078, 0.325, 0.176);
-const VERDE_CLARO = rgb(0.86, 0.95, 0.89);
-const GRIS = rgb(0.42, 0.45, 0.5);
-const GRIS_SUAVE = rgb(0.62, 0.64, 0.68);
-const GRIS_CLARO = rgb(0.9, 0.91, 0.93);
-const FONDO_FILA = rgb(0.97, 0.98, 0.98);
-const TEXTO = rgb(0.07, 0.09, 0.15);
-
-/**
- * Las fuentes estándar del PDF solo codifican Latin-1: tildes y eñes sí, pero un
- * emoji o una letra fuera de ese rango haría fallar la generación. Se normalizan
- * los espacios especiales que produce toLocaleString y se reemplaza lo demás.
- */
-function seguro(texto: string): string {
-  return texto
-    .normalize("NFC")
-    .replace(/[\s  ]+/g, " ")
-    .replace(/[^\x20-\x7E¡-ÿ]/g, "?");
-}
-
-interface Pincel {
-  pagina: PDFPage;
-  normal: PDFFont;
-  negrita: PDFFont;
-}
-
-type Color = ReturnType<typeof rgb>;
-
-/** Texto centrado horizontalmente. `arriba` se mide desde el borde superior. */
-function centrado(
-  p: Pincel,
-  texto: string,
-  arriba: number,
-  tamano: number,
-  opciones: { negrita?: boolean; color?: Color } = {}
-) {
-  const limpio = seguro(texto);
-  const fuente = opciones.negrita ? p.negrita : p.normal;
-  p.pagina.drawText(limpio, {
-    x: (ANCHO - fuente.widthOfTextAtSize(limpio, tamano)) / 2,
-    y: ALTO - arriba,
-    size: tamano,
-    font: fuente,
-    color: opciones.color ?? TEXTO,
-  });
-}
-
-function izquierda(
-  p: Pincel,
-  texto: string,
-  x: number,
-  arriba: number,
-  tamano: number,
-  opciones: { negrita?: boolean; color?: Color } = {}
-) {
-  p.pagina.drawText(seguro(texto), {
-    x,
-    y: ALTO - arriba,
-    size: tamano,
-    font: opciones.negrita ? p.negrita : p.normal,
-    color: opciones.color ?? TEXTO,
-  });
-}
-
-function linea(p: Pincel, arriba: number) {
-  p.pagina.drawLine({
-    start: { x: MARGEN, y: ALTO - arriba },
-    end: { x: ANCHO - MARGEN, y: ALTO - arriba },
-    thickness: 0.8,
-    color: GRIS_CLARO,
-  });
-}
 
 function kilos(r: Registro): string {
   const kg = formatKg(kgEfectivo(r)).replace(" kg", "");
@@ -159,23 +97,16 @@ function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
 }
 
 export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint8Array> {
-  const doc = await PDFDocument.create();
-  doc.setTitle(`Certificado EcoTrack ${c.codigo}`);
-  doc.setAuthor("EcoTrack");
-  doc.setSubject(`Certificado mensual de reciclaje, ${c.etiqueta}`);
-
-  const normal = await doc.embedFont(StandardFonts.Helvetica);
-  const negrita = await doc.embedFont(StandardFonts.HelveticaBold);
-  const nuevaPagina = (): Pincel => ({ pagina: doc.addPage([ANCHO, ALTO]), normal, negrita });
+  const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
+    titulo: `Certificado EcoTrack ${c.codigo}`,
+    asunto: `Certificado mensual de reciclaje, ${c.etiqueta}`,
+  });
 
   // ------------------------------------------------------------ página 1
   let p = nuevaPagina();
   const titulo = c.etiqueta.charAt(0).toUpperCase() + c.etiqueta.slice(1);
 
-  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 110, color: VERDE });
-  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 5, color: VERDE_OSCURO });
-  centrado(p, "EcoTrack", 58, 28, { negrita: true, color: rgb(1, 1, 1) });
-  centrado(p, "Reciclaje verificado, desde tu torre hacia arriba", 80, 10, { color: VERDE_CLARO });
+  franjaMarca(p);
 
   centrado(p, "CERTIFICADO MENSUAL DE RECICLAJE", 148, 16, { negrita: true });
   centrado(p, titulo, 168, 12, { negrita: true, color: VERDE });
@@ -264,75 +195,20 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
     arriba += ALTO_FILA;
   });
 
-  // ------------------------------------------------------------ pie de cada página
-  const paginas = doc.getPages();
-  paginas.forEach((pagina, i) => {
-    const pie: Pincel = { pagina, normal, negrita };
-    pagina.drawLine({
-      start: { x: MARGEN, y: 58 },
-      end: { x: ANCHO - MARGEN, y: 58 },
-      thickness: 0.8,
-      color: GRIS_CLARO,
-    });
-    centrado(
-      pie,
-      `Emitido el ${fechaLarga(Date.now())} · Certificado ${c.codigo} · Página ${i + 1} de ${paginas.length}`,
-      ALTO - 44,
-      8,
-      { color: GRIS }
-    );
-    centrado(
-      pie,
-      "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada.",
-      ALTO - 32,
-      6.5,
-      { color: GRIS }
-    );
-  });
+  piesDePagina(
+    doc,
+    { normal, negrita },
+    `Certificado ${c.codigo}`,
+    "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada."
+  );
 
   return doc.save();
 }
 
-export type ResultadoDescarga = "compartido" | "descargado" | "cancelado";
+export type { ResultadoDescarga };
 
-/** ¿El dispositivo es táctil (teléfono o tableta)? Ahí conviene la hoja de compartir. */
-function esTactil(): boolean {
-  return typeof window.matchMedia === "function" && window.matchMedia("(pointer: coarse)").matches;
-}
-
-/**
- * Genera el PDF y lo entrega al usuario.
- *
- * En iPhone se abre la hoja de compartir con el archivo, desde donde se puede
- * "Guardar en Archivos" o enviarlo por WhatsApp o correo. En un computador se
- * descarga directamente. Debe llamarse dentro del gesto del usuario (un toque):
- * iOS rechaza compartir si pasó demasiado tiempo desde el toque.
- */
+/** Genera el PDF y lo entrega al usuario (ver entregarPdf). */
 export async function descargarCertificado(c: CertificadoMensual): Promise<ResultadoDescarga> {
   const bytes = await generarCertificadoPdf(c);
-  const nombre = `EcoTrack-Certificado-${c.mes}-${c.codigo}.pdf`;
-  const blob = new Blob([bytes as BlobPart], { type: "application/pdf" });
-
-  if (esTactil() && typeof File === "function" && navigator.canShare && navigator.share) {
-    const archivo = new File([blob], nombre, { type: "application/pdf" });
-    if (navigator.canShare({ files: [archivo] })) {
-      try {
-        await navigator.share({ files: [archivo], title: "Certificado EcoTrack" });
-        return "compartido";
-      } catch (error) {
-        if ((error as { name?: string })?.name === "AbortError") return "cancelado";
-        // Cualquier otro fallo (p. ej. permiso de iOS): se intenta la descarga directa.
-      }
-    }
-  }
-
-  const url = URL.createObjectURL(blob);
-  const enlace = document.createElement("a");
-  enlace.href = url;
-  enlace.download = nombre;
-  document.body.appendChild(enlace);
-  enlace.click();
-  enlace.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 60_000);
-  return "descargado";
+  return entregarPdf(bytes, `EcoTrack-Certificado-${c.mes}-${c.codigo}.pdf`, "Certificado EcoTrack");
 }

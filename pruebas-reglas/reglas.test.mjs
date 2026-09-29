@@ -662,14 +662,10 @@ describe("registros: consultas de la app", () => {
     }
   });
 
-  test("el administrador lee los pendientes de su torre", async () => {
+  test("el administrador lee todos los de su torre (pendientes y reporte mensual)", async () => {
     const db = como("carla");
-    const pendientes = query(
-      collection(db, "registros"),
-      where("torreId", "==", "torre-a"),
-      where("estado", "==", "pendiente")
-    );
-    for (const q of [...comunes(db), pendientes]) await assertSucceeds(getDocs(q));
+    const deSuTorre = query(collection(db, "registros"), where("torreId", "==", "torre-a"));
+    for (const q of [...comunes(db), deSuTorre]) await assertSucceeds(getDocs(q));
   });
 
   test("sin sesión no se lee ninguna", async () => {

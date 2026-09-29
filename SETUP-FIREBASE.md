@@ -232,7 +232,8 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
   por cantidad, así ningún depósito queda afuera por antiguo: todos, los del
   mes en curso (desde el lunes de su primera semana) y los certificados del
   mes, para el ranking; el residente, además, todos los suyos; el
-  administrador, los pendientes de su torre; el gestor, todos los validados.
+  administrador, todos los de su torre (pendientes y reporte mensual); el
+  gestor, todos los validados.
   Ninguna necesita índice compuesto. El ranking todavía se calcula en cada
   teléfono con los depósitos del mes de todas las torres: para un piloto es
   poco, pero con muchas torres convendría guardar un resumen por torre con
@@ -242,12 +243,11 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
 
 ## Qué quedó fuera de este tramo
 
-- Escáner con cámara y PDF del certificado en la app nativa (Expo Go): hoy
+- Escáner con cámara y los PDF (certificado y reporte) en la app nativa (Expo Go): hoy
   existen solo en la versión web instalada (PWA), que es la que se presenta.
   En el teléfono nativo el código del contenedor se escribe a mano.
 - Notificaciones de avance.
-- Gestión de usuarios y exportación del reporte mensual, desde el panel del
-  administrador.
+- Gestión de usuarios desde el panel del administrador.
 - Cloud Functions: la privacidad del gestor frente a los registros completos
   sigue siendo de capa de aplicación, no de base de datos (ver más arriba).
 

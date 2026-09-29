@@ -58,7 +58,8 @@ function aRegistro(id: string, d: any): Registro {
  *   del ranking (un depósito del mes pasado puede certificarse en este).
  * - Residente: todos los suyos, para su historial, sus certificados de meses
  *   anteriores y su misión semanal.
- * - Administrador: los pendientes de su torre, aunque sean de otro mes.
+ * - Administrador: todos los de su torre, de cualquier fecha: sus pendientes
+ *   y el reporte mensual de meses anteriores.
  * - Gestor: todos los validados, de cualquier fecha, que son su cola de retiro.
  *
  * Ninguna necesita índice compuesto: son rangos sobre un campo o igualdades.
@@ -80,9 +81,7 @@ function consultasPara(uid: string, rol: Rol, torreId: string | null): Query[] {
     consultas.push(query(registros, where("residenteId", "==", uid)));
   }
   if (rol === "administrador" && torreId) {
-    consultas.push(
-      query(registros, where("torreId", "==", torreId), where("estado", "==", "pendiente"))
-    );
+    consultas.push(query(registros, where("torreId", "==", torreId)));
   }
   if (rol === "gestor") {
     consultas.push(query(registros, where("estado", "==", "validado")));

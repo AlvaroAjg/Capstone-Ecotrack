@@ -1,9 +1,18 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
-import { useEcoTrack, type Mision } from "../state/EcoTrack";
+import {
+  useEcoTrack,
+  type Incidencia,
+  type Mision,
+  type Registro,
+  type Torre,
+} from "../state/EcoTrack";
+import { etiquetaMes } from "../lib/certificadoMensual";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
 import { esDelMesActual, formatKg, tiempoRelativo } from "../lib/formato";
+import { descargarReporte, reportePdfDisponible } from "../lib/reportePdf";
+import { mesesReportables, reporteDeTorre } from "../lib/reporteTorre";
 import ContenedoresTorre from "../components/ContenedoresTorre";
 import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
@@ -17,6 +26,7 @@ import {
   Encabezado,
   FilaMetricas,
   Seccion,
+  Segmentado,
   Tarjeta,
   Vacio,
 } from "../components/ui";
@@ -33,6 +43,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     guardarMision,
     avisosNuevos,
     incidencias,
+    registros,
     reportarYValidar,
   } = useEcoTrack();
 
@@ -184,20 +195,107 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         />
       </Seccion>
 
-      <View className="px-6 mt-6">
+      {miTorre ? (
+        <Seccion titulo="Reporte mensual">
+          <ReporteMensual
+            torre={miTorre}
+            registros={registros}
+            incidencias={incidencias}
+            mision={mision}
+          />
+        </Seccion>
+      ) : null}
+    </Cuerpo>
+  );
+}
+
+/** "2026-09" → "sep 2026", para el selector de meses. */
+function mesCorto(mes: string): string {
+  const [nombre, , anio] = etiquetaMes(mes).split(" ");
+  return `${nombre.slice(0, 3)} ${anio}`;
+}
+
+/**
+ * Reporte del mes de la torre, en PDF: se elige el mes (los cuatro más
+ * recientes con actividad), se ve un adelanto de los números y se descarga.
+ * Como el certificado, se genera en el dispositivo; hay que llamar a la
+ * descarga directo desde el toque, porque iOS rechaza compartir si pasó
+ * demasiado tiempo desde el gesto.
+ */
+function ReporteMensual({
+  torre,
+  registros,
+  incidencias,
+  mision,
+}: {
+  torre: Torre;
+  registros: Registro[];
+  incidencias: Incidencia[];
+  mision: Mision | null;
+}) {
+  const meses = useMemo(
+    () => mesesReportables(torre.id, registros, incidencias).slice(0, 4),
+    [torre.id, registros, incidencias]
+  );
+  const [mes, setMes] = useState(meses[0]);
+  const [generando, setGenerando] = useState(false);
+  const reporte = useMemo(
+    () => reporteDeTorre(torre, mes, registros, incidencias, mision),
+    [torre, mes, registros, incidencias, mision]
+  );
+
+  async function descargar() {
+    setGenerando(true);
+    try {
+      const resultado = await descargarReporte(reporte);
+      if (resultado === "descargado") {
+        avisar("Reporte descargado", "El PDF quedó guardado en la carpeta de descargas de tu dispositivo.");
+      }
+    } catch (e) {
+      avisar("No se pudo generar el PDF", textoDeError(e));
+    } finally {
+      setGenerando(false);
+    }
+  }
+
+  return (
+    <Tarjeta>
+      {meses.length > 1 ? (
+        <View className="mb-4">
+          <Segmentado
+            opciones={meses.map((m) => ({ valor: m, etiqueta: mesCorto(m) }))}
+            valor={mes}
+            alCambiar={setMes}
+          />
+        </View>
+      ) : null}
+      <Text className="text-gray-800 font-semibold">
+        {reporte.etiqueta.charAt(0).toUpperCase() + reporte.etiqueta.slice(1)}
+        {reporte.enCurso ? " · en curso" : ""}
+      </Text>
+      <Text className="text-gray-500 text-xs mt-1 mb-3">
+        {formatKg(reporte.kgCertificados)} certificados · {reporte.participacion}% de
+        participación · {reporte.depositos.total} depósitos · {reporte.contaminaciones.length}{" "}
+        {reporte.contaminaciones.length === 1 ? "contenedor contaminado" : "contenedores contaminados"}
+      </Text>
+      <Text className="text-gray-400 text-[11px] mb-4">
+        Incluye los indicadores del piloto, los kilos por material, los tiempos de la cadena, los
+        departamentos que más reciclaron (solo por número) y los contenedores contaminados.
+      </Text>
+      {reportePdfDisponible ? (
         <Boton
-          titulo="Exportar reporte mensual (PDF)"
+          titulo={generando ? "Generando..." : "Descargar reporte (PDF)"}
           icono="📊"
           variante="oscuro"
-          onPress={() =>
-            avisar(
-              "Reporte mensual",
-              "La exportación del reporte mensual en PDF llega en un próximo tramo."
-            )
-          }
+          cargando={generando}
+          onPress={descargar}
         />
-      </View>
-    </Cuerpo>
+      ) : (
+        <Text className="text-gray-500 text-xs">
+          El PDF se descarga desde la versión web instalada de EcoTrack.
+        </Text>
+      )}
+    </Tarjeta>
   );
 }
 
