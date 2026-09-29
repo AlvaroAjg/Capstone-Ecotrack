@@ -68,13 +68,14 @@ export default function ValidacionContenedores({
 }: {
   torreId: string;
   pendientes: Registro[];
-  alValidar: (registro: Registro) => Promise<void>;
-  alRechazar: (id: string) => Promise<void>;
-  alReportar: (datos: {
-    contenedor: string;
-    contenedorNombre: string;
-    contaminante: Contaminante;
-  }) => Promise<void>;
+  /** Cada llamada es un lote atómico: o se procesan todos, o ninguno. */
+  alValidar: (registros: Registro[]) => Promise<void>;
+  alRechazar: (ids: string[]) => Promise<void>;
+  /** Reporta la contaminación y valida los depósitos, en el mismo lote. */
+  alReportar: (
+    datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante },
+    registros: Registro[]
+  ) => Promise<void>;
 }) {
   const [contenedores, setContenedores] = useState<Contenedor[]>([]);
   const [abierto, setAbierto] = useState<string | null>(null);
@@ -101,7 +102,8 @@ export default function ValidacionContenedores({
     try {
       await accion();
     } catch (e) {
-      avisar("No se pudo completar", textoDeError(e));
+      // Cada acción es un lote atómico: si falló, no cambió ningún depósito.
+      avisar("No se pudo completar", `${textoDeError(e)} No cambió ningún depósito; intenta de nuevo.`);
     } finally {
       setOcupado(null);
     }
@@ -114,9 +116,7 @@ export default function ValidacionContenedores({
       "Rechazar"
     );
     if (!acepta) return;
-    await ejecutar(g.codigo, async () => {
-      for (const r of g.registros) await alRechazar(r.id);
-    });
+    await ejecutar(g.codigo, () => alRechazar(g.registros.map((r) => r.id)));
   }
 
   async function reportar(g: Grupo, nombre: string, contaminante: Contaminante) {
@@ -127,8 +127,7 @@ export default function ValidacionContenedores({
     );
     if (!acepta) return;
     await ejecutar(g.codigo, async () => {
-      await alReportar({ contenedor: g.codigo, contenedorNombre: nombre, contaminante });
-      for (const r of g.registros) await alValidar(r);
+      await alReportar({ contenedor: g.codigo, contenedorNombre: nombre, contaminante }, g.registros);
       setReportando(null);
     });
   }
@@ -140,7 +139,7 @@ export default function ValidacionContenedores({
       "Rechazar"
     );
     if (!acepta) return;
-    await ejecutar(r.id, () => alRechazar(r.id));
+    await ejecutar(r.id, () => alRechazar([r.id]));
   }
 
   return (
@@ -183,11 +182,7 @@ export default function ValidacionContenedores({
                 titulo={ocupadoAqui ? "Validando..." : "Validar contenedor"}
                 cargando={ocupadoAqui}
                 deshabilitado={ocupado !== null}
-                onPress={() =>
-                  ejecutar(g.codigo, async () => {
-                    for (const r of g.registros) await alValidar(r);
-                  })
-                }
+                onPress={() => ejecutar(g.codigo, () => alValidar(g.registros))}
                 className="flex-1 py-3 mr-2"
               />
               <Boton

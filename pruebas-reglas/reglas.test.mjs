@@ -699,3 +699,106 @@ describe("registros: consultas de la app", () => {
     assert.ok(validados.docs.some((d) => d.id === "antiguo"));
   });
 });
+
+// -------------------------------------------- registros: lotes del administrador
+
+describe("registros: lotes del administrador", () => {
+  // Como validarRegistros en app/src/services/registros.ts: toda la tanda en
+  // un writeBatch, que Firestore aplica completo o no aplica.
+  async function sembrarPendientes(cantidad, cambios = {}) {
+    const ids = [];
+    await entorno.withSecurityRulesDisabled(async (contexto) => {
+      const db = contexto.firestore();
+      const lote = writeBatch(db);
+      for (let i = 0; i < cantidad; i++) {
+        const id = `tanda${i}`;
+        ids.push(id);
+        lote.set(doc(db, "registros", id), deposito({ creadoEn: 1, ...cambios }));
+      }
+      await lote.commit();
+    });
+    return ids;
+  }
+
+  const validacion = () => ({
+    estado: "validado",
+    kgConfirmado: 0.4,
+    validadoEn: Date.now(),
+    validadoPor: "carla",
+  });
+
+  async function estadoDe(id) {
+    let estado;
+    await entorno.withSecurityRulesDisabled(async (contexto) => {
+      estado = (await getDoc(doc(contexto.firestore(), "registros", id))).data().estado;
+    });
+    return estado;
+  }
+
+  test("valida una tanda de 100 depósitos en un solo lote", async () => {
+    const ids = await sembrarPendientes(100);
+    const db = como("carla");
+    const lote = writeBatch(db);
+    for (const id of ids) lote.update(doc(db, "registros", id), validacion());
+    await assertSucceeds(lote.commit());
+    assert.equal(await estadoDe("tanda99"), "validado");
+  });
+
+  test("rechaza un contenedor completo en un solo lote", async () => {
+    const ids = await sembrarPendientes(5);
+    const db = como("carla");
+    const lote = writeBatch(db);
+    for (const id of ids) {
+      lote.update(doc(db, "registros", id), { estado: "rechazado", validadoEn: Date.now(), validadoPor: "carla" });
+    }
+    await assertSucceeds(lote.commit());
+  });
+
+  test("reporta la contaminación y valida sus depósitos en el mismo lote", async () => {
+    const ids = await sembrarPendientes(3);
+    const db = como("carla");
+    const lote = writeBatch(db);
+    for (const id of ids) lote.update(doc(db, "registros", id), validacion());
+    lote.set(doc(collection(db, "incidencias")), {
+      torreId: "torre-a",
+      torreNombre: "Torre A",
+      contenedor: "MIXTO1",
+      contenedorNombre: "Contenedor mixto",
+      contaminante: "Vidrio",
+      reportadoEn: Date.now(),
+      reportadoPor: "carla",
+      atendida: false,
+      atendidaEn: null,
+      codigoRetiro: null,
+    });
+    await assertSucceeds(lote.commit());
+  });
+
+  test("si un depósito del lote no se puede validar, no se valida ninguno", async () => {
+    const ids = await sembrarPendientes(3);
+    await entorno.withSecurityRulesDisabled(async (contexto) => {
+      await setDoc(doc(contexto.firestore(), "registros/deOtraTorre"), deposito({ creadoEn: 1, torreId: "torre-b" }));
+    });
+    const db = como("carla");
+    const lote = writeBatch(db);
+    for (const id of [...ids, "deOtraTorre"]) lote.update(doc(db, "registros", id), validacion());
+    await assertFails(lote.commit());
+    // Los de su torre, que sí podía validar, siguen pendientes: no quedó a medias.
+    for (const id of ids) assert.equal(await estadoDe(id), "pendiente");
+  });
+
+  test("si el reporte de contaminación es inválido, tampoco se validan los depósitos", async () => {
+    const ids = await sembrarPendientes(2);
+    const db = como("carla");
+    const lote = writeBatch(db);
+    for (const id of ids) lote.update(doc(db, "registros", id), validacion());
+    lote.set(doc(collection(db, "incidencias")), {
+      torreId: "torre-a",
+      reportadoPor: "carla",
+      atendida: false,
+      contaminante: "Algo que no está en la lista",
+    });
+    await assertFails(lote.commit());
+    for (const id of ids) assert.equal(await estadoDe(id), "pendiente");
+  });
+});

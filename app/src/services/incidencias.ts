@@ -1,4 +1,12 @@
-import { addDoc, collection, doc, onSnapshot, query, where, writeBatch } from "firebase/firestore";
+import {
+  collection,
+  doc,
+  onSnapshot,
+  query,
+  where,
+  writeBatch,
+  type WriteBatch,
+} from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { Contaminante, Incidencia } from "../lib/tipos";
 
@@ -38,15 +46,22 @@ export function escucharIncidenciasPendientes(callback: (i: Incidencia[]) => voi
   return escuchar(query(collection(db, "incidencias"), where("atendida", "==", false)), callback);
 }
 
-export async function reportarContaminacion(datos: {
+export interface DatosReporte {
   torreId: string;
   torreNombre: string;
   contenedor: string;
   contenedorNombre: string;
   contaminante: Contaminante;
   adminUid: string;
-}): Promise<void> {
-  await addDoc(collection(db, "incidencias"), {
+}
+
+/**
+ * Agrega el reporte de un contenedor contaminado a un lote. Va en el mismo
+ * writeBatch que valida los depósitos de ese contenedor (ver
+ * validarRegistros): o quedan el reporte y la validación, o ninguno.
+ */
+export function agregarReporte(lote: WriteBatch, datos: DatosReporte): void {
+  lote.set(doc(collection(db, "incidencias")), {
     torreId: datos.torreId,
     torreNombre: datos.torreNombre,
     contenedor: datos.contenedor,

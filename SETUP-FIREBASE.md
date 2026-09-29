@@ -152,7 +152,10 @@ la cuenta. Proyectadas lado a lado se ve la cadena completa avanzar en vivo.
    Los pendientes aparecen agrupados por contenedor, con lo que se declaró en
    cada uno. El administrador mira el contenedor y compara: **Validar
    contenedor** si cuadra, **No cuadra** si no. **"Validar la tanda del día"**
-   valida todos los contenedores de una vez. No se revisa persona por persona,
+   valida todos los contenedores de una vez. Cada una de estas acciones es un
+   solo `writeBatch` atómico: si falla, no queda nada validado a medias, y el
+   reporte de contaminación se guarda junto con su validación o no se guarda.
+   No se revisa persona por persona,
    porque dentro del contenedor no se sabe de quién es cada cosa; eso queda
    plegado en "Ver depósitos", para excepciones. Si encuentra algo que no
    corresponde (vidrio en el de cartón), usa **Reportar contaminación**: valida
@@ -242,8 +245,6 @@ codigosRol/{torreId | "gestor"}      ← nunca se lee desde la app, solo desde l
 - Escáner con cámara y PDF del certificado en la app nativa (Expo Go): hoy
   existen solo en la versión web instalada (PWA), que es la que se presenta.
   En el teléfono nativo el código del contenedor se escribe a mano.
-- Validación diaria por lote como una sola operación atómica: hoy
-  "Validar la tanda del día" valida uno por uno, en un bucle.
 - Notificaciones de avance.
 - Gestión de usuarios y exportación del reporte mensual, desde el panel del
   administrador.

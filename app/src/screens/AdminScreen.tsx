@@ -27,13 +27,13 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
     miTorre,
     errorDatos,
     resumenTorre,
-    validarRegistro,
-    rechazarRegistro,
+    validarRegistros,
+    rechazarRegistros,
     mision,
     guardarMision,
     avisosNuevos,
     incidencias,
-    reportarContaminacion,
+    reportarYValidar,
   } = useEcoTrack();
 
   const resumen = resumenTorre(usuario?.torreId ?? null);
@@ -47,7 +47,8 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
   /**
    * El conserje pasa una vez al día y revisa los contenedores, no depósito por
    * depósito. Esta acción valida todos los contenedores de una vez, con los
-   * kilos estimados por la talla que se declaró en cada depósito.
+   * kilos estimados por la talla que se declaró en cada depósito. Es un solo
+   * lote atómico: si falla, no queda nada validado a medias.
    */
   async function validarTanda() {
     const pendientes = resumen.pendientes;
@@ -64,11 +65,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
 
     setValidandoTanda(true);
     try {
-      for (const p of pendientes) {
-        await validarRegistro(p);
-      }
+      await validarRegistros(pendientes);
     } catch (e) {
-      avisar("No se pudo completar", textoDeError(e));
+      avisar("No se validó la tanda", `${textoDeError(e)} No se validó ningún depósito; intenta de nuevo.`);
     } finally {
       setValidandoTanda(false);
     }
@@ -164,9 +163,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
               <ValidacionContenedores
                 torreId={usuario.torreId}
                 pendientes={resumen.pendientes}
-                alValidar={validarRegistro}
-                alRechazar={rechazarRegistro}
-                alReportar={reportarContaminacion}
+                alValidar={validarRegistros}
+                alRechazar={rechazarRegistros}
+                alReportar={reportarYValidar}
               />
             ) : null}
           </>

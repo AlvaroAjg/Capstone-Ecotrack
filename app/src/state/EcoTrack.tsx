@@ -87,11 +87,11 @@ interface EcoTrackValor {
   // Contenedores reportados como contaminados: los de mi torre (admin y
   // residente) o los que el gestor todavía no retira
   incidencias: Incidencia[];
-  reportarContaminacion: (datos: {
-    contenedor: string;
-    contenedorNombre: string;
-    contaminante: Contaminante;
-  }) => Promise<void>;
+  /** Reporta el contenedor contaminado y valida sus depósitos, en un solo lote. */
+  reportarYValidar: (
+    datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante },
+    registros: Registro[]
+  ) => Promise<void>;
 
   // Avisos del avance de la cadena, según el rol (ver lib/avisos.ts)
   avisos: Aviso[];
@@ -120,8 +120,9 @@ interface EcoTrackValor {
   cambiarContrasena: (actual: string, nueva: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
   crearRegistro: (material: Material, talla: Talla, contenedor: string) => Promise<string>;
-  validarRegistro: (registro: Registro) => Promise<void>;
-  rechazarRegistro: (id: string) => Promise<void>;
+  /** Cada llamada es un lote atómico: o se procesan todos, o ninguno. */
+  validarRegistros: (registros: Registro[]) => Promise<void>;
+  rechazarRegistros: (ids: string[]) => Promise<void>;
   confirmarRetiro: (torreId: string) => Promise<string>;
   registroPorId: (id: string) => Registro | undefined;
   resumenTorre: (torreId: string | null) => ResumenTorre;
@@ -348,18 +349,18 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [usuario]
   );
 
-  const validarRegistro = useCallback(
-    async (registro: Registro) => {
+  const validarRegistros = useCallback(
+    async (lista: Registro[]) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      await servicioRegistros.validarRegistro(registro, usuario.id);
+      await servicioRegistros.validarRegistros(lista, usuario.id);
     },
     [usuario]
   );
 
-  const rechazarRegistro = useCallback(
-    async (id: string) => {
+  const rechazarRegistros = useCallback(
+    async (ids: string[]) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      await servicioRegistros.rechazarRegistro(id, usuario.id);
+      await servicioRegistros.rechazarRegistros(ids, usuario.id);
     },
     [usuario]
   );
@@ -456,15 +457,21 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [usuario, registros, lotesPorRetirar, incidencias]
   );
 
-  const reportarContaminacion = useCallback(
-    async (datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante }) => {
+  const reportarYValidar = useCallback(
+    async (
+      datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante },
+      lista: Registro[]
+    ) => {
       if (!usuario?.torreId) throw new Error("No hay una sesión activa.");
-      await servicioIncidencias.reportarContaminacion({
+      const reporte = {
         ...datos,
         torreId: usuario.torreId,
         torreNombre: usuario.torreNombre ?? usuario.torreId,
         adminUid: usuario.id,
-      });
+      };
+      await servicioRegistros.validarRegistros(lista, usuario.id, (lote) =>
+        servicioIncidencias.agregarReporte(lote, reporte)
+      );
     },
     [usuario]
   );
@@ -508,7 +515,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     misionSemanal,
     ecoPuntosMes,
     incidencias,
-    reportarContaminacion,
+    reportarYValidar,
     avisos,
     avisosNuevos,
     marcarAvisosVistos,
@@ -521,8 +528,8 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     cambiarContrasena,
     cerrarSesion,
     crearRegistro,
-    validarRegistro,
-    rechazarRegistro,
+    validarRegistros,
+    rechazarRegistros,
     confirmarRetiro,
     registroPorId,
     resumenTorre,

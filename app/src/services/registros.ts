@@ -4,10 +4,10 @@ import {
   doc,
   onSnapshot,
   query,
-  updateDoc,
   where,
   writeBatch,
   type Query,
+  type WriteBatch,
 } from "firebase/firestore";
 import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
@@ -161,25 +161,63 @@ export async function crearRegistro(
 }
 
 /**
- * Etapa 1 de la cadena: el administrador confirma que el depósito está en el
- * contenedor. Valida la tanda completa, no bolsa por bolsa, así que se
- * confirman los kilos estimados por la talla declarada.
+ * Un writeBatch admite hasta 500 escrituras. Se deja espacio para el reporte
+ * de contaminación que puede ir en el mismo lote.
  */
-export async function validarRegistro(registro: Registro, adminUid: string): Promise<void> {
-  await updateDoc(doc(db, "registros", registro.id), {
-    estado: "validado",
-    kgConfirmado: registro.kgDeclarado,
-    validadoEn: Date.now(),
-    validadoPor: adminUid,
-  });
+const MAXIMO_POR_LOTE = 499;
+
+function revisarTamano(cantidad: number): void {
+  if (cantidad === 0) throw new Error("No hay depósitos que procesar.");
+  if (cantidad > MAXIMO_POR_LOTE) {
+    throw new Error(
+      `Son ${cantidad} depósitos y se pueden procesar hasta ${MAXIMO_POR_LOTE} de una vez. Valida contenedor por contenedor.`
+    );
+  }
 }
 
-export async function rechazarRegistro(id: string, adminUid: string): Promise<void> {
-  await updateDoc(doc(db, "registros", id), {
-    estado: "rechazado",
-    validadoEn: Date.now(),
-    validadoPor: adminUid,
-  });
+/**
+ * Etapa 1 de la cadena: el administrador confirma que los depósitos están en
+ * el contenedor. Valida la tanda completa, no bolsa por bolsa, así que se
+ * confirman los kilos estimados por la talla declarada.
+ *
+ * Todo va en un writeBatch atómico: o se validan todos, o ninguno. Así un
+ * corte de conexión a la mitad no deja una tanda validada a medias. Con
+ * `ademas` se agregan otras escrituras al mismo lote, por ejemplo el reporte
+ * de contaminación del contenedor (ver agregarReporte en incidencias.ts).
+ */
+export async function validarRegistros(
+  registros: Registro[],
+  adminUid: string,
+  ademas?: (lote: WriteBatch) => void
+): Promise<void> {
+  revisarTamano(registros.length);
+  const ahora = Date.now();
+  const lote = writeBatch(db);
+  for (const registro of registros) {
+    lote.update(doc(db, "registros", registro.id), {
+      estado: "validado",
+      kgConfirmado: registro.kgDeclarado,
+      validadoEn: ahora,
+      validadoPor: adminUid,
+    });
+  }
+  ademas?.(lote);
+  await lote.commit();
+}
+
+/** Rechaza depósitos pendientes, también en un solo lote atómico. */
+export async function rechazarRegistros(ids: string[], adminUid: string): Promise<void> {
+  revisarTamano(ids.length);
+  const ahora = Date.now();
+  const lote = writeBatch(db);
+  for (const id of ids) {
+    lote.update(doc(db, "registros", id), {
+      estado: "rechazado",
+      validadoEn: ahora,
+      validadoPor: adminUid,
+    });
+  }
+  await lote.commit();
 }
 
 /**
