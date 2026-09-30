@@ -1,6 +1,6 @@
 {
-  "name": "EcoTrack",
-  "short_name": "EcoTrack",
+  "name": "RecyTrack",
+  "short_name": "RecyTrack",
   "description": "Trazabilidad de reciclaje colectivo con incentivos verificables.",
   "lang": "es-CL",
   "start_url": "/",

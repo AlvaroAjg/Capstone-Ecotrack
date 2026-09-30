@@ -292,7 +292,7 @@ function ReporteMensual({
         />
       ) : (
         <Text className="text-gray-500 text-xs">
-          El PDF se descarga desde la versión web instalada de EcoTrack.
+          El PDF se descarga desde la versión web instalada de RecyTrack.
         </Text>
       )}
     </Tarjeta>

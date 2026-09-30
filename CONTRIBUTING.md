@@ -1,4 +1,4 @@
-# Cómo contribuir a EcoTrack
+# Cómo contribuir a RecyTrack
 
 Reglas del repositorio para todo el equipo. Rigen para cualquier cambio, sea código, tests o documentación, y da lo mismo si lo escribes tú o Claude Code.
 

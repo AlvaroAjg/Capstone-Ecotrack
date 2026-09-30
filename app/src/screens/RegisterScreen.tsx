@@ -125,7 +125,7 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
           </View>
           <Text className="text-gray-400 text-[11px] mb-5 ml-1">
             {rol === "gestor"
-              ? "Necesitas el código de gestor que te entrega el equipo de EcoTrack."
+              ? "Necesitas el código de gestor que te entrega el equipo de RecyTrack."
               : "¿Eres administrador de una torre? Te vinculas como tal en el siguiente paso, con tu código."}
           </Text>
 
@@ -161,7 +161,7 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
           {rol === "gestor" ? (
             <Campo
               etiqueta="Código de gestor"
-              placeholder="Te lo entrega el equipo de EcoTrack"
+              placeholder="Te lo entrega el equipo de RecyTrack"
               autoCapitalize="characters"
               autoCorrect={false}
               value={codigoGestor}

@@ -98,7 +98,7 @@ function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
 
 export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint8Array> {
   const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
-    titulo: `Certificado EcoTrack ${c.codigo}`,
+    titulo: `Certificado RecyTrack ${c.codigo}`,
     asunto: `Certificado mensual de reciclaje, ${c.etiqueta}`,
   });
 
@@ -180,7 +180,7 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
   c.registros.forEach((r, i) => {
     if (arriba > LIMITE_INFERIOR) {
       p = nuevaPagina();
-      izquierda(p, `EcoTrack · Certificado mensual · ${titulo} · ${c.codigo}`, MARGEN, 50, 9, {
+      izquierda(p, `RecyTrack · Certificado mensual · ${titulo} · ${c.codigo}`, MARGEN, 50, 9, {
         negrita: true,
         color: GRIS,
       });
@@ -210,5 +210,5 @@ export type { ResultadoDescarga };
 /** Genera el PDF y lo entrega al usuario (ver entregarPdf). */
 export async function descargarCertificado(c: CertificadoMensual): Promise<ResultadoDescarga> {
   const bytes = await generarCertificadoPdf(c);
-  return entregarPdf(bytes, `EcoTrack-Certificado-${c.mes}-${c.codigo}.pdf`, "Certificado EcoTrack");
+  return entregarPdf(bytes, `RecyTrack-Certificado-${c.mes}-${c.codigo}.pdf`, "Certificado RecyTrack");
 }

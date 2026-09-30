@@ -1,4 +1,4 @@
-# EcoTrack — Puesta en marcha del backend
+# RecyTrack — Puesta en marcha del backend
 
 Guía para dejar corriendo la app con Firebase real. Proyecto:
 `ecotrack-capstone-3f12d`.

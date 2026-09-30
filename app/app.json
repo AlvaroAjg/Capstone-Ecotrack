@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "EcoTrack",
+    "name": "RecyTrack",
     "slug": "ecotrack",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -20,8 +20,8 @@
     },
     "web": {
       "favicon": "./assets/favicon.png",
-      "name": "EcoTrack",
-      "shortName": "EcoTrack",
+      "name": "RecyTrack",
+      "shortName": "RecyTrack",
       "themeColor": "#15803d",
       "backgroundColor": "#15803d"
     }

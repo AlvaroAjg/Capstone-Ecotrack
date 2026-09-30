@@ -1,4 +1,4 @@
-# EcoTrack — Sistema de Trazabilidad de Reciclaje Colectivo
+# RecyTrack — Sistema de Trazabilidad de Reciclaje Colectivo
 
 Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesional Duoc UC — Asignatura APT122
 
@@ -10,25 +10,27 @@ Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesi
 
 ## Descripción del proyecto
 
-**EcoTrack** es un sistema de trazabilidad de reciclaje colectivo con incentivos verificables. A diferencia de las apps de reciclaje actuales, que confían ciegamente en la declaración del usuario, EcoTrack construye una **cadena de verificación completa**: cada acto de reciclaje genera evidencia real, no una simple declaración.
+**RecyTrack** es un sistema de trazabilidad de reciclaje colectivo con incentivos verificables. A diferencia de las apps de reciclaje actuales, que confían ciegamente en la declaración del usuario, RecyTrack construye una **cadena de verificación completa**: cada acto de reciclaje genera evidencia real, no una simple declaración.
 
 **El problema que resolvemos:**
 - **Sin incentivo real** — reciclar no tiene un retorno concreto para el ciudadano.
 - **Sin trazabilidad** — el residuo desaparece sin confirmación de destino.
 - **Sin confianza** — nadie verifica si realmente llegó donde correspondía.
 
-**Cadena de verificación EcoTrack:**
+**Cadena de verificación RecyTrack:**
 1. El **residente** escanea un código QR al depositar su reciclaje.
 2. El **administrador** del edificio valida el depósito.
 3. El **gestor** confirma el reciclaje efectivo.
 4. Se emite un **certificado digital** único por ciclo completado.
 
-**¿Por qué EcoTrack?**
+**¿Por qué RecyTrack?**
 - *Diferenciación real*: nadie en Chile ofrece verificación de cadena completa desde el ciudadano hacia arriba.
 - *Viabilidad técnica*: prototipo acotado, realista y defendible como proyecto de título.
 - *Proyección comercial*: modelo de negocio basado en suscripción organizacional + certificación premium.
 
-> EcoTrack no es una app de reciclaje más. Es la capa que falta: evidencia verificable, desde el ciudadano hacia arriba.
+> RecyTrack no es una app de reciclaje más. Es la capa que falta: evidencia verificable, desde el ciudadano hacia arriba.
+
+**Sobre el nombre:** el proyecto partió como EcoTrack y pasó a llamarse RecyTrack para no confundirlo con otra app de Duoc UC que ya usa ese nombre. El cambio es solo en lo que se ve: el proyecto de Firebase (`ecotrack-capstone-3f12d`), la URL de la app, el prefijo `ECOTRACK:` de los códigos QR y los nombres del código (`state/EcoTrack.tsx`, `useEcoTrack`) siguen igual, porque son internos y cambiarlos rompería la base de datos y los QR ya generados.
 
 ## Alcance del proyecto de título
 
@@ -213,7 +215,7 @@ npx expo start
 
 ### Instalar en el iPhone sin App Store (PWA)
 
-EcoTrack se publica como aplicación web instalable (PWA), por lo que no requiere cuenta de desarrollador de Apple ni descargar nada:
+RecyTrack se publica como aplicación web instalable (PWA), por lo que no requiere cuenta de desarrollador de Apple ni descargar nada:
 
 ```bash
 node scripts/publicar.mjs

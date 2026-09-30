@@ -486,7 +486,7 @@ export function PantallaCargando({ mensaje }: { mensaje?: string }) {
       <View className="w-20 h-20 rounded-full bg-white/15 items-center justify-center mb-5 border border-white/30">
         <Text className="text-4xl">♻️</Text>
       </View>
-      <Text className="text-white text-2xl font-bold mb-3">EcoTrack</Text>
+      <Text className="text-white text-2xl font-bold mb-3">RecyTrack</Text>
       <ActivityIndicator color="#FFFFFF" />
       {mensaje ? (
         <Text className="text-green-100 text-sm mt-4 text-center">{mensaje}</Text>

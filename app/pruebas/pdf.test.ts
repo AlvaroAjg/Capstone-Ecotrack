@@ -29,7 +29,7 @@ describe("certificado mensual", () => {
     const c = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 5) })], "2026-09")!;
     const pdf = await abrir(await generarCertificadoPdf(c));
     expect(pdf.getPageCount()).toBe(1);
-    expect(pdf.getTitle()).toBe(`Certificado EcoTrack ${c.codigo}`);
+    expect(pdf.getTitle()).toBe(`Certificado RecyTrack ${c.codigo}`);
   });
 
   test("el detalle sigue en otras páginas y soporta emojis en los datos", async () => {
@@ -45,7 +45,7 @@ describe("reporte mensual de la torre", () => {
   test("se genera con un mes vacío", async () => {
     const pdf = await abrir(await generarReportePdf(reporteDeTorre(TORRE_A, "2026-09", [], [], null)));
     expect(pdf.getPageCount()).toBe(1);
-    expect(pdf.getTitle()).toBe("Reporte EcoTrack Torre A 2026-09");
+    expect(pdf.getTitle()).toBe("Reporte RecyTrack Torre A 2026-09");
   });
 
   test("con muchos departamentos y contaminaciones sigue en otras páginas", async () => {

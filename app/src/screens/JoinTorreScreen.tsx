@@ -112,7 +112,7 @@ export default function JoinTorreScreen() {
           ) : (
             <Campo
               etiqueta="Código de administrador"
-              placeholder="Te lo entrega el equipo de EcoTrack"
+              placeholder="Te lo entrega el equipo de RecyTrack"
               autoCapitalize="characters"
               autoCorrect={false}
               value={codigoAdmin}

@@ -48,7 +48,7 @@ export function interpretarQr(texto: string, torreIdUsuario: string | null): Lec
   const partes = limpio.split(":");
   if (partes[0].toUpperCase() === PREFIJO) {
     if (partes.length !== 3 || !partes[1] || !partes[2]) {
-      return { ok: false, error: "El código QR no tiene el formato de EcoTrack." };
+      return { ok: false, error: "El código QR no tiene el formato de RecyTrack." };
     }
     if (partes[1] !== torreIdUsuario) {
       return {
