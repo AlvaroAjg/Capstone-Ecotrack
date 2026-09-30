@@ -93,7 +93,7 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
             <View className="w-20 h-20 rounded-full bg-white/15 items-center justify-center mb-4 border border-white/30">
               <Text className="text-4xl">♻️</Text>
             </View>
-            <Text className="text-white text-4xl font-bold">EcoTrack</Text>
+            <Text className="text-white text-4xl font-bold">RecyTrack</Text>
             <Text className="text-green-100 text-sm mt-1 text-center">
               Reciclaje verificado, desde tu torre hacia arriba
             </Text>

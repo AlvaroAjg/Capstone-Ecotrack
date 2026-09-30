@@ -40,7 +40,7 @@ export interface Pincel {
 export async function nuevoDocumento(metadatos: { titulo: string; asunto: string }) {
   const doc = await PDFDocument.create();
   doc.setTitle(metadatos.titulo);
-  doc.setAuthor("EcoTrack");
+  doc.setAuthor("RecyTrack");
   doc.setSubject(metadatos.asunto);
 
   const normal = await doc.embedFont(StandardFonts.Helvetica);
@@ -130,7 +130,7 @@ export function linea(p: Pincel, arriba: number) {
 export function franjaMarca(p: Pincel) {
   p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 110, color: VERDE });
   p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 5, color: VERDE_OSCURO });
-  centrado(p, "EcoTrack", 58, 28, { negrita: true, color: BLANCO });
+  centrado(p, "RecyTrack", 58, 28, { negrita: true, color: BLANCO });
   centrado(p, "Reciclaje verificado, desde tu torre hacia arriba", 80, 10, { color: VERDE_CLARO });
 }
 

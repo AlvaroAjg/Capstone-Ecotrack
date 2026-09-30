@@ -1,4 +1,4 @@
-# EcoTrack: instrucciones para Claude Code
+# RecyTrack: instrucciones para Claude Code
 
 Capstone de Duoc UC (equipo: Álvaro Jaña, Matías Bustamante y Vicente Torres). Se evalúa el aporte individual de cada integrante por sus commits, así que estas reglas **no son opcionales**. El detalle está en [CONTRIBUTING.md](CONTRIBUTING.md).
 

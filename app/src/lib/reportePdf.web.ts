@@ -88,7 +88,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
   const titulo = r.etiqueta.charAt(0).toUpperCase() + r.etiqueta.slice(1);
   const referencia = `Reporte ${r.torre.nombre} · ${r.etiqueta}`;
   const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
-    titulo: `Reporte EcoTrack ${r.torre.nombre} ${r.mes}`,
+    titulo: `Reporte RecyTrack ${r.torre.nombre} ${r.mes}`,
     asunto: `Reporte mensual de reciclaje de ${r.torre.nombre}, ${r.etiqueta}`,
   });
 
@@ -99,7 +99,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
   const espacio = (alto: number) => {
     if (arriba + alto <= LIMITE_INFERIOR) return;
     p = nuevaPagina();
-    izquierda(p, `EcoTrack · ${referencia}`, MARGEN, 50, 9, { negrita: true, color: GRIS });
+    izquierda(p, `RecyTrack · ${referencia}`, MARGEN, 50, 9, { negrita: true, color: GRIS });
     arriba = 80;
   };
 
@@ -311,6 +311,6 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
 /** Genera el reporte y lo entrega al usuario (ver entregarPdf). */
 export async function descargarReporte(r: ReporteTorre): Promise<ResultadoDescarga> {
   const bytes = await generarReportePdf(r);
-  const nombre = `EcoTrack-Reporte-${r.torre.nombre.replace(/\s+/g, "")}-${r.mes}.pdf`;
-  return entregarPdf(bytes, nombre, `Reporte EcoTrack ${r.torre.nombre}`);
+  const nombre = `RecyTrack-Reporte-${r.torre.nombre.replace(/\s+/g, "")}-${r.mes}.pdf`;
+  return entregarPdf(bytes, nombre, `Reporte RecyTrack ${r.torre.nombre}`);
 }

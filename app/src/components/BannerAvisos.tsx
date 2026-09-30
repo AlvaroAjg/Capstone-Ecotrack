@@ -119,7 +119,7 @@ export default function BannerAvisos({
             <Text className={`text-lg ${alerta ? "text-white font-bold" : ""}`}>{aviso.emoji}</Text>
           </View>
           <View className="flex-1 min-w-0">
-            <Text className="text-gray-400 text-[10px] font-semibold">ECOTRACK · AHORA</Text>
+            <Text className="text-gray-400 text-[10px] font-semibold">RECYTRACK · AHORA</Text>
             <Text
               className={`font-semibold text-sm ${alerta ? "text-red-800" : "text-gray-800"}`}
               numberOfLines={1}

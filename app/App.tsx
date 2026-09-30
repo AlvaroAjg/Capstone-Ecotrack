@@ -158,7 +158,7 @@ function Raiz() {
   const { cargandoSesion, usuario } = useEcoTrack();
 
   if (cargandoSesion) {
-    return <PantallaCargando mensaje="Conectando con EcoTrack..." />;
+    return <PantallaCargando mensaje="Conectando con RecyTrack..." />;
   }
 
   if (!usuario) {

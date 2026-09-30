@@ -12,5 +12,5 @@ export const reportePdfDisponible = false;
 export type { ResultadoDescarga };
 
 export async function descargarReporte(_reporte: ReporteTorre): Promise<ResultadoDescarga> {
-  throw new Error("La descarga del PDF está disponible en la versión web instalada de EcoTrack.");
+  throw new Error("La descarga del PDF está disponible en la versión web instalada de RecyTrack.");
 }

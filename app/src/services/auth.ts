@@ -253,7 +253,7 @@ const MENSAJES: Record<string, string> = {
   "auth/user-not-found": "Correo o contraseña incorrectos.",
   "auth/wrong-password": "Correo o contraseña incorrectos.",
   "auth/invalid-credential": "Correo o contraseña incorrectos.",
-  "auth/email-already-in-use": "Ese correo ya tiene una cuenta en EcoTrack.",
+  "auth/email-already-in-use": "Ese correo ya tiene una cuenta en RecyTrack.",
   "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
   "auth/network-request-failed": "Sin conexión. Revisa tu internet e intenta de nuevo.",
   "auth/too-many-requests": "Demasiados intentos fallidos. Espera un momento.",
@@ -264,7 +264,7 @@ const MENSAJES: Record<string, string> = {
   "auth/unauthorized-domain":
     "Este sitio no está autorizado para iniciar sesión con Google. Agrégalo en Firebase → Authentication → Settings → Authorized domains.",
   "auth/account-exists-with-different-credential":
-    "Ese correo ya tiene una cuenta en EcoTrack. Inicia sesión con tu contraseña.",
+    "Ese correo ya tiene una cuenta en RecyTrack. Inicia sesión con tu contraseña.",
   "permission-denied": "No tienes permiso para realizar esta acción.",
   unavailable: "No se pudo contactar a Firestore. Revisa tu conexión.",
 };
