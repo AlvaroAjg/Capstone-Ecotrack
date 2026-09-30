@@ -6,7 +6,7 @@ Reglas del repositorio para todo el equipo. Rigen para cualquier cambio, sea có
 
 1. **Nunca se trabaja en `main`.** No se hacen commits ni `push` directo a `main`. `main` es la versión que funciona: todo lo que entra ahí pasa antes por un pull request.
 2. **Una rama por issue**, con el nombre `issue-<número>`, por ejemplo `issue-4`. Si el cambio no tiene issue, crea uno antes.
-3. **Todo entra por pull request** hacia `main`, con `Closes #<número>` en la descripción. Álvaro lo revisa y lo fusiona; nadie fusiona su propio PR.
+3. **Todo entra por pull request** hacia `main`, con `Closes #<número>` en la descripción. El equipo lo revisa y lo fusiona; nadie fusiona su propio PR.
 4. **Los tests pasan antes de abrir el PR** (ver [Tests](#tests)).
 5. **Se fusiona con merge commit, nunca con squash.** El squash junta los commits del PR en uno solo y se pierde el aporte de cada persona.
 6. **Los commits van a nombre de quien los hizo**, sin la línea `Co-Authored-By`.
