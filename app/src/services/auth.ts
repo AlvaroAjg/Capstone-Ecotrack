@@ -229,7 +229,7 @@ export async function crearPerfilExterno(
   // solo en los datos del proveedor.
   const email = usuario.email ?? usuario.providerData.find((p) => p.email)?.email ?? "";
   await setDoc(doc(db, "usuarios", usuario.uid), {
-    nombre: usuario.displayName?.trim() || email.split("@")[0] || "Residente",
+    nombre: usuario.displayName?.trim() || email.split("@")[0] || "Colaborador",
     email: email.toLowerCase(),
     rol: "residente",
     depto: "",

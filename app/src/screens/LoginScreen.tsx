@@ -204,7 +204,7 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
                   );
                 })}
                 <Text className="text-gray-400 text-[11px] text-center mb-4">
-                  Si es tu primera vez, se crea tu cuenta de residente.
+                  Si es tu primera vez, se crea tu cuenta de colaborador.
                 </Text>
               </>
             ) : null}

@@ -39,7 +39,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
   // certificado del anterior sigue a mano hasta que haya uno nuevo.
   const ultimoMes = mesesConCertificado(misRegistros)[0];
 
-  const nombre = usuario?.nombre ?? "Residente";
+  const nombre = usuario?.nombre ?? "Colaborador";
   const resumen = resumenTorre(usuario?.torreId ?? null);
 
   return (
