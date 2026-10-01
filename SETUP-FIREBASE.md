@@ -45,8 +45,33 @@ paso 4 apenas la crees.
    Google (así Safari del iPhone no bloquea la sesión); sin este paso Google
    responde `redirect_uri_mismatch`.
 
-Una cuenta que entra por primera vez con Google nace siempre como **residente**
-y luego pasa por la vinculación a torre, igual que un registro normal.
+**Inicio de sesión con Microsoft (opcional, solo versión web / PWA):**
+
+6. **Portal de Microsoft Entra (entra.microsoft.com) → Registros de aplicaciones →
+   Nuevo registro.** Tipos de cuenta: *cuentas de cualquier directorio
+   organizativo y cuentas personales de Microsoft*. URI de redirección, tipo
+   **Web**: `https://ecotrack-capstone-3f12d.firebaseapp.com/__/auth/handler`.
+   Después, en **Autenticación**, agregar también
+   `https://ecotrack-capstone-3f12d.web.app/__/auth/handler` (mismo motivo que el
+   paso 5 de Google).
+7. En ese registro: copiar el **Id. de aplicación (cliente)** y, en
+   **Certificados y secretos → Nuevo secreto de cliente**, copiar el **valor**
+   del secreto (se muestra una sola vez).
+8. **Authentication → Sign-in method → Microsoft → Habilitar**, pegando el Id. de
+   aplicación y el secreto. El secreto vence (máximo 24 meses): hay que crear
+   uno nuevo y reemplazarlo aquí antes de esa fecha.
+
+Para dejar entrar solo a las cuentas de una organización (por ejemplo, los
+correos de Microsoft 365 de una empresa), se reemplaza `INQUILINO_MICROSOFT`
+en `app/src/services/auth.ts` por el ID de inquilino (tenant ID) que entrega su
+área de TI. Si esa organización no deja a sus empleados autorizar aplicaciones
+externas, un administrador de su TI tiene que aprobar la aplicación una vez.
+
+Una cuenta que entra por primera vez con Google o Microsoft nace siempre como
+**residente** y luego pasa por la vinculación a torre, igual que un registro
+normal. Un mismo correo no puede tener dos formas de entrar: si alguien se
+registró con contraseña o con Google, Microsoft le pide entrar como la primera
+vez.
 
 ---
 

@@ -55,7 +55,7 @@ realmente funciona hoy, contra Firebase real, no simulado:
 **Además, sin estar en el plan original:**
 - App instalable como PWA en iPhone y Android, sin pasar por ninguna tienda de aplicaciones. En el iPhone no hace zoom al escribir ni al tocar dos veces seguidas, pero se mantiene el zoom con dos dedos por accesibilidad.
 - Pantalla "Mi cuenta": editar nombre y departamento, cambiar contraseña, cerrar sesión.
-- Inicio de sesión con cuenta personal de Google (versión web y PWA). La primera vez crea una cuenta de residente; el rol de administrador o gestor sigue exigiendo su código.
+- Inicio de sesión con cuenta de Google o de Microsoft (Outlook o Microsoft 365), en la versión web y PWA. La primera vez crea una cuenta de residente; el rol de administrador o gestor sigue exigiendo su código.
 - Barra de navegación inferior (Inicio / Reciclados / Ranking) para el residente.
 
 Detalle técnico completo en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).

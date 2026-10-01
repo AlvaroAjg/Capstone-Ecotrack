@@ -10,7 +10,7 @@ import { getFirestore, initializeFirestore } from "firebase/firestore";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 /**
- * Dominio que atiende el inicio de sesión con Google. En el sitio publicado se
+ * Dominio que atiende el inicio de sesión con Google y Microsoft. En el sitio publicado se
  * usa el mismo dominio de la app (Firebase Hosting sirve /__/auth/ en él): así
  * Safari no bloquea la sesión por venir de otro sitio, que es lo que pasa en el
  * iPhone con firebaseapp.com. En localhost se mantiene el dominio por defecto.

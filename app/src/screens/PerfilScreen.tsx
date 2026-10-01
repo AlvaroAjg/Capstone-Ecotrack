@@ -2,7 +2,12 @@ import React, { useState } from "react";
 import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type Rol } from "../state/EcoTrack";
-import { mensajeError, tieneContrasena } from "../services/auth";
+import {
+  mensajeError,
+  NOMBRE_PROVEEDOR,
+  proveedorExterno,
+  tieneContrasena,
+} from "../services/auth";
 import {
   etiquetaDepto,
   normalizarNombre,
@@ -213,13 +218,12 @@ export default function PerfilScreen({ nav }: { nav: Navegacion }) {
         </Tarjeta>
       </Seccion>
 
-      {/* Quien entra con Google no tiene contraseña de EcoTrack: la maneja Google. */}
+      {/* Quien entra con Google o Microsoft no tiene contraseña de EcoTrack: la maneja esa cuenta. */}
       {!tieneContrasena() ? (
         <Seccion titulo="Seguridad">
           <Tarjeta>
             <Text className="text-gray-500 text-sm">
-              Entras con tu cuenta de Google. La contraseña y la seguridad se
-              administran desde Google.
+              {`Entras con tu cuenta de ${NOMBRE_PROVEEDOR[proveedorExterno() ?? "google"]}. La contraseña y la seguridad se administran desde ahí.`}
             </Text>
           </Tarjeta>
         </Seccion>
