@@ -27,7 +27,7 @@ interface Errores {
  * en la interfaz un camino que el servidor va a rechazar.
  */
 const ROLES_PUBLICOS: { valor: Rol; etiqueta: string }[] = [
-  { valor: "residente", etiqueta: "🏠 Residente" },
+  { valor: "residente", etiqueta: "♻️ Colaborador" },
   { valor: "gestor", etiqueta: "🚛 Gestor" },
 ];
 
