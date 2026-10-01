@@ -104,7 +104,7 @@ interface EcoTrackValor {
 
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
-  iniciarSesionConGoogle: () => Promise<void>;
+  iniciarSesionConProveedor: (proveedor: servicioAuth.ProveedorExterno) => Promise<void>;
   registrarCuenta: (datos: {
     nombre: string;
     email: string;
@@ -147,9 +147,10 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   // evita mostrar la pantalla de login durante ese instante.
   const registrandoRef = useRef(false);
 
-  // Usuario de Firebase Auth de la sesión actual, para saber si entró con Google.
+  // Usuario de Firebase Auth de la sesión actual, para saber si entró con
+  // Google o Microsoft.
   const usuarioAuthRef = useRef<servicioAuth.UsuarioAuth | null>(null);
-  // Evita crear dos veces el perfil de Google si el snapshot llega repetido.
+  // Evita crear dos veces el perfil externo si el snapshot llega repetido.
   const creandoPerfilRef = useRef(false);
 
   // 1. Sesión de Firebase Auth (persistida en AsyncStorage).
@@ -173,14 +174,15 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
         // Durante el registro el perfil todavía se está creando.
         if (registrandoRef.current || creandoPerfilRef.current) return;
 
-        // Primer ingreso con Google: no hay registro previo, así que se crea
-        // el perfil de residente aquí. Sirve igual si Google volvió por
-        // ventana emergente o por redirección.
+        // Primer ingreso con Google o Microsoft: no hay registro previo, así
+        // que se crea el perfil de residente aquí. Sirve igual si la cuenta
+        // volvió por ventana emergente o por redirección.
         const usuarioAuth = usuarioAuthRef.current;
-        if (usuarioAuth?.uid === uid && servicioAuth.entroConGoogle(usuarioAuth)) {
+        const proveedor = servicioAuth.proveedorExterno(usuarioAuth);
+        if (usuarioAuth?.uid === uid && proveedor) {
           creandoPerfilRef.current = true;
           servicioAuth
-            .crearPerfilGoogle(usuarioAuth)
+            .crearPerfilExterno(usuarioAuth, proveedor)
             .catch(() => servicioAuth.cerrarSesion().catch(() => undefined))
             .finally(() => {
               creandoPerfilRef.current = false;
@@ -262,9 +264,12 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     await servicioAuth.iniciarSesion(email, password);
   }, []);
 
-  const iniciarSesionConGoogle = useCallback(async () => {
-    await servicioAuth.iniciarSesionConGoogle();
-  }, []);
+  const iniciarSesionConProveedor = useCallback(
+    async (proveedor: servicioAuth.ProveedorExterno) => {
+      await servicioAuth.iniciarSesionConProveedor(proveedor);
+    },
+    []
+  );
 
   const registrarCuenta = useCallback(
     async (datos: {
@@ -520,7 +525,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     avisosNuevos,
     marcarAvisosVistos,
     iniciarSesion,
-    iniciarSesionConGoogle,
+    iniciarSesionConProveedor,
     registrarCuenta,
     vincularTorre,
     vincularComoAdministrador,

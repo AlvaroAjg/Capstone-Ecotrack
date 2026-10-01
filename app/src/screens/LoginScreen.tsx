@@ -9,17 +9,52 @@ import {
 } from "react-native";
 import { LinearGradient } from "expo-linear-gradient";
 import { useEcoTrack } from "../state/EcoTrack";
-import { errorDeRedireccionGoogle, googleDisponible, mensajeError } from "../services/auth";
+import {
+  accesoExternoDisponible,
+  errorDeRedireccionExterna,
+  mensajeError,
+  NOMBRE_PROVEEDOR,
+  type ProveedorExterno,
+} from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
+/** Logo de cada proveedor, dibujado con vistas para no depender de imágenes. */
+function LogoProveedor({ proveedor }: { proveedor: ProveedorExterno }) {
+  if (proveedor === "google") {
+    return (
+      <Text className="text-lg font-bold mr-2" style={{ color: "#4285F4" }}>
+        G
+      </Text>
+    );
+  }
+  const cuadro = (color: string) => (
+    <View style={{ width: 8, height: 8, backgroundColor: color }} />
+  );
+  // Mismo alto que la "G" de Google, para que los dos botones midan lo mismo.
+  return (
+    <View className="mr-2 justify-center" style={{ height: 28 }}>
+      <View style={{ width: 18, height: 18, gap: 2 }}>
+        <View className="flex-row" style={{ gap: 2 }}>
+          {cuadro("#F25022")}
+          {cuadro("#7FBA00")}
+        </View>
+        <View className="flex-row" style={{ gap: 2 }}>
+          {cuadro("#00A4EF")}
+          {cuadro("#FFB900")}
+        </View>
+      </View>
+    </View>
+  );
+}
+
 export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => void }) {
-  const { iniciarSesion, iniciarSesionConGoogle } = useEcoTrack();
+  const { iniciarSesion, iniciarSesionConProveedor } = useEcoTrack();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errores, setErrores] = useState<{ email?: string; password?: string }>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
-  const [cargandoGoogle, setCargandoGoogle] = useState(false);
+  const [conectando, setConectando] = useState<ProveedorExterno | null>(null);
 
   async function handleLogin() {
     const nuevosErrores: typeof errores = {};
@@ -41,11 +76,11 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
     }
   }
 
-  // Si se volvió de Google por redirección (app instalada) y algo falló, se
-  // muestra aquí; si salió bien, App.tsx ya detectó la sesión.
+  // Si se volvió de Google o Microsoft por redirección (app instalada) y algo
+  // falló, se muestra aquí; si salió bien, App.tsx ya detectó la sesión.
   useEffect(() => {
     let vigente = true;
-    errorDeRedireccionGoogle().then((error) => {
+    errorDeRedireccionExterna().then((error) => {
       if (vigente && error) setErrorGeneral(mensajeError(error));
     });
     return () => {
@@ -53,15 +88,15 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
     };
   }, []);
 
-  async function handleGoogle() {
+  async function handleProveedor(proveedor: ProveedorExterno) {
     setErrorGeneral(null);
-    setCargandoGoogle(true);
+    setConectando(proveedor);
     try {
-      await iniciarSesionConGoogle();
+      await iniciarSesionConProveedor(proveedor);
     } catch (error) {
       setErrorGeneral(mensajeError(error));
     } finally {
-      setCargandoGoogle(false);
+      setConectando(null);
     }
   }
 
@@ -140,29 +175,34 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               className="mt-3 mb-4"
             />
 
-            {googleDisponible ? (
+            {accesoExternoDisponible ? (
               <>
                 <View className="flex-row items-center mb-4">
                   <View className="flex-1 h-px bg-gray-200" />
                   <Text className="text-gray-400 text-xs mx-3">o</Text>
                   <View className="flex-1 h-px bg-gray-200" />
                 </View>
-                <TouchableOpacity
-                  onPress={handleGoogle}
-                  disabled={cargandoGoogle}
-                  accessibilityRole="button"
-                  accessibilityLabel="Continuar con Google"
-                  className={`flex-row items-center justify-center border border-gray-300 rounded-xl py-3 mb-2 ${
-                    cargandoGoogle ? "opacity-60" : ""
-                  }`}
-                >
-                  <Text className="text-lg font-bold mr-2" style={{ color: "#4285F4" }}>
-                    G
-                  </Text>
-                  <Text className="text-gray-700 font-medium">
-                    {cargandoGoogle ? "Conectando con Google..." : "Continuar con Google"}
-                  </Text>
-                </TouchableOpacity>
+                {(["microsoft", "google"] as const).map((proveedor) => {
+                  const nombre = NOMBRE_PROVEEDOR[proveedor];
+                  const esteConectando = conectando === proveedor;
+                  return (
+                    <TouchableOpacity
+                      key={proveedor}
+                      onPress={() => handleProveedor(proveedor)}
+                      disabled={conectando !== null}
+                      accessibilityRole="button"
+                      accessibilityLabel={`Continuar con ${nombre}`}
+                      className={`flex-row items-center justify-center border border-gray-300 rounded-xl py-3 mb-2 ${
+                        conectando !== null ? "opacity-60" : ""
+                      }`}
+                    >
+                      <LogoProveedor proveedor={proveedor} />
+                      <Text className="text-gray-700 font-medium">
+                        {esteConectando ? `Conectando con ${nombre}...` : `Continuar con ${nombre}`}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
                 <Text className="text-gray-400 text-[11px] text-center mb-4">
                   Si es tu primera vez, se crea tu cuenta de residente.
                 </Text>
