@@ -48,7 +48,7 @@ export function kgEstimado(material: Material, talla: Talla): number {
 }
 
 export const ROLES: { valor: Rol; etiqueta: string }[] = [
-  { valor: "residente", etiqueta: "🏠 Residente" },
+  { valor: "residente", etiqueta: "♻️ Colaborador" },
   { valor: "administrador", etiqueta: "🛡️ Admin." },
   { valor: "gestor", etiqueta: "🚛 Gestor" },
 ];

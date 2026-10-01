@@ -19,7 +19,7 @@ import {
 import { Aviso, Boton, Campo, Cuerpo, Encabezado, Seccion, Tarjeta, TituloEncabezado } from "../components/ui";
 
 const ETIQUETA_ROL: Record<Rol, string> = {
-  residente: "🏠 Residente",
+  residente: "♻️ Colaborador",
   administrador: "🛡️ Administrador",
   gestor: "🚛 Gestor de reciclaje",
 };

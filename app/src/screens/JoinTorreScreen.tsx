@@ -132,7 +132,7 @@ export default function JoinTorreScreen() {
           >
             <Text className="text-center text-gray-500 text-xs">
               {comoAdmin
-                ? "No soy administrador, soy residente"
+                ? "No soy administrador, soy colaborador"
                 : "¿Eres administrador de esta torre? Toca aquí"}
             </Text>
           </TouchableOpacity>
