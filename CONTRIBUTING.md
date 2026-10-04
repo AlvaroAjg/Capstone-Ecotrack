@@ -5,26 +5,28 @@ Reglas del repositorio para todo el equipo. Rigen para cualquier cambio, sea có
 ## Reglas
 
 1. **Nunca se trabaja en `main`.** No se hacen commits ni `push` directo a `main`. `main` es la versión que funciona: todo lo que entra ahí pasa antes por un pull request.
-2. **Una rama por issue**, con el nombre `issue-<número>`, por ejemplo `issue-4`. Si el cambio no tiene issue, crea uno antes.
-3. **Todo entra por pull request** hacia `main`, con `Closes #<número>` en la descripción. El equipo lo revisa y lo fusiona; nadie fusiona su propio PR.
-4. **Los tests pasan antes de abrir el PR** (ver [Tests](#tests)).
-5. **Se fusiona con merge commit, nunca con squash.** El squash junta los commits del PR en uno solo y se pierde el aporte de cada persona.
-6. **Los commits van a nombre de quien los hizo**, sin la línea `Co-Authored-By`.
+2. **Una rama por cambio.** Si el cambio viene de un issue, la rama se llama `issue-<número>`, por ejemplo `issue-4`. Si no hay issue, usa un nombre corto que diga qué hace, por ejemplo `corregir-podio-ranking`. **No hace falta crear un issue** para abrir un PR.
+3. **Todo entra por pull request** hacia `main`. Si hay issue, la descripción lleva `Closes #<número>`; si no, explica qué cambió y por qué.
+4. **Cualquier otro integrante del equipo aprueba el PR.** No hace falta que sea Álvaro: basta con una aprobación de alguien que no sea el autor (GitHub no deja aprobar el propio PR). Con la aprobación, el autor o quien aprobó lo fusiona.
+5. **Los tests pasan antes de abrir el PR** (ver [Tests](#tests)).
+6. **Se fusiona con merge commit, nunca con squash.** El squash junta los commits del PR en uno solo y se pierde el aporte de cada persona.
+7. **Los commits van a nombre de quien los hizo**, sin la línea `Co-Authored-By`.
 
 ## Flujo de trabajo
 
 ```bash
-# 1. Asígnate el issue, para que nadie más lo tome
+# 1. Si trabajas un issue, asígnatelo para que nadie más lo tome
+#    (sin issue, sáltate este paso)
 gh issue edit 4 --add-assignee @me
 
 # 2. Parte desde main al día
 git switch main
 git pull
 
-# 3. Crea tu rama
+# 3. Crea tu rama: issue-<número>, o un nombre corto si no hay issue
 git switch -c issue-4
 
-# 4. Trabaja y haz commits (uno por cada casilla del issue)
+# 4. Trabaja y haz commits (uno por idea; con issue, uno por casilla)
 git add <archivos>
 git commit -m "Agregar ..."
 
@@ -33,6 +35,13 @@ git push -u origin issue-4
 
 # 6. Abre el pull request
 gh pr create --fill --body "Closes #4"
+#    Sin issue: gh pr create --fill
+```
+
+Después avísale al equipo que el PR está listo para revisar. Cuando alguien lo apruebe, fusiónalo:
+
+```bash
+gh pr merge 4 --merge --delete-branch
 ```
 
 Cuando el PR se fusione:
@@ -64,11 +73,35 @@ git switch -c issue-4
 git branch -f main origin/main
 ```
 
-Si ya los subiste, avísale a Álvaro antes de intentar arreglarlo.
+## Revisar el PR de otro integrante
+
+Cualquiera del equipo puede revisar y aprobar. Antes de aprobar, prueba el cambio en tu computador:
+
+```bash
+gh pr list
+gh pr checkout 7
+cd app
+npm test
+cd ..
+```
+
+Lee los cambios en GitHub (pestaña **Files changed**) o con `gh pr diff 7`. Después:
+
+```bash
+# Si está bien
+gh pr review 7 --approve
+
+# Si hay que corregir algo
+gh pr review 7 --request-changes --body "Qué hay que corregir y por qué"
+```
+
+Una vez aprobado, el autor o quien aprobó lo fusiona con `gh pr merge 7 --merge --delete-branch`. Al terminar, vuelve a `main` con `git switch main` y `git pull`.
+
+Álvaro puede fusionar sin aprobación porque es el administrador del repositorio, pero eso queda para urgencias: lo normal es que otro integrante apruebe.
 
 ## Commits
 
-- **Un commit por idea.** Normalmente es uno por casilla del issue. Evita los commits de "cambios varios".
+- **Un commit por idea.** Si trabajas un issue, normalmente es uno por casilla. Evita los commits de "cambios varios".
 - **Mensaje en español, corto y en infinitivo**, como el resto del historial: `Agregar historial de retiros del gestor`, `Mostrar el detalle de cada depósito`.
 - **Sin `Co-Authored-By`** ni pies del tipo "Generated with…". Revisa el último mensaje con `git log -1 --format=%B` antes de subir.
 - **Usa el correo de tu cuenta de GitHub** (`git config --global user.email`). Si no coincide, GitHub no te asocia los commits.
@@ -97,7 +130,7 @@ npm test
 ## Pull requests
 
 - Título claro: qué hace el cambio, no el número del issue.
-- En la descripción: `Closes #<número>`, qué cambió y cómo lo probaste.
+- En la descripción: qué cambió, cómo lo probaste y, si viene de un issue, `Closes #<número>`.
 - Si cambia algo visible, agrega una captura.
 - Mientras el PR siga abierto, los arreglos que pida la revisión van como commits nuevos en la misma rama.
 
@@ -112,5 +145,13 @@ npm test
 Pídele que siga este archivo. Una instrucción que sirve para cualquier issue:
 
 > Lee el issue #N con `gh issue view N` y hazlo en la rama `issue-N`, siguiendo CONTRIBUTING.md: un commit por cada casilla, mensajes en español y en infinitivo, sin la línea `Co-Authored-By`. Antes de cada commit muéstrame el cambio y explícamelo. No hagas commits ni push a `main`.
+
+Y para un cambio sin issue:
+
+> Quiero [describe el cambio]. Hazlo en una rama nueva con un nombre corto que lo describa, siguiendo CONTRIBUTING.md: un commit por idea, mensajes en español y en infinitivo, sin la línea `Co-Authored-By`. Antes de cada commit muéstrame el cambio y explícamelo. Al terminar, abre el PR hacia `main`.
+
+Para revisar el PR de un compañero:
+
+> Revisa el PR #N: bájalo con `gh pr checkout N`, corre los tests y explícame qué cambia y si ves algún problema. No lo apruebes ni lo fusiones hasta que yo te lo diga.
 
 Lee cada cambio antes de aprobarlo: en la defensa te pueden preguntar por cualquier línea que lleve tu nombre.
