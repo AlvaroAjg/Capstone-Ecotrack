@@ -1,5 +1,5 @@
-// Tests de las reglas de la planta: sus datos, sus áreas y el código que
-// habilita a su administrador.
+// Tests de las reglas de la planta: sus datos, sus áreas, su campaña y el
+// código que habilita a su administrador.
 
 import { describe, test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
@@ -115,5 +115,66 @@ describe("áreas", () => {
 
   test("nadie borra un área", async () => {
     await assertFails(deleteDoc(doc(como("carla"), "areas/embotellado")));
+  });
+});
+
+// ------------------------------------------------------------------ campañas
+
+describe("campañas", () => {
+  const campana = (cambios = {}) => ({
+    nombre: "Octubre sin PET en la basura común",
+    metaParticipacion: 60,
+    incentivo: "Desayuno para el área con mayor participación",
+    terminaEn: Date.now() + 30 * 24 * 60 * 60 * 1000,
+    actualizadaEn: Date.now(),
+    actualizadaPor: "carla",
+    ...cambios,
+  });
+  const guardar = (uid, datos, plantaId = "planta-a") => setDoc(doc(como(uid), "campanas", plantaId), datos);
+
+  test("la administradora define la campaña de su planta", async () => {
+    await assertSucceeds(guardar("carla", campana()));
+  });
+
+  test("y la cambia", async () => {
+    await guardar("carla", campana());
+    await assertSucceeds(
+      updateDoc(doc(como("carla"), "campanas/planta-a"), { incentivo: "Almuerzo especial", actualizadaEn: Date.now() })
+    );
+  });
+
+  test("y la termina", async () => {
+    await guardar("carla", campana());
+    await assertSucceeds(deleteDoc(doc(como("carla"), "campanas/planta-a")));
+  });
+
+  test("no la de otra planta", async () => {
+    await assertFails(guardar("carla", campana(), "planta-b"));
+  });
+
+  test("la validadora y los colaboradores no la cambian", async () => {
+    await assertFails(guardar("vale", campana({ actualizadaPor: "vale" })));
+    await assertFails(guardar("ana", campana({ actualizadaPor: "ana" })));
+  });
+
+  test("la meta es un % de participación entre 1 y 100", async () => {
+    await assertFails(guardar("carla", campana({ metaParticipacion: 0 })));
+    await assertFails(guardar("carla", campana({ metaParticipacion: 120 })));
+    await assertFails(guardar("carla", campana({ metaParticipacion: 55.5 })));
+  });
+
+  test("no con una meta en kilos", async () => {
+    await assertFails(guardar("carla", campana({ metaKg: 200 })));
+  });
+
+  test("no sin nombre ni a nombre de otra persona", async () => {
+    await assertFails(guardar("carla", campana({ nombre: "" })));
+    await assertFails(guardar("carla", campana({ actualizadaPor: "diego" })));
+  });
+
+  test("cualquiera con sesión la lee (se muestra en el inicio)", async () => {
+    await guardar("carla", campana());
+    await assertSucceeds(getDoc(doc(como("ana"), "campanas/planta-a")));
+    await assertFails(getDoc(doc(anonimo(), "campanas/planta-a")));
   });
 });

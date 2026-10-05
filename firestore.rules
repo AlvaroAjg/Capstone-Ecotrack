@@ -99,6 +99,34 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // --------------------------------------------------------------- campañas
+    // Una campaña activa por planta (id = plantaId): la meta de participación
+    // del mes y el incentivo que ofrece la viña. La meta es un % de personas
+    // del área que reciclaron, nunca de kilos: los kilos son estimados y
+    // premiarlos invita a inflarlos. La leen todos para mostrarla en el
+    // inicio; solo el administrador de la planta la crea, la cambia o la
+    // termina.
+    match /campanas/{plantaId} {
+      allow read: if autenticado();
+
+      allow create, update: if esAdminDe(plantaId)
+                            && request.resource.data.keys().hasOnly([
+                                 'nombre', 'metaParticipacion', 'incentivo', 'terminaEn',
+                                 'actualizadaEn', 'actualizadaPor'])
+                            && request.resource.data.nombre is string
+                            && request.resource.data.nombre.size() > 0
+                            && request.resource.data.nombre.size() <= 80
+                            && request.resource.data.metaParticipacion is int
+                            && request.resource.data.metaParticipacion >= 1
+                            && request.resource.data.metaParticipacion <= 100
+                            && request.resource.data.incentivo is string
+                            && request.resource.data.incentivo.size() <= 200
+                            && request.resource.data.terminaEn is int
+                            && request.resource.data.actualizadaPor == request.auth.uid;
+
+      allow delete: if esAdminDe(plantaId);
+    }
+
     // -------------------------------------------------------------- usuarios
     /** El área existe, es de la planta `plantaId` y `nombre` es su nombre real (se copia al perfil). */
     function areaDePlanta(areaId, nombre, plantaId) {
