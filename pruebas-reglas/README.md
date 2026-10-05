@@ -21,11 +21,14 @@ npm install
 npm test
 ```
 
-`npm test` levanta el emulador, corre [`reglas.test.mjs`](reglas.test.mjs) con
-el runner de Node y apaga el emulador. Cada test parte de la misma base: dos
-torres, sus códigos de rol, residentes, administradores, un gestor,
-contenedores y dos depósitos.
+`npm test` levanta el emulador, corre con el runner de Node todos los archivos
+`*.test.mjs` de esta carpeta, uno tras otro porque comparten el emulador, y lo
+apaga. Hay un archivo por tema. Los datos base con que parte cada test están en
+[`comun.mjs`](comun.mjs): una planta con dos áreas, sus colaboradores, la
+validadora y la administradora, otra planta para comprobar que nadie actúa
+fuera de la suya, contenedores y dos depósitos.
 
 Si cambias una regla, agrega aquí el caso que la justifica. Si cambias lo que
 escribe la app en un depósito (`crearRegistro` en
-`app/src/services/registros.ts`), actualiza también `deposito()` en el test.
+`app/src/services/registros.ts`), actualiza también `deposito()` en
+`comun.mjs`.
