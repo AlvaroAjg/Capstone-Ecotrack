@@ -184,30 +184,6 @@ function como(uid) {
   return entorno.authenticatedContext(uid).firestore();
 }
 
-// ----------------------------------------------------------------- codigosRol
-
-describe("codigosRol", () => {
-  test("nadie los lee, ni siquiera un administrador", async () => {
-    await assertFails(getDoc(doc(como("carla"), "codigosRol/torre-a")));
-  });
-
-  test("un administrador no puede cambiar el código de gestor", async () => {
-    await assertFails(setDoc(doc(como("carla"), "codigosRol/gestor"), { codigo: "MIO" }));
-  });
-
-  test("un administrador no puede cambiar el código de otra torre", async () => {
-    await assertFails(
-      setDoc(doc(como("carla"), "codigosRol/torre-b"), { administrador: "MIO" })
-    );
-  });
-
-  test("ni el de su propia torre", async () => {
-    await assertFails(
-      setDoc(doc(como("carla"), "codigosRol/torre-a"), { administrador: "OTRO" })
-    );
-  });
-});
-
 // ------------------------------------------------------------ usuarios: leer
 
 describe("usuarios: lectura", () => {

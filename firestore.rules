@@ -34,25 +34,61 @@ service cloud.firestore {
       return torreId is string && exists(ruta) && get(ruta).data.nombre == nombre;
     }
 
+    /** La planta de quien escribe, o null si todavía no pertenece a ninguna. */
+    function miPlanta() {
+      return miPerfil().get('plantaId', null);
+    }
+
+    /** Quien escribe administra la planta `plantaId`. */
+    function esAdminDe(plantaId) {
+      return autenticado() && miRol() == 'administrador' && plantaId != null && miPlanta() == plantaId;
+    }
+
     // ------------------------------------------------------------ códigosRol
-    // Código que habilita crear una cuenta de gestor, y uno por torre que
-    // habilita promoverse a administrador de esa torre. Nadie los lee desde la
-    // app: `allow read: if false` los esconde incluso de un usuario
-    // autenticado. Solo estas reglas los consultan con get() para comparar el
-    // código que la persona escribió contra el real. Se crean a mano desde la
-    // consola de Firebase, junto con las torres. Nadie los escribe desde la
-    // app: si un administrador pudiera, cambiaría el código de gestor o el de
-    // otra torre y se daría a sí mismo (o a quien quisiera) esos roles.
-    match /codigosRol/{id} {
+    // Un documento por planta con el código que habilita promoverse a
+    // administrador de ella. Nadie los lee desde la app: `allow read: if false`
+    // los esconde incluso de un usuario autenticado. Solo estas reglas los
+    // consultan con get() para comparar el código que la persona escribió
+    // contra el real. Se crean a mano desde la consola de Firebase, junto con
+    // la planta. Nadie los escribe desde la app: si un administrador pudiera,
+    // cambiaría el código de otra planta y se daría a sí mismo ese rol.
+    match /codigosRol/{plantaId} {
       allow read, write: if false;
     }
 
-    // ---------------------------------------------------------------- torres
-    match /torres/{torreId} {
+    // ---------------------------------------------------------------- plantas
+    // La planta se crea a mano en la consola, junto con su código de
+    // administrador: es la siembra inicial del piloto, no una acción de la app.
+    match /plantas/{plantaId} {
       allow read: if autenticado();
-      // Un administrador solo edita la torre que ya es la suya. Crear una
-      // torre nueva es una tarea de siembra inicial, no una acción de la app.
-      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
+      allow write: if false;
+    }
+
+    // ----------------------------------------------------------------- áreas
+    // Cada área tiene un código para que la gente se una a ella y su dotación
+    // (cuántas personas trabajan ahí), que es la base del % de participación.
+    // Se leen sin restricción, como antes las torres: quien se une busca su
+    // área por el código. Solo el administrador de la planta crea y edita sus
+    // áreas, y no puede pasarlas a otra planta.
+    function areaValida(datos) {
+      return datos.keys().hasOnly(['plantaId', 'nombre', 'codigo', 'dotacion'])
+        && datos.nombre is string && datos.nombre.size() > 0 && datos.nombre.size() <= 60
+        && datos.codigo is string && datos.codigo.size() >= 4 && datos.codigo.size() <= 20
+        && datos.dotacion is int && datos.dotacion >= 0;
+    }
+
+    match /areas/{areaId} {
+      allow read: if autenticado();
+
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && areaValida(request.resource.data);
+
+      allow update: if esAdminDe(resource.data.plantaId)
+                    && request.resource.data.plantaId == resource.data.plantaId
+                    && areaValida(request.resource.data);
+
+      // Los perfiles y depósitos apuntan a su área: no se borra.
+      allow delete: if false;
     }
 
     // -------------------------------------------------------------- usuarios
@@ -114,15 +150,6 @@ service cloud.firestore {
       );
 
       allow delete: if false;
-    }
-
-    // ------------------------------------------------------------- misiones
-    // Una misión activa por torre: meta en kilos e incentivo definidos por el
-    // administrador de esa torre. Se lee junto con el resto de la app; solo el
-    // administrador de la torre correspondiente la edita.
-    match /misiones/{torreId} {
-      allow read: if autenticado();
-      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
     }
 
     // ------------------------------------------------------------- registros
