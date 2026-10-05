@@ -1,13 +1,14 @@
 rules_version = '2';
 
-// Reglas de seguridad de EcoTrack.
+// Reglas de seguridad de RecyTrack.
 //
 // Principio: la cadena de verificación no puede saltarse etapas ni ser
-// manipulada por quien no corresponde. Un residente crea depósitos solo a su
-// nombre, el administrador valida solo su torre, y el certificado únicamente lo
-// emite el gestor sobre un depósito ya validado. Nadie se autoasigna un rol:
-// pasar a administrador o gestor exige un código que solo estas reglas pueden
-// comprobar (ver codigosRol más abajo).
+// manipulada por quien no corresponde. Un colaborador crea depósitos solo a su
+// nombre y en su área, el validador valida solo los de su planta, y el
+// certificado únicamente lo emite el administrador de la planta al registrar
+// el retiro de un depósito ya validado. Nadie se autoasigna un rol: al
+// validador lo nombra el administrador, y ser administrador exige un código
+// que solo estas reglas pueden comprobar (ver codigosRol más abajo).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -74,8 +75,8 @@ service cloud.firestore {
     // ----------------------------------------------------------------- áreas
     // Cada área tiene un código para que la gente se una a ella y su dotación
     // (cuántas personas trabajan ahí), que es la base del % de participación.
-    // Se leen sin restricción, como antes las torres: quien se une busca su
-    // área por el código. Solo el administrador de la planta crea y edita sus
+    // Se leen sin restricción porque quien se une busca su área por el
+    // código. Solo el administrador de la planta crea y edita sus
     // áreas, y no puede pasarlas a otra planta.
     function areaValida(datos) {
       return datos.keys().hasOnly(['plantaId', 'nombre', 'codigo', 'dotacion'])
@@ -253,10 +254,60 @@ service cloud.firestore {
                     && get(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor)).data.plantaId
                        == request.resource.data.plantaId;
 
-      allow update: if false;
+      // El administrador la da por atendida en el mismo lote en que registra
+      // el retiro de ese contenedor: desde ahí deja de advertirse.
+      allow update: if esAdminDe(resource.data.plantaId)
+                    && resource.data.atendida == false
+                    && request.resource.data.atendida == true
+                    && soloCambia(['atendida', 'atendidaEn', 'retiroId'])
+                    && retiroIncluye(request.resource.data.retiroId, resource.data);
 
       // Un reporte forma parte del historial de calidad de la planta: no se borra.
       allow delete: if false;
+    }
+
+    // ---------------------------------------------------------------- retiros
+    // Cada vez que se lleva el material del punto limpio (del día o de la
+    // semana), el administrador lo registra: fecha, quién retiró, la guía si
+    // la hay, qué contenedores salieron y el peso si se lo informaron. Ese
+    // registro es la etapa 2 de la cadena: en el mismo lote se certifican los
+    // depósitos validados de esos contenedores (ver registros) y se dan por
+    // atendidas sus incidencias. Lo leen las personas de la planta (el
+    // certificado del colaborador menciona el retiro) y no se edita ni se borra.
+    function retiroIncluye(retiroId, registro) {
+      let ruta = /databases/$(database)/documents/retiros/$(retiroId);
+      return retiroId is string
+        && existsAfter(ruta)
+        && getAfter(ruta).data.plantaId == registro.plantaId
+        && registro.contenedor in getAfter(ruta).data.contenedores;
+    }
+
+    match /retiros/{retiroId} {
+      allow read: if dePlanta(resource.data.plantaId);
+
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly([
+                         'plantaId', 'fecha', 'quienRetira', 'guia', 'contenedores', 'pesoKg',
+                         'depositos', 'kgEstimado', 'registradoPor', 'registradoEn'])
+                    && request.resource.data.registradoPor == request.auth.uid
+                    && request.resource.data.registradoEn is int
+                    && math.abs(request.resource.data.registradoEn - request.time.toMillis()) <= 600000
+                    && request.resource.data.fecha is int
+                    && request.resource.data.quienRetira is string
+                    && request.resource.data.quienRetira.size() > 0
+                    && request.resource.data.quienRetira.size() <= 80
+                    && (request.resource.data.guia == null
+                        || (request.resource.data.guia is string && request.resource.data.guia.size() <= 40))
+                    && request.resource.data.contenedores is list
+                    && request.resource.data.contenedores.size() > 0
+                    && (request.resource.data.pesoKg == null
+                        || (request.resource.data.pesoKg is number && request.resource.data.pesoKg > 0))
+                    && request.resource.data.depositos is int
+                    && request.resource.data.depositos >= 0
+                    && request.resource.data.kgEstimado is number
+                    && request.resource.data.kgEstimado >= 0;
+
+      allow update, delete: if false;
     }
 
     // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
@@ -346,17 +397,21 @@ service cloud.firestore {
           )
         )
         ||
-        // Etapa 2: el gestor certifica un depósito ya validado, firmando con
-        // su propio uid, y solo puede tocar los campos de certificación. No
-        // puede tocar el peso ni el material que ya quedaron fijados en la
-        // etapa 1. El gestor certifica el lote completo de una torre en un
-        // writeBatch; la regla se evalúa igual documento por documento.
+        // Etapa 2: el administrador de la planta registra el retiro del
+        // material y, en el mismo lote, certifica los depósitos validados de
+        // los contenedores retirados, firmando con su propio uid. Solo toca los
+        // campos de certificación: el peso y el material quedaron fijados en la
+        // etapa 1. El retiro debe existir al terminar el lote, ser de la misma
+        // planta e incluir el contenedor del depósito: así no se certifica nada
+        // que no haya salido de verdad.
         (
-          miRol() == 'gestor'
+          esAdminDe(resource.data.plantaId)
           && resource.data.estado == 'validado'
           && request.resource.data.estado == 'certificado'
           && request.resource.data.certificadoPor == request.auth.uid
-          && soloCambia(['estado', 'certificadoEn', 'certificadoPor', 'codigo', 'codigoRetiro'])
+          && request.resource.data.codigo is string
+          && soloCambia(['estado', 'certificadoEn', 'certificadoPor', 'codigo', 'retiroId'])
+          && retiroIncluye(request.resource.data.retiroId, resource.data)
         )
       );
 
