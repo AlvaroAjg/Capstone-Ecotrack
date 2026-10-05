@@ -260,49 +260,50 @@ service cloud.firestore {
     }
 
     // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
-    // la torre del depósito y, si es de un material, reciba ese material.
+    // la planta del depósito y, si es de un material, reciba ese material.
     function contenedorValido(deposito) {
       let ruta = /databases/$(database)/documents/contenedores/$(deposito.contenedor);
       return exists(ruta)
-        && get(ruta).data.torreId == deposito.torreId
+        && get(ruta).data.plantaId == deposito.plantaId
         && get(ruta).data.activo == true
         && (get(ruta).data.material == null || get(ruta).data.material == deposito.material);
     }
 
     match /registros/{registroId} {
-      // Limitación conocida del prototipo: las reglas de Firestore autorizan
-      // documentos completos, no campos sueltos. La app le muestra al gestor
-      // solo el agregado por torre (kilos y materiales, sin nombres), pero a
-      // nivel de base de datos sigue pudiendo leer el documento entero.
-      // Para que esa separación sea real haría falta exponer el agregado a
-      // través de Cloud Functions. Queda documentado como trabajo futuro.
-      allow read: if autenticado();
+      // Cada colaborador lee solo sus depósitos: el ranking de áreas sale del
+      // resumen del mes (ver resumenes), así nadie ve lo que recicla un
+      // compañero. El validador y el administrador leen los de su planta para
+      // validar, registrar retiros y armar el reporte. El depósito no guarda
+      // el nombre de la persona: el panel lo cruza con su perfil.
+      allow read: if autenticado()
+                  && (resource.data.colaboradorId == request.auth.uid
+                      || esValidadorOAdminDe(resource.data.plantaId));
 
-      // Un depósito lo registra un residente, siempre a su nombre y en estado
-      // pendiente, en su propia torre y en un contenedor real de ella (ver
-      // contenedorValido), con una talla de bolsa válida y exactamente los kilos
-      // que esa talla estima para ese material: nadie puede inventar kilos,
-      // contenedores ni materiales, ni siquiera escribiendo directo a la base
-      // de datos.
+      // Un depósito lo registra un colaborador, siempre a su nombre y en estado
+      // pendiente, en su propia planta y área y en un contenedor real de ella
+      // (ver contenedorValido), con una talla de bolsa válida y exactamente los
+      // kilos que esa talla estima para ese material: nadie puede inventar
+      // kilos, contenedores ni materiales, ni siquiera escribiendo directo a la
+      // base de datos.
       //
-      // Nombre, departamento y torre se copian del perfil y deben coincidir con
-      // él: si no, alguien podría declarar depósitos con varios departamentos
-      // inventados y subir el % de participación de su torre. La fecha debe ser
-      // la de ahora (con 10 minutos de margen por relojes desajustados), para
-      // que nadie retroceda un depósito a una semana anterior y cumpla una
-      // misión que ya pasó. Y no se aceptan campos de más ni etapas ya llenas.
+      // Planta y área se copian del perfil y deben coincidir con él: si no,
+      // alguien podría declarar depósitos en otra área y subirle la
+      // participación. La fecha debe ser la de ahora (con 10 minutos de margen
+      // por relojes desajustados), para que nadie retroceda un depósito a una
+      // semana anterior y cumpla una misión que ya pasó. Y no se aceptan
+      // campos de más ni etapas ya llenas. El validador y el administrador no
+      // depositan: luego validarían sus propios depósitos.
       allow create: if autenticado()
-                    && miRol() == 'residente'
+                    && miRol() == 'colaborador'
                     && request.resource.data.keys().hasOnly([
-                         'residenteId', 'residente', 'depto', 'torreId', 'torreNombre',
+                         'colaboradorId', 'plantaId', 'areaId',
                          'material', 'talla', 'kgDeclarado', 'kgConfirmado', 'contenedor',
                          'estado', 'creadoEn', 'validadoEn', 'validadoPor',
-                         'certificadoEn', 'certificadoPor', 'codigo', 'codigoRetiro'])
-                    && request.resource.data.residenteId == request.auth.uid
-                    && request.resource.data.residente == miPerfil().get('nombre', '')
-                    && request.resource.data.depto == miPerfil().get('depto', '')
-                    && request.resource.data.torreId == miPerfil().torreId
-                    && request.resource.data.torreNombre == miPerfil().get('torreNombre', null)
+                         'certificadoEn', 'certificadoPor', 'codigo', 'retiroId'])
+                    && request.resource.data.colaboradorId == request.auth.uid
+                    && request.resource.data.plantaId == miPlanta()
+                    && request.resource.data.areaId is string
+                    && request.resource.data.areaId == miPerfil().get('areaId', null)
                     && request.resource.data.estado == 'pendiente'
                     && request.resource.data.creadoEn is int
                     && math.abs(request.resource.data.creadoEn - request.time.toMillis()) <= 600000
@@ -312,7 +313,7 @@ service cloud.firestore {
                     && request.resource.data.certificadoEn == null
                     && request.resource.data.certificadoPor == null
                     && request.resource.data.codigo == null
-                    && request.resource.data.codigoRetiro == null
+                    && request.resource.data.retiroId == null
                     && contenedorValido(request.resource.data)
                     && request.resource.data.material in kgPorTalla()
                     && request.resource.data.talla in ['S', 'M', 'L', 'XL']
@@ -320,15 +321,15 @@ service cloud.firestore {
                        kgPorTalla()[request.resource.data.material][request.resource.data.talla];
 
       allow update: if autenticado() && (
-        // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente,
-        // firmando con su propio uid. No puede alterar de quién es el depósito,
-        // qué material era, ni nada de la etapa 2. Al validar confirma los
-        // kilos declarados, no otros: valida el contenedor completo, no pesa
-        // bolsa por bolsa, y así tampoco puede inflar los kilos de su torre en
-        // el ranking. Al rechazar, los kilos confirmados no se tocan.
+        // Etapa 1: el validador (o el administrador, si lo reemplaza) de ESA
+        // planta valida o rechaza un pendiente, firmando con su propio uid. No
+        // puede alterar de quién es el depósito, qué material era, ni nada de
+        // la etapa 2. Al validar confirma los kilos declarados, no otros:
+        // valida el contenedor completo, no pesa bolsa por bolsa, y así
+        // tampoco puede inflar los kilos de la planta. Al rechazar, los kilos
+        // confirmados no se tocan.
         (
-          miRol() == 'administrador'
-          && miPerfil().torreId == resource.data.torreId
+          esValidadorOAdminDe(resource.data.plantaId)
           && resource.data.estado == 'pendiente'
           && request.resource.data.validadoPor == request.auth.uid
           && (
