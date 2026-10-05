@@ -28,12 +28,6 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
     }
 
-    /** La torre existe y `nombre` es su nombre real (se copia al perfil y a los depósitos). */
-    function torreConNombre(torreId, nombre) {
-      let ruta = /databases/$(database)/documents/torres/$(torreId);
-      return torreId is string && exists(ruta) && get(ruta).data.nombre == nombre;
-    }
-
     /** La planta de quien escribe, o null si todavía no pertenece a ninguna. */
     function miPlanta() {
       return miPerfil().get('plantaId', null);
@@ -92,60 +86,87 @@ service cloud.firestore {
     }
 
     // -------------------------------------------------------------- usuarios
-    match /usuarios/{uid} {
-      // Cada quien lee solo su propio perfil. El perfil de un administrador o
-      // gestor guarda el código de rol que presentó (codigoRolUsado, lo exigen
-      // las reglas de abajo): si otros pudieran leerlo, cualquier residente
-      // sacaría de ahí el código de administrador de su torre. Además así nadie
-      // descarga los correos de los demás.
-      allow read: if autenticado() && request.auth.uid == uid;
+    /** El área existe, es de la planta `plantaId` y `nombre` es su nombre real (se copia al perfil). */
+    function areaDePlanta(areaId, nombre, plantaId) {
+      let ruta = /databases/$(database)/documents/areas/$(areaId);
+      return areaId is string
+        && exists(ruta)
+        && get(ruta).data.nombre == nombre
+        && get(ruta).data.plantaId == plantaId;
+    }
 
-      // Cada quien crea su propio perfil al registrarse. Nace siempre como
-      // residente, salvo que presente el código de gestor correcto: nadie
-      // puede autoasignarse administrador desde el registro, porque ese rol
-      // está ligado a una torre específica (ver la promoción más abajo).
+    match /usuarios/{uid} {
+      // Cada quien lee su propio perfil, y el administrador los de su planta
+      // para gestionar a las personas desde el panel. Nadie más: así un
+      // colaborador no descarga los correos de sus compañeros ni ve lo que
+      // recicla cada uno. El perfil de un administrador guarda el código que
+      // presentó (codigoRolUsado), pero solo lo ven él y otro administrador de
+      // la misma planta, que ya lo conoce.
+      allow read: if autenticado()
+                  && (request.auth.uid == uid || esAdminDe(resource.data.get('plantaId', null)));
+
+      // Cada quien crea su propio perfil al registrarse, siempre como
+      // colaborador, sin área o ya unido a un área real. Nadie nace validador
+      // ni administrador: al validador lo nombra el administrador, y para ser
+      // administrador hay que presentar el código de la planta (más abajo).
       allow create: if autenticado()
                     && request.auth.uid == uid
+                    && request.resource.data.rol == 'colaborador'
+                    && !('codigoRolUsado' in request.resource.data)
                     && (
-                      (
-                        request.resource.data.rol == 'residente'
-                        && (request.resource.data.torreId == null
-                            || torreConNombre(request.resource.data.torreId,
-                                              request.resource.data.torreNombre))
-                      )
+                      (request.resource.data.get('plantaId', null) == null
+                       && request.resource.data.get('areaId', null) == null)
                       ||
-                      (
-                        request.resource.data.rol == 'gestor'
-                        && request.resource.data.torreId == null
-                        && request.resource.data.codigoRolUsado ==
-                           get(/databases/$(database)/documents/codigosRol/gestor).data.codigo
-                      )
+                      areaDePlanta(request.resource.data.areaId,
+                                   request.resource.data.areaNombre,
+                                   request.resource.data.plantaId)
                     );
 
-      allow update: if autenticado() && request.auth.uid == uid && (
-        // Caso normal, cualquier rol: editar nombre y departamento, o marcar
-        // los avisos como vistos. Ni el rol ni la torre cambian.
-        soloCambia(['nombre', 'depto', 'avisosVistosHasta'])
-        ||
-        // Un residente se vincula a una torre (o se cambia) con su código de
-        // invitación. Solo un residente: si un administrador pudiera cambiarse
-        // de torre, quedaría como administrador de otra sin su código.
+      allow update: if autenticado() && (
         (
-          resource.data.rol == 'residente'
-          && soloCambia(['torreId', 'torreNombre', 'depto'])
-          && torreConNombre(request.resource.data.torreId, request.resource.data.torreNombre)
+          request.auth.uid == uid && (
+            // Cualquier rol: editar su nombre o marcar los avisos como vistos.
+            soloCambia(['nombre', 'avisosVistosHasta'])
+            ||
+            // Un colaborador se une a un área con su código, pero solo si
+            // todavía no tiene una. Cambiarse de área lo hace el administrador:
+            // si cada quien pudiera, se pasaría al área que va perdiendo para
+            // inflarle la participación.
+            (
+              resource.data.rol == 'colaborador'
+              && resource.data.get('areaId', null) == null
+              && soloCambia(['plantaId', 'areaId', 'areaNombre'])
+              && areaDePlanta(request.resource.data.areaId,
+                              request.resource.data.areaNombre,
+                              request.resource.data.plantaId)
+            )
+            ||
+            // Promoción a administrador de una planta: solo con su código. El
+            // administrador no compite (no deposita), así que queda sin área.
+            (
+              resource.data.rol == 'colaborador'
+              && request.resource.data.rol == 'administrador'
+              && soloCambia(['rol', 'plantaId', 'areaId', 'areaNombre', 'codigoRolUsado'])
+              && request.resource.data.get('areaId', null) == null
+              && request.resource.data.get('areaNombre', null) == null
+              && request.resource.data.codigoRolUsado ==
+                 get(/databases/$(database)/documents/codigosRol/$(request.resource.data.plantaId)).data.administrador
+            )
+          )
         )
         ||
-        // Promoción a administrador de una torre: solo si presenta el código
-        // de esa torre. Un residente no puede promoverse a sí mismo a gestor
-        // por este camino; gestor solo se obtiene al crear la cuenta.
+        // El administrador cambia a una persona de su planta de área, o la
+        // nombra validadora o la devuelve a colaboradora. No puede hacer
+        // administrador a nadie ni sacarla de la planta.
         (
-          resource.data.rol == 'residente'
-          && request.resource.data.rol == 'administrador'
-          && soloCambia(['rol', 'torreId', 'torreNombre', 'depto', 'codigoRolUsado'])
-          && torreConNombre(request.resource.data.torreId, request.resource.data.torreNombre)
-          && request.resource.data.codigoRolUsado ==
-             get(/databases/$(database)/documents/codigosRol/$(request.resource.data.torreId)).data.administrador
+          request.auth.uid != uid
+          && esAdminDe(resource.data.get('plantaId', null))
+          && resource.data.rol in ['colaborador', 'validador']
+          && request.resource.data.rol in ['colaborador', 'validador']
+          && soloCambia(['rol', 'areaId', 'areaNombre'])
+          && areaDePlanta(request.resource.data.areaId,
+                          request.resource.data.areaNombre,
+                          resource.data.plantaId)
         )
       );
 
