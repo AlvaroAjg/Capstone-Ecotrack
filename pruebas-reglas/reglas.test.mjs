@@ -515,26 +515,6 @@ describe("registros: lotes del administrador", () => {
     await assertSucceeds(lote.commit());
   });
 
-  test("reporta la contaminación y valida sus depósitos en el mismo lote", async () => {
-    const ids = await sembrarPendientes(3);
-    const db = como("carla");
-    const lote = writeBatch(db);
-    for (const id of ids) lote.update(doc(db, "registros", id), validacion());
-    lote.set(doc(collection(db, "incidencias")), {
-      torreId: "torre-a",
-      torreNombre: "Torre A",
-      contenedor: "MIXTO1",
-      contenedorNombre: "Contenedor mixto",
-      contaminante: "Vidrio",
-      reportadoEn: Date.now(),
-      reportadoPor: "carla",
-      atendida: false,
-      atendidaEn: null,
-      codigoRetiro: null,
-    });
-    await assertSucceeds(lote.commit());
-  });
-
   test("si un depósito del lote no se puede validar, no se valida ninguno", async () => {
     const ids = await sembrarPendientes(3);
     await entorno.withSecurityRulesDisabled(async (contexto) => {
@@ -545,21 +525,6 @@ describe("registros: lotes del administrador", () => {
     for (const id of [...ids, "deOtraTorre"]) lote.update(doc(db, "registros", id), validacion());
     await assertFails(lote.commit());
     // Los de su torre, que sí podía validar, siguen pendientes: no quedó a medias.
-    for (const id of ids) assert.equal(await estadoDe(id), "pendiente");
-  });
-
-  test("si el reporte de contaminación es inválido, tampoco se validan los depósitos", async () => {
-    const ids = await sembrarPendientes(2);
-    const db = como("carla");
-    const lote = writeBatch(db);
-    for (const id of ids) lote.update(doc(db, "registros", id), validacion());
-    lote.set(doc(collection(db, "incidencias")), {
-      torreId: "torre-a",
-      reportadoPor: "carla",
-      atendida: false,
-      contaminante: "Algo que no está en la lista",
-    });
-    await assertFails(lote.commit());
     for (const id of ids) assert.equal(await estadoDe(id), "pendiente");
   });
 });

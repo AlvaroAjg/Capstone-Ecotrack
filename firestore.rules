@@ -38,6 +38,19 @@ service cloud.firestore {
       return autenticado() && miRol() == 'administrador' && plantaId != null && miPlanta() == plantaId;
     }
 
+    /** Quien escribe es el validador o el administrador de la planta `plantaId`. */
+    function esValidadorOAdminDe(plantaId) {
+      return autenticado()
+        && miRol() in ['validador', 'administrador']
+        && plantaId != null
+        && miPlanta() == plantaId;
+    }
+
+    /** Quien lee pertenece a la planta `plantaId`, con cualquier rol. */
+    function dePlanta(plantaId) {
+      return autenticado() && plantaId != null && miPlanta() == plantaId;
+    }
+
     // ------------------------------------------------------------ códigosRol
     // Un documento por planta con el código que habilita promoverse a
     // administrador de ella. Nadie los lee desde la app: `allow read: if false`
@@ -189,29 +202,28 @@ service cloud.firestore {
     // ---------------------------------------------------------- contenedores
     // Un documento por contenedor físico, con id = el código de su QR (p. ej.
     // "K7QM9X"), aleatorio y no adivinable. Leer uno exige conocer su código,
-    // o sea haberlo escaneado frente al contenedor; listarlos solo puede el
-    // administrador de esa torre, para imprimir sus QR. Así nadie registra un
-    // depósito desde su casa escribiendo un código que se imagina.
+    // o sea haberlo escaneado frente al contenedor; listarlos solo pueden el
+    // validador (para su ronda) y el administrador (para imprimir sus QR) de
+    // esa planta. Así nadie registra un depósito desde su casa escribiendo un
+    // código que se imagina. `punto` es el nombre del punto limpio donde está:
+    // así sirve igual si la planta tiene uno o varios.
     match /contenedores/{codigo} {
       allow get: if autenticado();
-      allow list: if autenticado()
-                  && miRol() == 'administrador'
-                  && resource.data.torreId == miPerfil().torreId;
+      allow list: if esValidadorOAdminDe(resource.data.plantaId);
 
       // Mixto (material null) o de uno de los materiales de la tabla.
-      allow create: if autenticado()
-                    && miRol() == 'administrador'
-                    && request.resource.data.torreId == miPerfil().torreId
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly(['plantaId', 'punto', 'material', 'activo', 'creadoEn'])
+                    && request.resource.data.punto is string
+                    && request.resource.data.punto.size() > 0
+                    && request.resource.data.punto.size() <= 60
                     && request.resource.data.activo == true
                     && (request.resource.data.material == null
-                        || request.resource.data.material in kgPorTalla())
-                    && request.resource.data.keys().hasOnly(['torreId', 'material', 'activo', 'creadoEn']);
+                        || request.resource.data.material in kgPorTalla());
 
       // Lo único que se cambia es desactivarlo (al quitarlo o al cambiarle el
       // código): los depósitos hechos en él siguen apuntando a este documento.
-      allow update: if autenticado()
-                    && miRol() == 'administrador'
-                    && resource.data.torreId == miPerfil().torreId
+      allow update: if esAdminDe(resource.data.plantaId)
                     && soloCambia(['activo'])
                     && request.resource.data.activo == false;
 
@@ -220,27 +232,30 @@ service cloud.firestore {
 
     // ----------------------------------------------------------- incidencias
     // Contenedor encontrado contaminado (p. ej. vidrio en el de cartón). Lo
-    // reporta el administrador de esa torre; el gestor lo marca como atendido
-    // al retirar el contenedor. Se lee sin restricción de torre porque no lleva
-    // datos personales: no se sabe quién fue, y por eso no señala a nadie.
+    // reporta el validador o el administrador de la planta, sobre un
+    // contenedor de esa planta. No lleva datos personales: no se sabe quién
+    // fue, y por eso no señala a nadie. Lo marca como atendido el
+    // administrador al registrar el retiro de ese contenedor (ver retiros).
     match /incidencias/{incidenciaId} {
-      allow read: if autenticado();
+      allow read: if dePlanta(resource.data.plantaId);
 
-      allow create: if autenticado()
-                    && miRol() == 'administrador'
-                    && request.resource.data.torreId == miPerfil().torreId
+      allow create: if esValidadorOAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly([
+                         'plantaId', 'contenedor', 'contenedorNombre', 'contaminante',
+                         'reportadoEn', 'reportadoPor', 'atendida', 'atendidaEn', 'retiroId'])
                     && request.resource.data.reportadoPor == request.auth.uid
                     && request.resource.data.atendida == false
+                    && request.resource.data.atendidaEn == null
+                    && request.resource.data.retiroId == null
                     && request.resource.data.contaminante in
-                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común'];
+                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común']
+                    && exists(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor))
+                    && get(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor)).data.plantaId
+                       == request.resource.data.plantaId;
 
-      allow update: if autenticado()
-                    && miRol() == 'gestor'
-                    && resource.data.atendida == false
-                    && request.resource.data.atendida == true
-                    && soloCambia(['atendida', 'atendidaEn', 'codigoRetiro']);
+      allow update: if false;
 
-      // Un reporte forma parte del historial de calidad de la torre: no se borra.
+      // Un reporte forma parte del historial de calidad de la planta: no se borra.
       allow delete: if false;
     }
 
