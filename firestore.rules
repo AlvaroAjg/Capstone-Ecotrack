@@ -338,6 +338,93 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ------------------------------------------------------------- resúmenes
+    // Totales del mes por área, id = "{plantaId}_{AAAA-MM}" (el id de la planta
+    // no lleva "_"). Con ellos el colaborador ve el ranking de áreas sin leer
+    // los depósitos de sus compañeros. Los escribe el propio colaborador, en
+    // el mismo lote en que crea su depósito: suma 1 a los depósitos de su área
+    // y, si es su primer depósito del mes, 1 a sus participantes. No hay
+    // Cloud Functions que lo calculen en el servidor, así que estas reglas
+    // comprueban cada suma: `ultimoRegistro` es el depósito que se crea en ese
+    // mismo lote, de quien escribe y de esa área, y el primer depósito del mes
+    // se reconoce porque en el mismo lote nace su documento en participaciones.
+    // Cuenta los depósitos registrados, también los que después se rechazan;
+    // el panel calcula los exactos con los registros.
+
+    /**
+     * `mes` ("AAAA-MM") es el mes del instante `ms` en Chile, que según la
+     * época del año está a 3 o 4 horas de UTC.
+     */
+    function mesDelInstante(mes, ms) {
+      let partes = mes.split('-');
+      let utc3 = timestamp.value(ms) - duration.value(3, 'h');
+      let utc4 = timestamp.value(ms) - duration.value(4, 'h');
+      return mes.matches('^[0-9]{4}-[0-9]{2}$')
+        && (
+          (int(partes[0]) == utc3.year() && int(partes[1]) == utc3.month())
+          || (int(partes[0]) == utc4.year() && int(partes[1]) == utc4.month())
+        );
+    }
+
+    /** La escritura suma exactamente un depósito nuevo de quien escribe a su área. */
+    function sumaUnDeposito(resumenId, antes) {
+      let datos = request.resource.data;
+      let rutaRegistro = /databases/$(database)/documents/registros/$(datos.ultimoRegistro);
+      let registro = getAfter(rutaRegistro).data;
+      let area = registro.areaId;
+      let previo = antes.get(area, {'depositos': 0, 'participantes': 0});
+      let nuevo = datos.areas[area];
+      let rutaParticipacion =
+        /databases/$(database)/documents/participaciones/$(datos.mes + '_' + request.auth.uid);
+      let esPrimero = !exists(rutaParticipacion) && existsAfter(rutaParticipacion);
+      return resumenId == datos.plantaId + '_' + datos.mes
+        && datos.ultimoRegistro is string
+        && !exists(rutaRegistro)
+        && existsAfter(rutaRegistro)
+        && registro.colaboradorId == request.auth.uid
+        && registro.plantaId == datos.plantaId
+        && mesDelInstante(datos.mes, registro.creadoEn)
+        && datos.areas.diff(antes).affectedKeys().hasOnly([area])
+        && nuevo.keys().hasOnly(['depositos', 'participantes'])
+        && nuevo.depositos == previo.depositos + 1
+        && (
+          (esPrimero && nuevo.participantes == previo.participantes + 1)
+          || (!esPrimero && nuevo.participantes == previo.participantes)
+        );
+    }
+
+    match /resumenes/{resumenId} {
+      // Se lee por id aunque todavía no exista (al empezar el mes).
+      allow get: if dePlanta(resumenId.split('_')[0]);
+      allow list: if dePlanta(resource.data.plantaId);
+
+      allow create: if autenticado()
+                    && request.resource.data.keys().hasOnly(['plantaId', 'mes', 'areas', 'ultimoRegistro'])
+                    && sumaUnDeposito(resumenId, {});
+
+      allow update: if autenticado()
+                    && soloCambia(['areas', 'ultimoRegistro'])
+                    && sumaUnDeposito(resumenId, resource.data.areas);
+
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------- participaciones
+    // Marca de que una persona ya depositó en el mes, id = "{AAAA-MM}_{uid}".
+    // La crea ella misma en el lote de su primer depósito del mes, y solo una
+    // vez: así no se cuenta dos veces como participante de su área. La app la
+    // lee para saber si el depósito que va a registrar es el primero del mes.
+    match /participaciones/{participacionId} {
+      allow get: if autenticado() && participacionId.split('_')[1] == request.auth.uid;
+
+      allow create: if autenticado()
+                    && request.resource.data.keys().hasOnly(['uid', 'mes'])
+                    && request.resource.data.uid == request.auth.uid
+                    && participacionId == request.resource.data.mes + '_' + request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
     // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
     // la planta del depósito y, si es de un material, reciba ese material.
     function contenedorValido(deposito) {

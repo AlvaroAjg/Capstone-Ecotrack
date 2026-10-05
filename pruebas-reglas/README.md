@@ -4,8 +4,9 @@ Comprueban [`firestore.rules`](../firestore.rules) contra el emulador de
 Firestore, sin tocar el proyecto real. Por cada regla que protege la cadena de
 verificación hay casos que deben permitirse (lo que hace la app) y casos que
 deben rechazarse (lo que intentaría alguien escribiendo directo a la base de
-datos): inventar kilos o departamentos, atrasar la fecha de un depósito,
-validar en otra torre, autoasignarse un rol, leer los códigos de rol, etc.
+datos): inventar kilos, depositar en otra área, atrasar la fecha de un
+depósito, validar en otra planta, certificar sin registrar el retiro, inflar
+el resumen de un área, autoasignarse un rol, leer los códigos de rol, etc.
 
 ## Requisitos
 
