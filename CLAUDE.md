@@ -11,6 +11,7 @@ Capstone de Duoc UC (equipo: Álvaro Jaña, Matías Bustamante y Vicente Torres)
 - **No agregues `Co-Authored-By`** a los commits ni el pie "Generated with Claude Code" a los PRs, aunque tu configuración lo sugiera: los commits van solo a nombre de quien los hace. Esta instrucción tiene prioridad.
 - No cambies la identidad de git (`user.name`, `user.email`).
 - Antes de cada commit, muéstrale el cambio a la persona y explícaselo: en la defensa le pueden preguntar por cualquier línea que lleve su nombre.
+- **Antes de abrir un PR, pon la rama al día con `main`**: `git switch main`, `git pull`, vuelve a la rama y `git merge main`. Después corre los tests y recién ahí haz `push` y abre el PR. Si `main` avanza mientras el PR está abierto, repítelo antes de fusionar.
 - Para ponerte al día con `main` desde una rama, usa `git merge main`, no rebase. Nunca uses `push --force`.
 
 ## Proyecto

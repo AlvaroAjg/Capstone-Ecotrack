@@ -8,9 +8,10 @@ Reglas del repositorio para todo el equipo. Rigen para cualquier cambio, sea có
 2. **Una rama por cambio.** Si el cambio viene de un issue, la rama se llama `issue-<número>`, por ejemplo `issue-4`. Si no hay issue, usa un nombre corto que diga qué hace, por ejemplo `corregir-podio-ranking`. **No hace falta crear un issue** para abrir un PR.
 3. **Todo entra por pull request** hacia `main`. Si hay issue, la descripción lleva `Closes #<número>`; si no, explica qué cambió y por qué.
 4. **Cualquier otro integrante del equipo aprueba el PR.** No hace falta que sea Álvaro: basta con una aprobación de alguien que no sea el autor (GitHub no deja aprobar el propio PR). Con la aprobación, el autor o quien aprobó lo fusiona.
-5. **Los tests pasan antes de abrir el PR** (ver [Tests](#tests)).
-6. **Se fusiona con merge commit, nunca con squash.** El squash junta los commits del PR en uno solo y se pierde el aporte de cada persona.
-7. **Los commits van a nombre de quien los hizo**, sin la línea `Co-Authored-By`.
+5. **Antes de abrir el PR, tu rama se pone al día con `main`** (`git pull` en `main` y `git merge main` en tu rama). Así los conflictos los resuelves tú, que conoces tu cambio, y los tests se corren contra lo que otros ya fusionaron.
+6. **Los tests pasan antes de abrir el PR**, después de ponerte al día (ver [Tests](#tests)).
+7. **Se fusiona con merge commit, nunca con squash.** El squash junta los commits del PR en uno solo y se pierde el aporte de cada persona.
+8. **Los commits van a nombre de quien los hizo**, sin la línea `Co-Authored-By`.
 
 ## Flujo de trabajo
 
@@ -30,10 +31,17 @@ git switch -c issue-4
 git add <archivos>
 git commit -m "Agregar ..."
 
-# 5. Sube la rama (el -u solo la primera vez)
+# 5. Antes del PR, tráete lo último de main y vuelve a correr los tests
+git switch main
+git pull
+git switch issue-4
+git merge main
+cd app && npm test && cd ..
+
+# 6. Sube la rama (el -u solo la primera vez)
 git push -u origin issue-4
 
-# 6. Abre el pull request
+# 7. Abre el pull request
 gh pr create --fill --body "Closes #4"
 #    Sin issue: gh pr create --fill
 ```
@@ -54,7 +62,7 @@ git branch -d issue-4
 
 ### Si `main` avanzó mientras trabajabas
 
-Tráete esos cambios a tu rama con `merge`, no con `rebase`, para no tener que forzar el `push`:
+Pasa cuando otro PR se fusiona mientras el tuyo sigue abierto: GitHub lo avisa con "This branch is out-of-date with the base branch". Ponte al día otra vez antes de fusionar. Tráete esos cambios a tu rama con `merge`, no con `rebase`, para no tener que forzar el `push`:
 
 ```bash
 git switch main
