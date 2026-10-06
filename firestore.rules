@@ -1,13 +1,14 @@
 rules_version = '2';
 
-// Reglas de seguridad de EcoTrack.
+// Reglas de seguridad de RecyTrack.
 //
 // Principio: la cadena de verificación no puede saltarse etapas ni ser
-// manipulada por quien no corresponde. Un residente crea depósitos solo a su
-// nombre, el administrador valida solo su torre, y el certificado únicamente lo
-// emite el gestor sobre un depósito ya validado. Nadie se autoasigna un rol:
-// pasar a administrador o gestor exige un código que solo estas reglas pueden
-// comprobar (ver codigosRol más abajo).
+// manipulada por quien no corresponde. Un colaborador crea depósitos solo a su
+// nombre y en su área, el validador valida solo los de su planta, y el
+// certificado únicamente lo emite el administrador de la planta al registrar
+// el retiro de un depósito ya validado. Nadie se autoasigna un rol: al
+// validador lo nombra el administrador, y ser administrador exige un código
+// que solo estas reglas pueden comprobar (ver codigosRol más abajo).
 service cloud.firestore {
   match /databases/{database}/documents {
 
@@ -28,101 +29,190 @@ service cloud.firestore {
       return request.resource.data.diff(resource.data).affectedKeys().hasOnly(campos);
     }
 
-    /** La torre existe y `nombre` es su nombre real (se copia al perfil y a los depósitos). */
-    function torreConNombre(torreId, nombre) {
-      let ruta = /databases/$(database)/documents/torres/$(torreId);
-      return torreId is string && exists(ruta) && get(ruta).data.nombre == nombre;
+    /** La planta de quien escribe, o null si todavía no pertenece a ninguna. */
+    function miPlanta() {
+      return miPerfil().get('plantaId', null);
+    }
+
+    /** Quien escribe administra la planta `plantaId`. */
+    function esAdminDe(plantaId) {
+      return autenticado() && miRol() == 'administrador' && plantaId != null && miPlanta() == plantaId;
+    }
+
+    /** Quien escribe es el validador o el administrador de la planta `plantaId`. */
+    function esValidadorOAdminDe(plantaId) {
+      return autenticado()
+        && miRol() in ['validador', 'administrador']
+        && plantaId != null
+        && miPlanta() == plantaId;
+    }
+
+    /** Quien lee pertenece a la planta `plantaId`, con cualquier rol. */
+    function dePlanta(plantaId) {
+      return autenticado() && plantaId != null && miPlanta() == plantaId;
     }
 
     // ------------------------------------------------------------ códigosRol
-    // Código que habilita crear una cuenta de gestor, y uno por torre que
-    // habilita promoverse a administrador de esa torre. Nadie los lee desde la
-    // app: `allow read: if false` los esconde incluso de un usuario
-    // autenticado. Solo estas reglas los consultan con get() para comparar el
-    // código que la persona escribió contra el real. Se crean a mano desde la
-    // consola de Firebase, junto con las torres. Nadie los escribe desde la
-    // app: si un administrador pudiera, cambiaría el código de gestor o el de
-    // otra torre y se daría a sí mismo (o a quien quisiera) esos roles.
-    match /codigosRol/{id} {
+    // Un documento por planta con el código que habilita promoverse a
+    // administrador de ella. Nadie los lee desde la app: `allow read: if false`
+    // los esconde incluso de un usuario autenticado. Solo estas reglas los
+    // consultan con get() para comparar el código que la persona escribió
+    // contra el real. Se crean a mano desde la consola de Firebase, junto con
+    // la planta. Nadie los escribe desde la app: si un administrador pudiera,
+    // cambiaría el código de otra planta y se daría a sí mismo ese rol.
+    match /codigosRol/{plantaId} {
       allow read, write: if false;
     }
 
-    // ---------------------------------------------------------------- torres
-    match /torres/{torreId} {
+    // ---------------------------------------------------------------- plantas
+    // La planta se crea a mano en la consola, junto con su código de
+    // administrador: es la siembra inicial del piloto, no una acción de la app.
+    match /plantas/{plantaId} {
       allow read: if autenticado();
-      // Un administrador solo edita la torre que ya es la suya. Crear una
-      // torre nueva es una tarea de siembra inicial, no una acción de la app.
-      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
+      allow write: if false;
+    }
+
+    // ----------------------------------------------------------------- áreas
+    // Cada área tiene un código para que la gente se una a ella y su dotación
+    // (cuántas personas trabajan ahí), que es la base del % de participación.
+    // Se leen sin restricción porque quien se une busca su área por el
+    // código. Solo el administrador de la planta crea y edita sus
+    // áreas, y no puede pasarlas a otra planta.
+    function areaValida(datos) {
+      return datos.keys().hasOnly(['plantaId', 'nombre', 'codigo', 'dotacion'])
+        && datos.nombre is string && datos.nombre.size() > 0 && datos.nombre.size() <= 60
+        && datos.codigo is string && datos.codigo.size() >= 4 && datos.codigo.size() <= 20
+        && datos.dotacion is int && datos.dotacion >= 0;
+    }
+
+    match /areas/{areaId} {
+      allow read: if autenticado();
+
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && areaValida(request.resource.data);
+
+      allow update: if esAdminDe(resource.data.plantaId)
+                    && request.resource.data.plantaId == resource.data.plantaId
+                    && areaValida(request.resource.data);
+
+      // Los perfiles y depósitos apuntan a su área: no se borra.
+      allow delete: if false;
+    }
+
+    // --------------------------------------------------------------- campañas
+    // Una campaña activa por planta (id = plantaId): la meta de participación
+    // del mes y el incentivo que ofrece la viña. La meta es un % de personas
+    // del área que reciclaron, nunca de kilos: los kilos son estimados y
+    // premiarlos invita a inflarlos. La leen todos para mostrarla en el
+    // inicio; solo el administrador de la planta la crea, la cambia o la
+    // termina.
+    match /campanas/{plantaId} {
+      allow read: if autenticado();
+
+      allow create, update: if esAdminDe(plantaId)
+                            && request.resource.data.keys().hasOnly([
+                                 'nombre', 'metaParticipacion', 'incentivo', 'terminaEn',
+                                 'actualizadaEn', 'actualizadaPor'])
+                            && request.resource.data.nombre is string
+                            && request.resource.data.nombre.size() > 0
+                            && request.resource.data.nombre.size() <= 80
+                            && request.resource.data.metaParticipacion is int
+                            && request.resource.data.metaParticipacion >= 1
+                            && request.resource.data.metaParticipacion <= 100
+                            && request.resource.data.incentivo is string
+                            && request.resource.data.incentivo.size() <= 200
+                            && request.resource.data.terminaEn is int
+                            && request.resource.data.actualizadaPor == request.auth.uid;
+
+      allow delete: if esAdminDe(plantaId);
     }
 
     // -------------------------------------------------------------- usuarios
-    match /usuarios/{uid} {
-      // Cada quien lee solo su propio perfil. El perfil de un administrador o
-      // gestor guarda el código de rol que presentó (codigoRolUsado, lo exigen
-      // las reglas de abajo): si otros pudieran leerlo, cualquier residente
-      // sacaría de ahí el código de administrador de su torre. Además así nadie
-      // descarga los correos de los demás.
-      allow read: if autenticado() && request.auth.uid == uid;
+    /** El área existe, es de la planta `plantaId` y `nombre` es su nombre real (se copia al perfil). */
+    function areaDePlanta(areaId, nombre, plantaId) {
+      let ruta = /databases/$(database)/documents/areas/$(areaId);
+      return areaId is string
+        && exists(ruta)
+        && get(ruta).data.nombre == nombre
+        && get(ruta).data.plantaId == plantaId;
+    }
 
-      // Cada quien crea su propio perfil al registrarse. Nace siempre como
-      // residente, salvo que presente el código de gestor correcto: nadie
-      // puede autoasignarse administrador desde el registro, porque ese rol
-      // está ligado a una torre específica (ver la promoción más abajo).
+    match /usuarios/{uid} {
+      // Cada quien lee su propio perfil, y el administrador los de su planta
+      // para gestionar a las personas desde el panel. Nadie más: así un
+      // colaborador no descarga los correos de sus compañeros ni ve lo que
+      // recicla cada uno. El perfil de un administrador guarda el código que
+      // presentó (codigoRolUsado), pero solo lo ven él y otro administrador de
+      // la misma planta, que ya lo conoce.
+      allow read: if autenticado()
+                  && (request.auth.uid == uid || esAdminDe(resource.data.get('plantaId', null)));
+
+      // Cada quien crea su propio perfil al registrarse, siempre como
+      // colaborador, sin área o ya unido a un área real. Nadie nace validador
+      // ni administrador: al validador lo nombra el administrador, y para ser
+      // administrador hay que presentar el código de la planta (más abajo).
       allow create: if autenticado()
                     && request.auth.uid == uid
+                    && request.resource.data.rol == 'colaborador'
+                    && !('codigoRolUsado' in request.resource.data)
                     && (
-                      (
-                        request.resource.data.rol == 'residente'
-                        && (request.resource.data.torreId == null
-                            || torreConNombre(request.resource.data.torreId,
-                                              request.resource.data.torreNombre))
-                      )
+                      (request.resource.data.get('plantaId', null) == null
+                       && request.resource.data.get('areaId', null) == null)
                       ||
-                      (
-                        request.resource.data.rol == 'gestor'
-                        && request.resource.data.torreId == null
-                        && request.resource.data.codigoRolUsado ==
-                           get(/databases/$(database)/documents/codigosRol/gestor).data.codigo
-                      )
+                      areaDePlanta(request.resource.data.areaId,
+                                   request.resource.data.areaNombre,
+                                   request.resource.data.plantaId)
                     );
 
-      allow update: if autenticado() && request.auth.uid == uid && (
-        // Caso normal, cualquier rol: editar nombre y departamento, o marcar
-        // los avisos como vistos. Ni el rol ni la torre cambian.
-        soloCambia(['nombre', 'depto', 'avisosVistosHasta'])
-        ||
-        // Un residente se vincula a una torre (o se cambia) con su código de
-        // invitación. Solo un residente: si un administrador pudiera cambiarse
-        // de torre, quedaría como administrador de otra sin su código.
+      allow update: if autenticado() && (
         (
-          resource.data.rol == 'residente'
-          && soloCambia(['torreId', 'torreNombre', 'depto'])
-          && torreConNombre(request.resource.data.torreId, request.resource.data.torreNombre)
+          request.auth.uid == uid && (
+            // Cualquier rol: editar su nombre o marcar los avisos como vistos.
+            soloCambia(['nombre', 'avisosVistosHasta'])
+            ||
+            // Un colaborador se une a un área con su código, pero solo si
+            // todavía no tiene una. Cambiarse de área lo hace el administrador:
+            // si cada quien pudiera, se pasaría al área que va perdiendo para
+            // inflarle la participación.
+            (
+              resource.data.rol == 'colaborador'
+              && resource.data.get('areaId', null) == null
+              && soloCambia(['plantaId', 'areaId', 'areaNombre'])
+              && areaDePlanta(request.resource.data.areaId,
+                              request.resource.data.areaNombre,
+                              request.resource.data.plantaId)
+            )
+            ||
+            // Promoción a administrador de una planta: solo con su código. El
+            // administrador no compite (no deposita), así que queda sin área.
+            (
+              resource.data.rol == 'colaborador'
+              && request.resource.data.rol == 'administrador'
+              && soloCambia(['rol', 'plantaId', 'areaId', 'areaNombre', 'codigoRolUsado'])
+              && request.resource.data.get('areaId', null) == null
+              && request.resource.data.get('areaNombre', null) == null
+              && request.resource.data.codigoRolUsado ==
+                 get(/databases/$(database)/documents/codigosRol/$(request.resource.data.plantaId)).data.administrador
+            )
+          )
         )
         ||
-        // Promoción a administrador de una torre: solo si presenta el código
-        // de esa torre. Un residente no puede promoverse a sí mismo a gestor
-        // por este camino; gestor solo se obtiene al crear la cuenta.
+        // El administrador cambia a una persona de su planta de área, o la
+        // nombra validadora o la devuelve a colaboradora. No puede hacer
+        // administrador a nadie ni sacarla de la planta.
         (
-          resource.data.rol == 'residente'
-          && request.resource.data.rol == 'administrador'
-          && soloCambia(['rol', 'torreId', 'torreNombre', 'depto', 'codigoRolUsado'])
-          && torreConNombre(request.resource.data.torreId, request.resource.data.torreNombre)
-          && request.resource.data.codigoRolUsado ==
-             get(/databases/$(database)/documents/codigosRol/$(request.resource.data.torreId)).data.administrador
+          request.auth.uid != uid
+          && esAdminDe(resource.data.get('plantaId', null))
+          && resource.data.rol in ['colaborador', 'validador']
+          && request.resource.data.rol in ['colaborador', 'validador']
+          && soloCambia(['rol', 'areaId', 'areaNombre'])
+          && areaDePlanta(request.resource.data.areaId,
+                          request.resource.data.areaNombre,
+                          resource.data.plantaId)
         )
       );
 
       allow delete: if false;
-    }
-
-    // ------------------------------------------------------------- misiones
-    // Una misión activa por torre: meta en kilos e incentivo definidos por el
-    // administrador de esa torre. Se lee junto con el resto de la app; solo el
-    // administrador de la torre correspondiente la edita.
-    match /misiones/{torreId} {
-      allow read: if autenticado();
-      allow write: if autenticado() && miRol() == 'administrador' && miPerfil().torreId == torreId;
     }
 
     // ------------------------------------------------------------- registros
@@ -141,29 +231,28 @@ service cloud.firestore {
     // ---------------------------------------------------------- contenedores
     // Un documento por contenedor físico, con id = el código de su QR (p. ej.
     // "K7QM9X"), aleatorio y no adivinable. Leer uno exige conocer su código,
-    // o sea haberlo escaneado frente al contenedor; listarlos solo puede el
-    // administrador de esa torre, para imprimir sus QR. Así nadie registra un
-    // depósito desde su casa escribiendo un código que se imagina.
+    // o sea haberlo escaneado frente al contenedor; listarlos solo pueden el
+    // validador (para su ronda) y el administrador (para imprimir sus QR) de
+    // esa planta. Así nadie registra un depósito desde su casa escribiendo un
+    // código que se imagina. `punto` es el nombre del punto limpio donde está:
+    // así sirve igual si la planta tiene uno o varios.
     match /contenedores/{codigo} {
       allow get: if autenticado();
-      allow list: if autenticado()
-                  && miRol() == 'administrador'
-                  && resource.data.torreId == miPerfil().torreId;
+      allow list: if esValidadorOAdminDe(resource.data.plantaId);
 
       // Mixto (material null) o de uno de los materiales de la tabla.
-      allow create: if autenticado()
-                    && miRol() == 'administrador'
-                    && request.resource.data.torreId == miPerfil().torreId
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly(['plantaId', 'punto', 'material', 'activo', 'creadoEn'])
+                    && request.resource.data.punto is string
+                    && request.resource.data.punto.size() > 0
+                    && request.resource.data.punto.size() <= 60
                     && request.resource.data.activo == true
                     && (request.resource.data.material == null
-                        || request.resource.data.material in kgPorTalla())
-                    && request.resource.data.keys().hasOnly(['torreId', 'material', 'activo', 'creadoEn']);
+                        || request.resource.data.material in kgPorTalla());
 
       // Lo único que se cambia es desactivarlo (al quitarlo o al cambiarle el
       // código): los depósitos hechos en él siguen apuntando a este documento.
-      allow update: if autenticado()
-                    && miRol() == 'administrador'
-                    && resource.data.torreId == miPerfil().torreId
+      allow update: if esAdminDe(resource.data.plantaId)
                     && soloCambia(['activo'])
                     && request.resource.data.activo == false;
 
@@ -172,74 +261,215 @@ service cloud.firestore {
 
     // ----------------------------------------------------------- incidencias
     // Contenedor encontrado contaminado (p. ej. vidrio en el de cartón). Lo
-    // reporta el administrador de esa torre; el gestor lo marca como atendido
-    // al retirar el contenedor. Se lee sin restricción de torre porque no lleva
-    // datos personales: no se sabe quién fue, y por eso no señala a nadie.
+    // reporta el validador o el administrador de la planta, sobre un
+    // contenedor de esa planta. No lleva datos personales: no se sabe quién
+    // fue, y por eso no señala a nadie. Lo marca como atendido el
+    // administrador al registrar el retiro de ese contenedor (ver retiros).
     match /incidencias/{incidenciaId} {
-      allow read: if autenticado();
+      allow read: if dePlanta(resource.data.plantaId);
 
-      allow create: if autenticado()
-                    && miRol() == 'administrador'
-                    && request.resource.data.torreId == miPerfil().torreId
+      allow create: if esValidadorOAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly([
+                         'plantaId', 'contenedor', 'contenedorNombre', 'contaminante',
+                         'reportadoEn', 'reportadoPor', 'atendida', 'atendidaEn', 'retiroId'])
                     && request.resource.data.reportadoPor == request.auth.uid
                     && request.resource.data.atendida == false
+                    && request.resource.data.atendidaEn == null
+                    && request.resource.data.retiroId == null
                     && request.resource.data.contaminante in
-                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común'];
+                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común']
+                    && exists(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor))
+                    && get(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor)).data.plantaId
+                       == request.resource.data.plantaId;
 
-      allow update: if autenticado()
-                    && miRol() == 'gestor'
+      // El administrador la da por atendida en el mismo lote en que registra
+      // el retiro de ese contenedor: desde ahí deja de advertirse.
+      allow update: if esAdminDe(resource.data.plantaId)
                     && resource.data.atendida == false
                     && request.resource.data.atendida == true
-                    && soloCambia(['atendida', 'atendidaEn', 'codigoRetiro']);
+                    && soloCambia(['atendida', 'atendidaEn', 'retiroId'])
+                    && retiroIncluye(request.resource.data.retiroId, resource.data);
 
-      // Un reporte forma parte del historial de calidad de la torre: no se borra.
+      // Un reporte forma parte del historial de calidad de la planta: no se borra.
       allow delete: if false;
     }
 
+    // ---------------------------------------------------------------- retiros
+    // Cada vez que se lleva el material del punto limpio (del día o de la
+    // semana), el administrador lo registra: fecha, quién retiró, la guía si
+    // la hay, qué contenedores salieron y el peso si se lo informaron. Ese
+    // registro es la etapa 2 de la cadena: en el mismo lote se certifican los
+    // depósitos validados de esos contenedores (ver registros) y se dan por
+    // atendidas sus incidencias. Lo leen las personas de la planta (el
+    // certificado del colaborador menciona el retiro) y no se edita ni se borra.
+    function retiroIncluye(retiroId, registro) {
+      let ruta = /databases/$(database)/documents/retiros/$(retiroId);
+      return retiroId is string
+        && existsAfter(ruta)
+        && getAfter(ruta).data.plantaId == registro.plantaId
+        && registro.contenedor in getAfter(ruta).data.contenedores;
+    }
+
+    match /retiros/{retiroId} {
+      allow read: if dePlanta(resource.data.plantaId);
+
+      allow create: if esAdminDe(request.resource.data.plantaId)
+                    && request.resource.data.keys().hasOnly([
+                         'plantaId', 'fecha', 'quienRetira', 'guia', 'contenedores', 'pesoKg',
+                         'depositos', 'kgEstimado', 'registradoPor', 'registradoEn'])
+                    && request.resource.data.registradoPor == request.auth.uid
+                    && request.resource.data.registradoEn is int
+                    && math.abs(request.resource.data.registradoEn - request.time.toMillis()) <= 600000
+                    && request.resource.data.fecha is int
+                    && request.resource.data.quienRetira is string
+                    && request.resource.data.quienRetira.size() > 0
+                    && request.resource.data.quienRetira.size() <= 80
+                    && (request.resource.data.guia == null
+                        || (request.resource.data.guia is string && request.resource.data.guia.size() <= 40))
+                    && request.resource.data.contenedores is list
+                    && request.resource.data.contenedores.size() > 0
+                    && (request.resource.data.pesoKg == null
+                        || (request.resource.data.pesoKg is number && request.resource.data.pesoKg > 0))
+                    && request.resource.data.depositos is int
+                    && request.resource.data.depositos >= 0
+                    && request.resource.data.kgEstimado is number
+                    && request.resource.data.kgEstimado >= 0;
+
+      allow update, delete: if false;
+    }
+
+    // ------------------------------------------------------------- resúmenes
+    // Totales del mes por área, id = "{plantaId}_{AAAA-MM}" (el id de la planta
+    // no lleva "_"). Con ellos el colaborador ve el ranking de áreas sin leer
+    // los depósitos de sus compañeros. Los escribe el propio colaborador, en
+    // el mismo lote en que crea su depósito: suma 1 a los depósitos de su área
+    // y, si es su primer depósito del mes, 1 a sus participantes. No hay
+    // Cloud Functions que lo calculen en el servidor, así que estas reglas
+    // comprueban cada suma: `ultimoRegistro` es el depósito que se crea en ese
+    // mismo lote, de quien escribe y de esa área, y el primer depósito del mes
+    // se reconoce porque en el mismo lote nace su documento en participaciones.
+    // Cuenta los depósitos registrados, también los que después se rechazan;
+    // el panel calcula los exactos con los registros.
+
+    /**
+     * `mes` ("AAAA-MM") es el mes del instante `ms` en Chile, que según la
+     * época del año está a 3 o 4 horas de UTC.
+     */
+    function mesDelInstante(mes, ms) {
+      let partes = mes.split('-');
+      let utc3 = timestamp.value(ms) - duration.value(3, 'h');
+      let utc4 = timestamp.value(ms) - duration.value(4, 'h');
+      return mes.matches('^[0-9]{4}-[0-9]{2}$')
+        && (
+          (int(partes[0]) == utc3.year() && int(partes[1]) == utc3.month())
+          || (int(partes[0]) == utc4.year() && int(partes[1]) == utc4.month())
+        );
+    }
+
+    /** La escritura suma exactamente un depósito nuevo de quien escribe a su área. */
+    function sumaUnDeposito(resumenId, antes) {
+      let datos = request.resource.data;
+      let rutaRegistro = /databases/$(database)/documents/registros/$(datos.ultimoRegistro);
+      let registro = getAfter(rutaRegistro).data;
+      let area = registro.areaId;
+      let previo = antes.get(area, {'depositos': 0, 'participantes': 0});
+      let nuevo = datos.areas[area];
+      let rutaParticipacion =
+        /databases/$(database)/documents/participaciones/$(datos.mes + '_' + request.auth.uid);
+      let esPrimero = !exists(rutaParticipacion) && existsAfter(rutaParticipacion);
+      return resumenId == datos.plantaId + '_' + datos.mes
+        && datos.ultimoRegistro is string
+        && !exists(rutaRegistro)
+        && existsAfter(rutaRegistro)
+        && registro.colaboradorId == request.auth.uid
+        && registro.plantaId == datos.plantaId
+        && mesDelInstante(datos.mes, registro.creadoEn)
+        && datos.areas.diff(antes).affectedKeys().hasOnly([area])
+        && nuevo.keys().hasOnly(['depositos', 'participantes'])
+        && nuevo.depositos == previo.depositos + 1
+        && (
+          (esPrimero && nuevo.participantes == previo.participantes + 1)
+          || (!esPrimero && nuevo.participantes == previo.participantes)
+        );
+    }
+
+    match /resumenes/{resumenId} {
+      // Se lee por id aunque todavía no exista (al empezar el mes).
+      allow get: if dePlanta(resumenId.split('_')[0]);
+      allow list: if dePlanta(resource.data.plantaId);
+
+      allow create: if autenticado()
+                    && request.resource.data.keys().hasOnly(['plantaId', 'mes', 'areas', 'ultimoRegistro'])
+                    && sumaUnDeposito(resumenId, {});
+
+      allow update: if autenticado()
+                    && soloCambia(['areas', 'ultimoRegistro'])
+                    && sumaUnDeposito(resumenId, resource.data.areas);
+
+      allow delete: if false;
+    }
+
+    // -------------------------------------------------------- participaciones
+    // Marca de que una persona ya depositó en el mes, id = "{AAAA-MM}_{uid}".
+    // La crea ella misma en el lote de su primer depósito del mes, y solo una
+    // vez: así no se cuenta dos veces como participante de su área. La app la
+    // lee para saber si el depósito que va a registrar es el primero del mes.
+    match /participaciones/{participacionId} {
+      allow get: if autenticado() && participacionId.split('_')[1] == request.auth.uid;
+
+      allow create: if autenticado()
+                    && request.resource.data.keys().hasOnly(['uid', 'mes'])
+                    && request.resource.data.uid == request.auth.uid
+                    && participacionId == request.resource.data.mes + '_' + request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
     // El depósito debe hacerse en un contenedor que exista, esté activo, sea de
-    // la torre del depósito y, si es de un material, reciba ese material.
+    // la planta del depósito y, si es de un material, reciba ese material.
     function contenedorValido(deposito) {
       let ruta = /databases/$(database)/documents/contenedores/$(deposito.contenedor);
       return exists(ruta)
-        && get(ruta).data.torreId == deposito.torreId
+        && get(ruta).data.plantaId == deposito.plantaId
         && get(ruta).data.activo == true
         && (get(ruta).data.material == null || get(ruta).data.material == deposito.material);
     }
 
     match /registros/{registroId} {
-      // Limitación conocida del prototipo: las reglas de Firestore autorizan
-      // documentos completos, no campos sueltos. La app le muestra al gestor
-      // solo el agregado por torre (kilos y materiales, sin nombres), pero a
-      // nivel de base de datos sigue pudiendo leer el documento entero.
-      // Para que esa separación sea real haría falta exponer el agregado a
-      // través de Cloud Functions. Queda documentado como trabajo futuro.
-      allow read: if autenticado();
+      // Cada colaborador lee solo sus depósitos: el ranking de áreas sale del
+      // resumen del mes (ver resumenes), así nadie ve lo que recicla un
+      // compañero. El validador y el administrador leen los de su planta para
+      // validar, registrar retiros y armar el reporte. El depósito no guarda
+      // el nombre de la persona: el panel lo cruza con su perfil.
+      allow read: if autenticado()
+                  && (resource.data.colaboradorId == request.auth.uid
+                      || esValidadorOAdminDe(resource.data.plantaId));
 
-      // Un depósito lo registra un residente, siempre a su nombre y en estado
-      // pendiente, en su propia torre y en un contenedor real de ella (ver
-      // contenedorValido), con una talla de bolsa válida y exactamente los kilos
-      // que esa talla estima para ese material: nadie puede inventar kilos,
-      // contenedores ni materiales, ni siquiera escribiendo directo a la base
-      // de datos.
+      // Un depósito lo registra un colaborador, siempre a su nombre y en estado
+      // pendiente, en su propia planta y área y en un contenedor real de ella
+      // (ver contenedorValido), con una talla de bolsa válida y exactamente los
+      // kilos que esa talla estima para ese material: nadie puede inventar
+      // kilos, contenedores ni materiales, ni siquiera escribiendo directo a la
+      // base de datos.
       //
-      // Nombre, departamento y torre se copian del perfil y deben coincidir con
-      // él: si no, alguien podría declarar depósitos con varios departamentos
-      // inventados y subir el % de participación de su torre. La fecha debe ser
-      // la de ahora (con 10 minutos de margen por relojes desajustados), para
-      // que nadie retroceda un depósito a una semana anterior y cumpla una
-      // misión que ya pasó. Y no se aceptan campos de más ni etapas ya llenas.
+      // Planta y área se copian del perfil y deben coincidir con él: si no,
+      // alguien podría declarar depósitos en otra área y subirle la
+      // participación. La fecha debe ser la de ahora (con 10 minutos de margen
+      // por relojes desajustados), para que nadie retroceda un depósito a una
+      // semana anterior y cumpla una misión que ya pasó. Y no se aceptan
+      // campos de más ni etapas ya llenas. El validador y el administrador no
+      // depositan: luego validarían sus propios depósitos.
       allow create: if autenticado()
-                    && miRol() == 'residente'
+                    && miRol() == 'colaborador'
                     && request.resource.data.keys().hasOnly([
-                         'residenteId', 'residente', 'depto', 'torreId', 'torreNombre',
+                         'colaboradorId', 'plantaId', 'areaId',
                          'material', 'talla', 'kgDeclarado', 'kgConfirmado', 'contenedor',
                          'estado', 'creadoEn', 'validadoEn', 'validadoPor',
-                         'certificadoEn', 'certificadoPor', 'codigo', 'codigoRetiro'])
-                    && request.resource.data.residenteId == request.auth.uid
-                    && request.resource.data.residente == miPerfil().get('nombre', '')
-                    && request.resource.data.depto == miPerfil().get('depto', '')
-                    && request.resource.data.torreId == miPerfil().torreId
-                    && request.resource.data.torreNombre == miPerfil().get('torreNombre', null)
+                         'certificadoEn', 'certificadoPor', 'codigo', 'retiroId'])
+                    && request.resource.data.colaboradorId == request.auth.uid
+                    && request.resource.data.plantaId == miPlanta()
+                    && request.resource.data.areaId is string
+                    && request.resource.data.areaId == miPerfil().get('areaId', null)
                     && request.resource.data.estado == 'pendiente'
                     && request.resource.data.creadoEn is int
                     && math.abs(request.resource.data.creadoEn - request.time.toMillis()) <= 600000
@@ -249,7 +479,7 @@ service cloud.firestore {
                     && request.resource.data.certificadoEn == null
                     && request.resource.data.certificadoPor == null
                     && request.resource.data.codigo == null
-                    && request.resource.data.codigoRetiro == null
+                    && request.resource.data.retiroId == null
                     && contenedorValido(request.resource.data)
                     && request.resource.data.material in kgPorTalla()
                     && request.resource.data.talla in ['S', 'M', 'L', 'XL']
@@ -257,15 +487,15 @@ service cloud.firestore {
                        kgPorTalla()[request.resource.data.material][request.resource.data.talla];
 
       allow update: if autenticado() && (
-        // Etapa 1: el administrador de ESA torre valida o rechaza un pendiente,
-        // firmando con su propio uid. No puede alterar de quién es el depósito,
-        // qué material era, ni nada de la etapa 2. Al validar confirma los
-        // kilos declarados, no otros: valida el contenedor completo, no pesa
-        // bolsa por bolsa, y así tampoco puede inflar los kilos de su torre en
-        // el ranking. Al rechazar, los kilos confirmados no se tocan.
+        // Etapa 1: el validador (o el administrador, si lo reemplaza) de ESA
+        // planta valida o rechaza un pendiente, firmando con su propio uid. No
+        // puede alterar de quién es el depósito, qué material era, ni nada de
+        // la etapa 2. Al validar confirma los kilos declarados, no otros:
+        // valida el contenedor completo, no pesa bolsa por bolsa, y así
+        // tampoco puede inflar los kilos de la planta. Al rechazar, los kilos
+        // confirmados no se tocan.
         (
-          miRol() == 'administrador'
-          && miPerfil().torreId == resource.data.torreId
+          esValidadorOAdminDe(resource.data.plantaId)
           && resource.data.estado == 'pendiente'
           && request.resource.data.validadoPor == request.auth.uid
           && (
@@ -282,17 +512,21 @@ service cloud.firestore {
           )
         )
         ||
-        // Etapa 2: el gestor certifica un depósito ya validado, firmando con
-        // su propio uid, y solo puede tocar los campos de certificación. No
-        // puede tocar el peso ni el material que ya quedaron fijados en la
-        // etapa 1. El gestor certifica el lote completo de una torre en un
-        // writeBatch; la regla se evalúa igual documento por documento.
+        // Etapa 2: el administrador de la planta registra el retiro del
+        // material y, en el mismo lote, certifica los depósitos validados de
+        // los contenedores retirados, firmando con su propio uid. Solo toca los
+        // campos de certificación: el peso y el material quedaron fijados en la
+        // etapa 1. El retiro debe existir al terminar el lote, ser de la misma
+        // planta e incluir el contenedor del depósito: así no se certifica nada
+        // que no haya salido de verdad.
         (
-          miRol() == 'gestor'
+          esAdminDe(resource.data.plantaId)
           && resource.data.estado == 'validado'
           && request.resource.data.estado == 'certificado'
           && request.resource.data.certificadoPor == request.auth.uid
-          && soloCambia(['estado', 'certificadoEn', 'certificadoPor', 'codigo', 'codigoRetiro'])
+          && request.resource.data.codigo is string
+          && soloCambia(['estado', 'certificadoEn', 'certificadoPor', 'codigo', 'retiroId'])
+          && retiroIncluye(request.resource.data.retiroId, resource.data)
         )
       );
 
