@@ -4,7 +4,6 @@ import {
   onSnapshot,
   query,
   where,
-  writeBatch,
   type WriteBatch,
 } from "firebase/firestore";
 import { db } from "../lib/firebase";
@@ -13,8 +12,7 @@ import type { Contaminante, Incidencia } from "../lib/tipos";
 function aIncidencia(id: string, d: any): Incidencia {
   return {
     id,
-    torreId: d.torreId ?? "",
-    torreNombre: d.torreNombre ?? "",
+    plantaId: d.plantaId ?? "",
     contenedor: d.contenedor ?? "",
     contenedorNombre: d.contenedorNombre ?? "",
     contaminante: d.contaminante as Contaminante,
@@ -22,11 +20,17 @@ function aIncidencia(id: string, d: any): Incidencia {
     reportadoPor: d.reportadoPor ?? "",
     atendida: d.atendida ?? false,
     atendidaEn: d.atendidaEn ?? null,
-    codigoRetiro: d.codigoRetiro ?? null,
+    retiroId: d.retiroId ?? null,
   };
 }
 
-function escuchar(consulta: ReturnType<typeof query>, callback: (i: Incidencia[]) => void) {
+/**
+ * Incidencias de una planta, de la más reciente a la más antigua. Las ven
+ * todos sus usuarios: al colaborador le sirven de aviso (educación) y al
+ * administrador, de advertencia antes de registrar el retiro.
+ */
+export function escucharIncidencias(plantaId: string, callback: (i: Incidencia[]) => void) {
+  const consulta = query(collection(db, "incidencias"), where("plantaId", "==", plantaId));
   return onSnapshot(consulta, (snap) =>
     callback(
       snap.docs
@@ -36,55 +40,31 @@ function escuchar(consulta: ReturnType<typeof query>, callback: (i: Incidencia[]
   );
 }
 
-/** Incidencias de una torre: las ven su administrador y sus residentes. */
-export function escucharIncidenciasDeTorre(torreId: string, callback: (i: Incidencia[]) => void) {
-  return escuchar(query(collection(db, "incidencias"), where("torreId", "==", torreId)), callback);
-}
-
-/** Las que el gestor todavía no retira, de todas las torres: son advertencias de seguridad. */
-export function escucharIncidenciasPendientes(callback: (i: Incidencia[]) => void) {
-  return escuchar(query(collection(db, "incidencias"), where("atendida", "==", false)), callback);
-}
-
 export interface DatosReporte {
-  torreId: string;
-  torreNombre: string;
+  plantaId: string;
   contenedor: string;
   contenedorNombre: string;
   contaminante: Contaminante;
-  adminUid: string;
+  /** Validador o administrador que encontró el contenedor contaminado. */
+  reportadoPor: string;
 }
 
 /**
  * Agrega el reporte de un contenedor contaminado a un lote. Va en el mismo
  * writeBatch que valida los depósitos de ese contenedor (ver
- * validarRegistros): o quedan el reporte y la validación, o ninguno.
+ * validarRegistros): o quedan el reporte y la validación, o ninguno. Se marca
+ * como atendida al registrar el retiro de ese contenedor (ver retiros.ts).
  */
 export function agregarReporte(lote: WriteBatch, datos: DatosReporte): void {
   lote.set(doc(collection(db, "incidencias")), {
-    torreId: datos.torreId,
-    torreNombre: datos.torreNombre,
+    plantaId: datos.plantaId,
     contenedor: datos.contenedor,
     contenedorNombre: datos.contenedorNombre,
     contaminante: datos.contaminante,
     reportadoEn: Date.now(),
-    reportadoPor: datos.adminUid,
+    reportadoPor: datos.reportadoPor,
     atendida: false,
     atendidaEn: null,
-    codigoRetiro: null,
+    retiroId: null,
   });
-}
-
-/** Al confirmar el retiro de una torre, sus advertencias quedan atendidas con ese retiro. */
-export async function marcarAtendidas(
-  incidencias: Incidencia[],
-  codigoRetiro: string
-): Promise<void> {
-  if (incidencias.length === 0) return;
-  const lote = writeBatch(db);
-  const ahora = Date.now();
-  for (const i of incidencias) {
-    lote.update(doc(db, "incidencias", i.id), { atendida: true, atendidaEn: ahora, codigoRetiro });
-  }
-  await lote.commit();
 }

@@ -21,14 +21,12 @@ import {
 export default function HomeScreen({ nav }: { nav: Navegacion }) {
   const {
     usuario,
-    miTorre,
+    miPlanta,
     errorDatos,
     misKgDelMes,
     misCertificados,
     misRegistros,
     miPosicionRanking,
-    resumenTorre,
-    mision,
     misionSemanal,
     ecoPuntosMes,
     avisosNuevos,
@@ -40,7 +38,6 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
   const ultimoMes = mesesConCertificado(misRegistros)[0];
 
   const nombre = usuario?.nombre ?? "Colaborador";
-  const resumen = resumenTorre(usuario?.torreId ?? null);
 
   return (
     <Cuerpo>
@@ -59,8 +56,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
               {nombre}
             </Text>
             <Text className="text-green-200 text-sm mt-1">
-              {miTorre?.nombre ?? "Sin torre"} · {usuario?.depto ?? ""} ·{" "}
-              {miTorre?.condominio ?? ""}
+              {usuario?.areaNombre ?? "Sin área"} · {miPlanta?.nombre ?? ""}
             </Text>
           </TouchableOpacity>
           <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
@@ -72,7 +68,7 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         color="text-green-700"
         metricas={[
           { valor: formatKg(misKgDelMes), etiqueta: "Certificado este mes" },
-          { valor: `${miPosicionRanking}°`, etiqueta: "Ranking de tu torre" },
+          { valor: `${miPosicionRanking}°`, etiqueta: "Ranking de tu área" },
           { valor: `${misCertificados.length}`, etiqueta: "Depósitos certificados" },
         ]}
       />
@@ -118,28 +114,6 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </Tarjeta>
       </Seccion>
 
-      <Seccion titulo="Misión de la torre">
-        <Tarjeta>
-          <View className="flex-row justify-between items-center mb-2">
-            <Text className="text-gray-800 font-medium flex-1 pr-2">
-              Alcanzar {resumen.metaKg} kg como torre este mes
-            </Text>
-            <Text className="text-green-700 font-semibold text-sm">
-              {resumen.avanceMeta}%
-            </Text>
-          </View>
-          <Barra avance={resumen.avanceMeta} />
-          <Text className="text-gray-400 text-xs mt-2">
-            {formatKg(resumen.kgMes)} de {resumen.metaKg} kg ·{" "}
-            {resumen.deptosActivos} de {resumen.deptosTotales} departamentos participando
-          </Text>
-          {mision?.incentivo ? (
-            <View className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mt-3">
-              <Text className="text-amber-800 text-xs">🎁 {mision.incentivo}</Text>
-            </View>
-          ) : null}
-        </Tarjeta>
-      </Seccion>
     </Cuerpo>
   );
 }

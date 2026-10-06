@@ -1,12 +1,5 @@
 import { describe, expect, test } from "vitest";
-import {
-  etiquetaDepto,
-  normalizarNombre,
-  numeroDepto,
-  validarContrasenaNueva,
-  validarDepto,
-  validarNombre,
-} from "../src/lib/perfil";
+import { normalizarNombre, validarContrasenaNueva, validarNombre } from "../src/lib/perfil";
 
 describe("nombre", () => {
   test("se limpian los espacios de más", () => {
@@ -17,22 +10,6 @@ describe("nombre", () => {
     expect(validarNombre("Ana")).toBeUndefined();
     expect(validarNombre("  Al  ")).toBeDefined();
     expect(validarNombre("a".repeat(61))).toBeDefined();
-  });
-});
-
-describe("departamento", () => {
-  test("el campo edita solo el número y el perfil guarda la etiqueta", () => {
-    expect(numeroDepto("Depto 305")).toBe("305");
-    expect(numeroDepto("depto. 12b")).toBe("12b");
-    expect(etiquetaDepto(" 12b ")).toBe("Depto 12B");
-  });
-
-  test("solo números, letras o guion, hasta 6 caracteres", () => {
-    expect(validarDepto("305")).toBeUndefined();
-    expect(validarDepto("12B")).toBeUndefined();
-    expect(validarDepto("")).toBeDefined();
-    expect(validarDepto("305 A")).toBeDefined();
-    expect(validarDepto("1234567")).toBeDefined();
   });
 });
 

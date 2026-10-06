@@ -7,15 +7,15 @@ import { esNuevo, type Aviso } from "../lib/avisos";
 import { Cuerpo, Encabezado, Tarjeta, TituloEncabezado, Vacio } from "../components/ui";
 
 const SUBTITULO = {
-  residente: "El avance de tus depósitos en la cadena de verificación",
-  administrador: "Depósitos de tu torre que esperan validación",
-  gestor: "Contenedores listos para retiro",
+  colaborador: "El avance de tus depósitos en la cadena de verificación",
+  validador: "Depósitos de tu planta que esperan validación",
+  administrador: "Contenedores listos para retiro",
 } as const;
 
 const VACIO = {
-  residente: "Aún no hay avances. Cuando el administrador valide o el gestor certifique un depósito, lo verás aquí.",
-  administrador: "No hay depósitos por validar. ¡Todo al día!",
-  gestor: "No hay contenedores esperando retiro.",
+  colaborador: "Aún no hay avances. Cuando se valide o se certifique un depósito, lo verás aquí.",
+  validador: "No hay depósitos por validar. ¡Todo al día!",
+  administrador: "No hay contenedores esperando retiro.",
 } as const;
 
 /**
@@ -34,7 +34,7 @@ export default function AvisosScreen({ nav }: { nav: Navegacion }) {
   }, [marcarAvisosVistos]);
 
   if (!usuario) return null;
-  const tono = usuario.rol === "residente" ? "verde" : "oscuro";
+  const tono = usuario.rol === "colaborador" ? "verde" : "oscuro";
 
   return (
     <Cuerpo>

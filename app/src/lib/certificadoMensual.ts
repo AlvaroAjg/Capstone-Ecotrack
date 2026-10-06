@@ -1,8 +1,8 @@
-// Certificado mensual del residente.
+// Certificado mensual del colaborador.
 //
 // Antes se emitía un certificado por depósito, lo que no tenía sentido para
 // una botella suelta: nadie descarga un documento oficial por 0,1 kg. Ahora
-// cada residente tiene un certificado por mes, que suma lo que reciclaste y
+// cada colaborador tiene un certificado por mes, que suma lo que reciclaste y
 // detalla cada depósito con las fechas de su paso por la cadena.
 //
 // Un depósito pertenece al mes en que se hizo (creadoEn). El total certificado
@@ -16,16 +16,17 @@ export interface CertificadoMensual {
   mes: string;
   /** "septiembre de 2026" */
   etiqueta: string;
-  residente: string;
-  torreNombre: string;
-  depto: string;
+  /** Nombre de quien recicló, tomado de su perfil (los depósitos no lo guardan). */
+  nombre: string;
+  /** Su área y planta, p. ej. "Embotellado · Planta Pirque". */
+  area: string;
   /** Todos los depósitos del mes, del más antiguo al más reciente. */
   registros: Registro[];
   /** Los que completaron la cadena: son los que suman al total. */
   certificados: Registro[];
   kgCertificados: number;
   porMaterial: { material: Material; kg: number; depositos: number }[];
-  /** Código del certificado del mes, estable para ese residente y ese mes. */
+  /** Código del certificado del mes, estable para esa persona y ese mes. */
   codigo: string;
   /** El mes todavía no termina: el certificado se sigue completando. */
   enCurso: boolean;
@@ -50,14 +51,14 @@ export function etiquetaMes(mes: string): string {
 const ALFABETO = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 
 /**
- * Código del certificado: "ECO-2609-K7QM". Se deriva del residente y del mes
+ * Código del certificado: "ECO-2609-K7QM". Se deriva de la persona y del mes
  * (hash FNV-1a), así que es siempre el mismo para ese mes sin guardarlo en
  * ninguna parte. Cada depósito conserva además su propio código y el del
  * retiro en que salió, que son los que se ven en el detalle.
  */
-function codigoMensual(residenteId: string, mes: string): string {
+function codigoMensual(colaboradorId: string, mes: string): string {
   let hash = 0x811c9dc5;
-  for (const caracter of `${residenteId}|${mes}`) {
+  for (const caracter of `${colaboradorId}|${mes}`) {
     hash ^= caracter.charCodeAt(0);
     hash = Math.imul(hash, 0x01000193) >>> 0;
   }
@@ -70,7 +71,7 @@ function codigoMensual(residenteId: string, mes: string): string {
   return `ECO-${anio.slice(2)}${numero}-${sufijo}`;
 }
 
-/** Meses en que el residente tiene al menos un depósito certificado, del más reciente al más antiguo. */
+/** Meses en que el colaborador tiene al menos un depósito certificado, del más reciente al más antiguo. */
 export function mesesConCertificado(misRegistros: Registro[]): string[] {
   const meses = new Set(
     misRegistros.filter((r) => r.estado === "certificado").map((r) => mesDe(r.creadoEn))
@@ -78,9 +79,15 @@ export function mesesConCertificado(misRegistros: Registro[]): string[] {
   return Array.from(meses).sort().reverse();
 }
 
+/**
+ * El certificado de un mes, o null si ese mes no tiene nada certificado.
+ * `persona` sale del perfil de quien lo descarga: los depósitos no guardan el
+ * nombre, para que nadie vea qué recicla cada compañero.
+ */
 export function certificadoDelMes(
   misRegistros: Registro[],
-  mes: string
+  mes: string,
+  persona: { nombre: string; area: string }
 ): CertificadoMensual | null {
   const registros = misRegistros
     .filter((r) => mesDe(r.creadoEn) === mes)
@@ -88,8 +95,6 @@ export function certificadoDelMes(
   const certificados = registros.filter((r) => r.estado === "certificado");
   if (certificados.length === 0) return null;
 
-  // Nombre, torre y depto del depósito más reciente: si cambió de departamento
-  // durante el mes, vale el último.
   const ultimo = registros[registros.length - 1];
 
   const porMaterial = MATERIALES.map(({ nombre }) => {
@@ -104,15 +109,14 @@ export function certificadoDelMes(
   return {
     mes,
     etiqueta: etiquetaMes(mes),
-    residente: ultimo.residente,
-    torreNombre: ultimo.torreNombre,
-    depto: ultimo.depto,
+    nombre: persona.nombre,
+    area: persona.area,
     registros,
     certificados,
     kgCertificados:
       Math.round(certificados.reduce((t, r) => t + kgEfectivo(r), 0) * 10) / 10,
     porMaterial,
-    codigo: codigoMensual(ultimo.residenteId, mes),
+    codigo: codigoMensual(ultimo.colaboradorId, mes),
     enCurso: mes === mesDe(Date.now()),
   };
 }

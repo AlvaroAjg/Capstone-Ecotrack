@@ -2,26 +2,25 @@ import React, { useMemo, useState } from "react";
 import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import {
+  kgEfectivo,
   useEcoTrack,
+  type Area,
   type Incidencia,
-  type Mision,
+  type Planta,
   type Registro,
-  type Torre,
 } from "../state/EcoTrack";
 import { etiquetaMes } from "../lib/certificadoMensual";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import { esDelMesActual, formatKg, tiempoRelativo } from "../lib/formato";
+import { esDelMesActual, formatKg, porcentaje, sumaKg, tiempoRelativo } from "../lib/formato";
 import { descargarReporte, reportePdfDisponible } from "../lib/reportePdf";
-import { mesesReportables, reporteDeTorre } from "../lib/reporteTorre";
+import { mesesReportables, reporteDePlanta } from "../lib/reportePlanta";
 import ContenedoresTorre from "../components/ContenedoresTorre";
 import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
   AvatarPerfil,
   CampanaAvisos,
   Aviso,
-  Barra,
   Boton,
-  Campo,
   Cuerpo,
   Encabezado,
   FilaMetricas,
@@ -31,23 +30,38 @@ import {
   Vacio,
 } from "../components/ui";
 
+/**
+ * Vista del validador y, mientras no exista el panel web, también del
+ * administrador. Los registros que llegan ya son solo los de la planta (ver
+ * consultasPara en services/registros.ts).
+ */
 export default function AdminScreen({ nav }: { nav: Navegacion }) {
   const {
     usuario,
-    miTorre,
+    miPlanta,
+    areas,
     errorDatos,
-    resumenTorre,
     validarRegistros,
     rechazarRegistros,
-    mision,
-    guardarMision,
     avisosNuevos,
     incidencias,
     registros,
+    ranking,
     reportarYValidar,
   } = useEcoTrack();
 
-  const resumen = resumenTorre(usuario?.torreId ?? null);
+  const esAdministrador = usuario?.rol === "administrador";
+  const pendientes = useMemo(() => registros.filter((r) => r.estado === "pendiente"), [registros]);
+  const kgMes = sumaKg(
+    registros
+      .filter((r) => r.estado === "certificado" && esDelMesActual(r.certificadoEn))
+      .map(kgEfectivo)
+  );
+  // Participación de la planta: la suma de las áreas del ranking del mes.
+  const participacion = porcentaje(
+    ranking.reduce((t, f) => t + f.participantes, 0),
+    ranking.reduce((t, f) => t + f.dotacion, 0)
+  );
   // Calidad de separación: contenedores que se encontraron contaminados este mes.
   const contaminacionesMes = incidencias.filter((i) => esDelMesActual(i.reportadoEn));
   const contaminadosMes = contaminacionesMes.length;
@@ -62,7 +76,6 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
    * lote atómico: si falla, no queda nada validado a medias.
    */
   async function validarTanda() {
-    const pendientes = resumen.pendientes;
     if (pendientes.length === 0) return;
 
     const acepta = await confirmar(
@@ -91,10 +104,10 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
           <View className="flex-1 pr-3">
             <Text className="text-gray-300 text-sm">Panel de administrador</Text>
             <Text className="text-white text-2xl font-bold mt-1">
-              {miTorre?.nombre ?? "Sin torre"}
+              {miPlanta?.nombre ?? "Sin planta"}
             </Text>
             <Text className="text-gray-400 text-sm mt-1">
-              {usuario?.nombre ?? "Administrador"} · {miTorre?.condominio ?? ""}
+              {usuario?.nombre ?? "Administrador"} · {miPlanta?.empresa ?? ""}
             </Text>
           </View>
           <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
@@ -108,12 +121,9 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
 
       <FilaMetricas
         metricas={[
-          {
-            valor: `${resumen.deptosActivos}/${resumen.deptosTotales}`,
-            etiqueta: "Deptos. activos",
-          },
-          { valor: formatKg(resumen.kgMes), etiqueta: "Certificado este mes" },
-          { valor: `${resumen.participacion}%`, etiqueta: "Participación" },
+          { valor: `${pendientes.length}`, etiqueta: "Por validar" },
+          { valor: formatKg(kgMes), etiqueta: "Certificado este mes" },
+          { valor: `${participacion}%`, etiqueta: "Participación" },
         ]}
       />
 
@@ -125,7 +135,7 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
 
       <Seccion
         titulo="Validaciones pendientes"
-        etiqueta={`${resumen.pendientes.length} en cola`}
+        etiqueta={`${pendientes.length} en cola`}
       >
         {/* Calidad de separación del mes: en rojo si hubo contenedores contaminados. */}
         {contaminadosMes > 0 ? (
@@ -150,12 +160,12 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
           <View className="bg-white border border-gray-200 rounded-2xl p-4 mb-3 flex-row items-center">
             <Text className="text-green-700 text-4xl font-bold mr-4">0</Text>
             <Text className="text-gray-600 text-sm flex-1">
-              Contenedores contaminados este mes. La torre está separando bien.
+              Contenedores contaminados este mes. La planta está separando bien.
             </Text>
           </View>
         )}
-        {resumen.pendientes.length === 0 ? (
-          <Vacio emoji="✅" texto="No hay depósitos pendientes en tu torre." />
+        {pendientes.length === 0 ? (
+          <Vacio emoji="✅" texto="No hay depósitos pendientes en tu planta." />
         ) : (
           <>
             <View className="mb-3">
@@ -163,17 +173,17 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
                 titulo={
                   validandoTanda
                     ? "Validando..."
-                    : `Validar la tanda del día (${resumen.pendientes.length})`
+                    : `Validar la tanda del día (${pendientes.length})`
                 }
                 cargando={validandoTanda}
                 onPress={validarTanda}
                 className="py-3"
               />
             </View>
-            {usuario?.torreId ? (
+            {usuario?.plantaId ? (
               <ValidacionContenedores
-                torreId={usuario.torreId}
-                pendientes={resumen.pendientes}
+                plantaId={usuario.plantaId}
+                pendientes={pendientes}
                 alValidar={validarRegistros}
                 alRechazar={rechazarRegistros}
                 alReportar={reportarYValidar}
@@ -183,25 +193,16 @@ export default function AdminScreen({ nav }: { nav: Navegacion }) {
         )}
       </Seccion>
 
-      {usuario?.torreId ? <ContenedoresTorre torreId={usuario.torreId} /> : null}
+      {/* Mientras no exista el panel web, el administrador define aquí los contenedores. */}
+      {esAdministrador && usuario?.plantaId ? <ContenedoresTorre plantaId={usuario.plantaId} /> : null}
 
-      <Seccion titulo="Misión de la torre">
-        <TarjetaMision
-          mision={mision}
-          kgMes={resumen.kgMes}
-          metaKg={resumen.metaKg}
-          avanceMeta={resumen.avanceMeta}
-          alGuardar={guardarMision}
-        />
-      </Seccion>
-
-      {miTorre ? (
+      {esAdministrador && miPlanta ? (
         <Seccion titulo="Reporte mensual">
           <ReporteMensual
-            torre={miTorre}
+            planta={miPlanta}
+            areas={areas}
             registros={registros}
             incidencias={incidencias}
-            mision={mision}
           />
         </Seccion>
       ) : null}
@@ -216,32 +217,32 @@ function mesCorto(mes: string): string {
 }
 
 /**
- * Reporte del mes de la torre, en PDF: se elige el mes (los cuatro más
+ * Reporte del mes de la planta, en PDF: se elige el mes (los cuatro más
  * recientes con actividad), se ve un adelanto de los números y se descarga.
  * Como el certificado, se genera en el dispositivo; hay que llamar a la
  * descarga directo desde el toque, porque iOS rechaza compartir si pasó
  * demasiado tiempo desde el gesto.
  */
 function ReporteMensual({
-  torre,
+  planta,
+  areas,
   registros,
   incidencias,
-  mision,
 }: {
-  torre: Torre;
+  planta: Planta;
+  areas: Area[];
   registros: Registro[];
   incidencias: Incidencia[];
-  mision: Mision | null;
 }) {
   const meses = useMemo(
-    () => mesesReportables(torre.id, registros, incidencias).slice(0, 4),
-    [torre.id, registros, incidencias]
+    () => mesesReportables(planta.id, registros, incidencias).slice(0, 4),
+    [planta.id, registros, incidencias]
   );
   const [mes, setMes] = useState(meses[0]);
   const [generando, setGenerando] = useState(false);
   const reporte = useMemo(
-    () => reporteDeTorre(torre, mes, registros, incidencias, mision),
-    [torre, mes, registros, incidencias, mision]
+    () => reporteDePlanta(planta, areas, mes, registros, incidencias),
+    [planta, areas, mes, registros, incidencias]
   );
 
   async function descargar() {
@@ -279,8 +280,8 @@ function ReporteMensual({
         {reporte.contaminaciones.length === 1 ? "contenedor contaminado" : "contenedores contaminados"}
       </Text>
       <Text className="text-gray-400 text-[11px] mb-4">
-        Incluye los indicadores del piloto, los kilos por material, los tiempos de la cadena, los
-        departamentos que más reciclaron (solo por número) y los contenedores contaminados.
+        Incluye los indicadores del piloto, los kilos por material, los tiempos de la cadena, las
+        áreas que más reciclaron (sin nombres de personas) y los contenedores contaminados.
       </Text>
       {reportePdfDisponible ? (
         <Boton
@@ -298,111 +299,3 @@ function ReporteMensual({
     </Tarjeta>
   );
 }
-
-/**
- * Meta en kilos e incentivo de la torre, editables por el administrador.
- * Mientras no se haya definido una misión propia, muestra la meta base
- * sembrada en la torre (`metaKg` ya viene resuelta así desde `resumenTorre`).
- */
-function TarjetaMision({
-  mision,
-  kgMes,
-  metaKg,
-  avanceMeta,
-  alGuardar,
-}: {
-  mision: Mision | null;
-  kgMes: number;
-  metaKg: number;
-  avanceMeta: number;
-  alGuardar: (datos: { metaKg: number; incentivo: string }) => Promise<void>;
-}) {
-  const [editando, setEditando] = useState(false);
-  const [meta, setMeta] = useState(String(metaKg));
-  const [incentivo, setIncentivo] = useState(mision?.incentivo ?? "");
-  const [guardando, setGuardando] = useState(false);
-  const [error, setError] = useState<string | undefined>();
-
-  function abrir() {
-    setMeta(String(metaKg));
-    setIncentivo(mision?.incentivo ?? "");
-    setError(undefined);
-    setEditando(true);
-  }
-
-  async function guardar() {
-    const metaNum = Number(meta.replace(",", "."));
-    if (!Number.isFinite(metaNum) || metaNum <= 0) {
-      setError("Ingresa una meta en kilos mayor a 0.");
-      return;
-    }
-    setGuardando(true);
-    try {
-      await alGuardar({ metaKg: metaNum, incentivo: incentivo.trim() });
-      setEditando(false);
-    } catch (e) {
-      setError(textoDeError(e));
-    } finally {
-      setGuardando(false);
-    }
-  }
-
-  return (
-    <Tarjeta>
-      <View className="flex-row justify-between items-center mb-2">
-        <Text className="text-gray-800 font-medium flex-1 pr-2">
-          {metaKg} kg certificados este mes
-        </Text>
-        <Text className="text-green-700 font-semibold text-sm">{avanceMeta}%</Text>
-      </View>
-      <Barra avance={avanceMeta} />
-      <Text className="text-gray-400 text-xs mt-2 mb-3">
-        {formatKg(kgMes)} de {metaKg} kg acumulados
-      </Text>
-
-      {mision?.incentivo ? (
-        <View className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-3">
-          <Text className="text-amber-800 text-xs">🎁 {mision.incentivo}</Text>
-        </View>
-      ) : null}
-
-      {!editando ? (
-        <Boton titulo="Editar incentivo" variante="secundario" onPress={abrir} className="py-3" />
-      ) : (
-        <>
-          {error ? (
-            <View className="mb-3">
-              <Aviso texto={error} />
-            </View>
-          ) : null}
-          <Campo
-            etiqueta="Meta en kilos este mes"
-            value={meta}
-            onChangeText={setMeta}
-            keyboardType="decimal-pad"
-          />
-          <Campo
-            etiqueta="Incentivo"
-            placeholder="Ej: entrada al cine para el depto que más recicló"
-            value={incentivo}
-            onChangeText={setIncentivo}
-          />
-          <Boton
-            titulo={guardando ? "Guardando..." : "Guardar misión"}
-            cargando={guardando}
-            onPress={guardar}
-            className="py-3 mb-2"
-          />
-          <Boton
-            titulo="Cancelar"
-            variante="secundario"
-            onPress={() => setEditando(false)}
-            deshabilitado={guardando}
-            className="py-3"
-          />
-        </>
-      )}
-    </Tarjeta>
-  );
-}
-

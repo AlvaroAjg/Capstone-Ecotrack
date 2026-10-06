@@ -12,7 +12,6 @@ import JoinTorreScreen from "./src/screens/JoinTorreScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import ScanQRScreen from "./src/screens/ScanQRScreen";
-import GestorScreen from "./src/screens/GestorScreen";
 import RankingScreen from "./src/screens/RankingScreen";
 import RecicladosScreen from "./src/screens/RecicladosScreen";
 import DepositoScreen from "./src/screens/DepositoScreen";
@@ -23,7 +22,6 @@ export type Pantalla =
   | "home"
   | "admin"
   | "escanear"
-  | "gestor"
   | "ranking"
   | "reciclados"
   | "deposito"
@@ -47,14 +45,18 @@ interface Ruta {
   params: ParamsPantalla;
 }
 
+/**
+ * El validador usa la vista de validación. El administrador también, mientras
+ * no exista el panel web.
+ */
 const INICIO_POR_ROL: Record<Rol, Pantalla> = {
-  residente: "home",
+  colaborador: "home",
+  validador: "admin",
   administrador: "admin",
-  gestor: "gestor",
 };
 
 /**
- * Pantallas del residente que viven en la barra inferior. Navegar a una de
+ * Pantallas del colaborador que viven en la barra inferior. Navegar a una de
  * ellas reemplaza la pila entera en vez de apilar: tocar una pestaña siempre
  * lleva limpio a esa pantalla, sin arrastrar lo que hubiera abierto encima
  * (escanear, un certificado, "Mi cuenta").
@@ -74,7 +76,7 @@ function PilaApp({ rol }: { rol: Rol }) {
   const ir = useCallback(
     (pantalla: Pantalla, params: ParamsPantalla = {}) => {
       setPila((prev) => {
-        if (rol === "residente" && PANTALLAS_TAB.includes(pantalla)) {
+        if (rol === "colaborador" && PANTALLAS_TAB.includes(pantalla)) {
           return [{ pantalla, params }];
         }
         return [...prev, { pantalla, params }];
@@ -97,9 +99,6 @@ function PilaApp({ rol }: { rol: Rol }) {
     case "escanear":
       pantalla = <ScanQRScreen nav={nav} />;
       break;
-    case "gestor":
-      pantalla = <GestorScreen nav={nav} />;
-      break;
     case "ranking":
       pantalla = <RankingScreen nav={nav} />;
       break;
@@ -119,9 +118,9 @@ function PilaApp({ rol }: { rol: Rol }) {
       pantalla = <HomeScreen nav={nav} />;
   }
 
-  // La barra solo se muestra en las pantallas raíz del residente: escanear, el
-  // certificado y "Mi cuenta" se abren por encima, cubriéndola.
-  const mostrarBarra = rol === "residente" && nav.raiz;
+  // La barra solo se muestra en las pantallas raíz del colaborador: escanear,
+  // el certificado y "Mi cuenta" se abren por encima, cubriéndola.
+  const mostrarBarra = rol === "colaborador" && nav.raiz;
 
   // El banner de avisos va encima de todo, en cualquier pantalla. Tocarlo abre
   // el depósito del aviso, si tiene uno; si no, la lista de avisos.
@@ -165,9 +164,10 @@ function Raiz() {
     return <PilaAuth />;
   }
 
-  // Un residente o administrador debe pertenecer a una torre antes de operar.
-  // El gestor es externo al condominio, así que no requiere vinculación.
-  if (usuario.rol !== "gestor" && !usuario.torreId) {
+  // Todos operan dentro de una planta. El colaborador y el validador además
+  // pertenecen a un área; el administrador, que ve la planta completa, no.
+  const sinArea = usuario.rol !== "administrador" && !usuario.areaId;
+  if (!usuario.plantaId || sinArea) {
     return <JoinTorreScreen />;
   }
 

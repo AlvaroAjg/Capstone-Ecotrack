@@ -48,25 +48,25 @@ function resumenMateriales(registros: Registro[]): string {
 }
 
 /**
- * Validación por contenedor. Los residentes vacían su reciclaje en el
- * contenedor, así que el administrador no puede saber de quién es cada cosa:
+ * Validación por contenedor. Los colaboradores vacían su reciclaje en el
+ * contenedor, así que el validador no puede saber de quién es cada cosa:
  * lo que sí ve es cada contenedor. Por eso los pendientes se agrupan por
- * contenedor con lo que se declaró en él, y el administrador compara a la
+ * contenedor con lo que se declaró en él, y el validador compara a la
  * vista: si cuadra, valida el contenedor completo; si no, lo rechaza. La
  * revisión depósito por depósito queda plegada, solo para excepciones.
  *
  * Si encuentra algo que no corresponde (vidrio picado en el de cartón), lo
  * reporta: los depósitos declarados se validan igual, porque no se sabe quién
- * fue, y el reporte avisa al gestor y a la torre.
+ * fue, y el reporte avisa al administrador y a la planta.
  */
 export default function ValidacionContenedores({
-  torreId,
+  plantaId,
   pendientes,
   alValidar,
   alRechazar,
   alReportar,
 }: {
-  torreId: string;
+  plantaId: string;
   pendientes: Registro[];
   /** Cada llamada es un lote atómico: o se procesan todos, o ninguno. */
   alValidar: (registros: Registro[]) => Promise<void>;
@@ -83,7 +83,7 @@ export default function ValidacionContenedores({
   /** Contenedor en el que se está eligiendo qué contaminante se encontró. */
   const [reportando, setReportando] = useState<string | null>(null);
 
-  useEffect(() => escucharContenedores(torreId, setContenedores), [torreId]);
+  useEffect(() => escucharContenedores(plantaId, setContenedores), [plantaId]);
 
   const grupos = useMemo<Grupo[]>(() => {
     const porCodigo = new Map<string, Registro[]>();
@@ -122,7 +122,7 @@ export default function ValidacionContenedores({
   async function reportar(g: Grupo, nombre: string, contaminante: Contaminante) {
     const acepta = await confirmar(
       "Reportar contaminación",
-      `Se registrará ${contaminante.toLowerCase()} en el ${nombre.toLowerCase()}. Los ${g.registros.length} depósitos declarados se validan igual, porque no se sabe quién fue. Se avisará al gestor para que lo retire con precaución y a los residentes de la torre.`,
+      `Se registrará ${contaminante.toLowerCase()} en el ${nombre.toLowerCase()}. Los ${g.registros.length} depósitos declarados se validan igual, porque no se sabe quién fue. Se avisará al administrador para que lo retiren con precaución y a los colaboradores de la planta.`,
       "Reportar y validar"
     );
     if (!acepta) return;
@@ -135,7 +135,7 @@ export default function ValidacionContenedores({
   async function rechazarUno(r: Registro) {
     const acepta = await confirmar(
       "Rechazar un depósito",
-      `${r.depto || "Sin depto"} · ${r.material}${r.talla ? ` · talla ${r.talla}` : ""}. Úsalo para excepciones, por ejemplo un depósito registrado dos veces.`,
+      `${r.material}${r.talla ? ` · talla ${r.talla}` : ""} · ${tiempoRelativo(r.creadoEn)}. Úsalo para excepciones, por ejemplo un depósito registrado dos veces.`,
       "Rechazar"
     );
     if (!acepta) return;
@@ -252,14 +252,14 @@ export default function ValidacionContenedores({
                     className="flex-row items-center border-t border-gray-100 pt-2 mt-2"
                   >
                     <Text className="text-gray-600 text-xs flex-1 pr-2">
-                      {r.depto || "Sin depto"} · {r.material}
+                      {r.material}
                       {r.talla ? ` · talla ${r.talla}` : ""} · {tiempoRelativo(r.creadoEn)}
                     </Text>
                     <TouchableOpacity
                       onPress={() => rechazarUno(r)}
                       disabled={ocupado !== null}
                       accessibilityRole="button"
-                      accessibilityLabel={`Rechazar depósito de ${r.depto || "sin depto"}`}
+                      accessibilityLabel={`Rechazar depósito de ${r.material.toLowerCase()} de ${tiempoRelativo(r.creadoEn)}`}
                     >
                       <Text className="text-red-600 text-xs font-medium">Rechazar</Text>
                     </TouchableOpacity>

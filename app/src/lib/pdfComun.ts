@@ -2,7 +2,7 @@ import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf
 import { fechaLarga } from "./formato";
 
 /**
- * Piezas comunes de los PDF de EcoTrack (certificado del residente y reporte
+ * Piezas comunes de los PDF de RecyTrack (certificado del colaborador y reporte
  * del administrador), generados en el dispositivo con pdf-lib y no con
  * window.print(): imprimir HTML no es confiable en una PWA de iPhone, y así el
  * archivo es idéntico en cualquier dispositivo.
@@ -131,7 +131,7 @@ export function franjaMarca(p: Pincel) {
   p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 110, color: VERDE });
   p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 5, color: VERDE_OSCURO });
   centrado(p, "RecyTrack", 58, 28, { negrita: true, color: BLANCO });
-  centrado(p, "Reciclaje verificado, desde tu torre hacia arriba", 80, 10, { color: VERDE_CLARO });
+  centrado(p, "Reciclaje verificado, desde tu área hacia arriba", 80, 10, { color: VERDE_CLARO });
 }
 
 /**

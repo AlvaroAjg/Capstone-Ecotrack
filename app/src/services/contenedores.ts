@@ -16,7 +16,8 @@ import type { Contenedor, Material } from "../lib/tipos";
 function aContenedor(codigo: string, d: any): Contenedor {
   return {
     codigo,
-    torreId: d.torreId ?? "",
+    plantaId: d.plantaId ?? "",
+    punto: d.punto ?? "",
     material: (d.material ?? null) as Material | null,
     activo: d.activo ?? false,
     creadoEn: d.creadoEn ?? 0,
@@ -24,17 +25,17 @@ function aContenedor(codigo: string, d: any): Contenedor {
 }
 
 /**
- * Contenedores de una torre, en vivo, incluidos los inactivos (un depósito
+ * Contenedores de una planta, en vivo, incluidos los inactivos (un depósito
  * pendiente puede estar en un contenedor al que después le cambiaron el
- * código). Solo lo usa el administrador de esa torre: las reglas no dejan
- * listar los de otra, ni a un residente listar ninguno (así nadie descubre los
- * códigos sin estar frente al contenedor).
+ * código). Solo lo usan el validador y el administrador de esa planta: las
+ * reglas no dejan listar los de otra, ni a un colaborador listar ninguno (así
+ * nadie descubre los códigos sin estar frente al contenedor).
  */
 export function escucharContenedores(
-  torreId: string,
+  plantaId: string,
   callback: (contenedores: Contenedor[]) => void
 ) {
-  const consulta = query(collection(db, "contenedores"), where("torreId", "==", torreId));
+  const consulta = query(collection(db, "contenedores"), where("plantaId", "==", plantaId));
   return onSnapshot(consulta, (snap) => {
     callback(
       snap.docs
@@ -63,14 +64,16 @@ async function codigoLibre(): Promise<string> {
   throw new Error("No se pudo generar un código de contenedor. Intenta de nuevo.");
 }
 
-/** Agrega un contenedor a la torre. `material` null = mixto. */
+/** Agrega un contenedor a un punto limpio de la planta. `material` null = mixto. */
 export async function crearContenedor(
-  torreId: string,
+  plantaId: string,
+  punto: string,
   material: Material | null
 ): Promise<string> {
   const codigo = await codigoLibre();
   await setDoc(doc(db, "contenedores", codigo), {
-    torreId,
+    plantaId,
+    punto,
     material,
     activo: true,
     creadoEn: Date.now(),
@@ -86,13 +89,15 @@ export async function desactivarContenedor(codigo: string): Promise<void> {
 /**
  * Cambia el código de un contenedor, por ejemplo si alguien sacó foto al QR y
  * lo compartió: se crea uno nuevo con el mismo material y el anterior queda
- * inactivo, en una sola escritura. Hay que imprimir el QR nuevo.
+ * inactivo, en una sola escritura. Queda en el mismo punto limpio. Hay que
+ * imprimir el QR nuevo.
  */
 export async function cambiarCodigo(contenedor: Contenedor): Promise<string> {
   const codigo = await codigoLibre();
   const lote = writeBatch(db);
   lote.set(doc(db, "contenedores", codigo), {
-    torreId: contenedor.torreId,
+    plantaId: contenedor.plantaId,
+    punto: contenedor.punto,
     material: contenedor.material,
     activo: true,
     creadoEn: Date.now(),

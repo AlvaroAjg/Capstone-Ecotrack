@@ -54,7 +54,7 @@ function bloque(): string {
   ).join("");
 }
 
-/** Código del certificado individual de un residente. */
+/** Código del certificado individual de un colaborador. */
 export function generarCodigoVerificacion(): string {
   return `ECO-${bloque()}-${bloque()}`;
 }
@@ -82,7 +82,7 @@ export function fechaCorta(timestamp: number | null): string {
   return `${dos(f.getDate())}/${dos(f.getMonth() + 1)} ${dos(f.getHours())}:${dos(f.getMinutes())}`;
 }
 
-/** Las métricas de torre y ranking se calculan sobre el mes calendario en curso. */
+/** Las métricas y el ranking se calculan sobre el mes calendario en curso. */
 export function esDelMesActual(timestamp: number | null): boolean {
   if (!timestamp) return false;
   const fecha = new Date(timestamp);

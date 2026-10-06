@@ -42,7 +42,7 @@ export default function BannerAvisos({
     for (const a of avisos) yaMostrados.current.add(a.id);
     if (llegados.length === 0) return;
 
-    // Si llegan varios juntos (el gestor retira un lote completo), se muestra
+    // Si llegan varios juntos (se retiran varios contenedores juntos), se muestra
     // el más reciente y cuántos más hay, en vez de encadenar banners.
     setActual({ aviso: llegados[0], masCantidad: llegados.length - 1 });
   }, [avisos]);

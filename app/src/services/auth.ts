@@ -17,7 +17,7 @@ import {
 } from "firebase/auth";
 import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
-import type { Rol, Usuario } from "../lib/tipos";
+import type { Area, Rol, Usuario } from "../lib/tipos";
 
 export type UsuarioAuth = User;
 
@@ -37,10 +37,10 @@ export function escucharPerfil(uid: string, callback: (u: Usuario | null) => voi
         id: uid,
         nombre: d.nombre ?? "",
         email: d.email ?? "",
-        depto: d.depto ?? "",
-        rol: (d.rol ?? "residente") as Rol,
-        torreId: d.torreId ?? null,
-        torreNombre: d.torreNombre ?? null,
+        rol: (d.rol ?? "colaborador") as Rol,
+        plantaId: d.plantaId ?? null,
+        areaId: d.areaId ?? null,
+        areaNombre: d.areaNombre ?? null,
         avisosVistosHasta: d.avisosVistosHasta ?? 0,
       });
     },
@@ -48,55 +48,48 @@ export function escucharPerfil(uid: string, callback: (u: Usuario | null) => voi
   );
 }
 
+/**
+ * Crea la cuenta con correo y contraseña. Todos nacen como colaboradores y sin
+ * área: el área se elige después con su código, y validador o administrador se
+ * llega por otro camino (ver promoverAAdministrador).
+ */
 export async function registrarCuenta(params: {
   nombre: string;
   email: string;
   password: string;
-  rol: Rol;
-  depto: string;
-  /** Solo para gestor: código que las reglas comprueban antes de aceptar ese rol. */
-  codigoRolUsado?: string;
 }): Promise<string> {
   const email = params.email.trim().toLowerCase();
   const credencial = await createUserWithEmailAndPassword(auth, email, params.password);
 
   await updateProfile(credencial.user, { displayName: params.nombre });
 
-  const datos: Record<string, unknown> = {
+  await setDoc(doc(db, "usuarios", credencial.user.uid), {
     nombre: params.nombre,
     email,
-    rol: params.rol,
-    depto: params.depto,
-    torreId: null,
-    torreNombre: null,
+    rol: "colaborador",
+    plantaId: null,
+    areaId: null,
+    areaNombre: null,
     creadoEn: Date.now(),
-  };
-  // Solo se incluye cuando corresponde: es lo que las reglas de Firestore
-  // exigen para aceptar un rol distinto de "residente" al crear el perfil.
-  if (params.codigoRolUsado) datos.codigoRolUsado = params.codigoRolUsado;
-
-  await setDoc(doc(db, "usuarios", credencial.user.uid), datos);
+  });
 
   return credencial.user.uid;
 }
 
 /**
- * Promueve a un residente a administrador de una torre. Solo funciona si
- * `codigoRolUsado` coincide con el código de esa torre en `codigosRol`: la
+ * Promueve a un colaborador a administrador de una planta. Solo funciona si
+ * `codigoRolUsado` coincide con el código de esa planta en `codigosRol`: la
  * regla de Firestore es quien realmente decide, esta función solo entrega los
  * datos. Si el código está mal, la escritura falla con "permission-denied".
  */
 export async function promoverAAdministrador(
   uid: string,
-  torreId: string,
-  torreNombre: string,
+  plantaId: string,
   codigoRolUsado: string
 ): Promise<void> {
   await updateDoc(doc(db, "usuarios", uid), {
     rol: "administrador",
-    torreId,
-    torreNombre,
-    depto: "Administración",
+    plantaId,
     codigoRolUsado,
   });
 }
@@ -164,7 +157,7 @@ function crearProveedor(cual: ProveedorExterno): GoogleAuthProvider | OAuthProvi
 
 /**
  * Inicia sesión con una cuenta de Google o de Microsoft. Si es la primera vez,
- * el perfil de residente lo crea el estado de la app al detectar la sesión (ver
+ * el perfil de colaborador lo crea el estado de la app al detectar la sesión (ver
  * crearPerfilExterno), así funciona igual con ventana emergente o redirección.
  */
 export async function iniciarSesionConProveedor(cual: ProveedorExterno): Promise<void> {
@@ -217,9 +210,9 @@ export function tieneContrasena(): boolean {
 }
 
 /**
- * Primer ingreso con Google o Microsoft: crea el perfil siempre como residente,
- * con el nombre y correo de esa cuenta. La torre y el departamento se piden
- * después, en la misma pantalla de vinculación que usa el registro normal.
+ * Primer ingreso con Google o Microsoft: crea el perfil siempre como
+ * colaborador, con el nombre y correo de esa cuenta. El área se pide después,
+ * en la misma pantalla que usa el registro normal.
  */
 export async function crearPerfilExterno(
   usuario: User,
@@ -231,10 +224,10 @@ export async function crearPerfilExterno(
   await setDoc(doc(db, "usuarios", usuario.uid), {
     nombre: usuario.displayName?.trim() || email.split("@")[0] || "Colaborador",
     email: email.toLowerCase(),
-    rol: "residente",
-    depto: "",
-    torreId: null,
-    torreNombre: null,
+    rol: "colaborador",
+    plantaId: null,
+    areaId: null,
+    areaNombre: null,
     proveedor,
     creadoEn: Date.now(),
   });
@@ -244,13 +237,17 @@ export async function cerrarSesion(): Promise<void> {
   await signOut(auth);
 }
 
-export async function vincularTorreAlPerfil(
-  uid: string,
-  torreId: string,
-  torreNombre: string,
-  depto: string
-): Promise<void> {
-  await updateDoc(doc(db, "usuarios", uid), { torreId, torreNombre, depto });
+/**
+ * Une al usuario a un área con su código. Solo se puede si todavía no tiene
+ * una: cambiarse de área lo hace el administrador, así nadie infla la
+ * participación de otra área (lo exigen las reglas).
+ */
+export async function unirseAArea(uid: string, area: Area): Promise<void> {
+  await updateDoc(doc(db, "usuarios", uid), {
+    plantaId: area.plantaId,
+    areaId: area.id,
+    areaNombre: area.nombre,
+  });
 }
 
 /** Marca como vistos todos los avisos hasta `hasta`. Es un campo del propio perfil. */
@@ -259,18 +256,12 @@ export async function marcarAvisosVistos(uid: string, hasta: number): Promise<vo
 }
 
 /**
- * Actualiza los datos personales editables. El rol y la torre no se tocan desde
- * aquí: el rol lo protegen las reglas de Firestore y la torre se cambia con el
- * administrador.
+ * Actualiza el nombre, el único dato personal editable. El rol y el área no se
+ * tocan desde aquí: los cambia el administrador, y las reglas de Firestore lo
+ * exigen.
  */
-export async function actualizarPerfil(
-  uid: string,
-  datos: { nombre: string; depto?: string }
-): Promise<void> {
-  const cambios: { nombre: string; depto?: string } = { nombre: datos.nombre };
-  if (datos.depto !== undefined) cambios.depto = datos.depto;
-
-  await updateDoc(doc(db, "usuarios", uid), cambios);
+export async function actualizarPerfil(uid: string, datos: { nombre: string }): Promise<void> {
+  await updateDoc(doc(db, "usuarios", uid), { nombre: datos.nombre });
 
   // El nombre también vive en Firebase Auth; si esa copia falla no se pierde el
   // cambio principal, que ya quedó en Firestore.

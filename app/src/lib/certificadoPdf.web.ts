@@ -42,7 +42,7 @@ function kilos(r: Registro): string {
 function situacion(r: Registro): string {
   switch (r.estado) {
     case "certificado":
-      return [r.codigoRetiro, r.codigo].filter(Boolean).join(" · ") || "Certificado";
+      return [r.retiroId, r.codigo].filter(Boolean).join(" · ") || "Certificado";
     case "validado":
       return "En proceso: esperando retiro";
     case "pendiente":
@@ -112,8 +112,8 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
   centrado(p, titulo, 168, 12, { negrita: true, color: VERDE });
 
   centrado(p, "Se certifica que", 202, 10, { color: GRIS });
-  centrado(p, c.residente, 226, 20, { negrita: true });
-  centrado(p, `${c.torreNombre} · ${c.depto}`, 244, 10, { color: GRIS });
+  centrado(p, c.nombre, 226, 20, { negrita: true });
+  centrado(p, c.area, 244, 10, { color: GRIS });
 
   centrado(p, "recicló de forma verificada", 274, 10, { color: GRIS });
   const total = formatKg(c.kgCertificados);
@@ -167,7 +167,7 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
   izquierda(p, "DETALLE DE DEPÓSITOS DEL MES", MARGEN, arriba, 9, { negrita: true, color: GRIS });
   izquierda(
     p,
-    "Fecha de cada etapa: depósito, validación del administrador y retiro del gestor.",
+    "Fecha de cada etapa: depósito, validación en el punto limpio y retiro del contenedor.",
     MARGEN,
     arriba + 13,
     8,
@@ -184,7 +184,7 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
         negrita: true,
         color: GRIS,
       });
-      izquierda(p, `${c.residente} · ${c.torreNombre} · ${c.depto}`, MARGEN, 63, 8.5, {
+      izquierda(p, `${c.nombre} · ${c.area}`, MARGEN, 63, 8.5, {
         color: GRIS,
       });
       arriba = 92;

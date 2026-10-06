@@ -7,21 +7,24 @@ import React, {
   useRef,
   useState,
 } from "react";
-import { esDeHoy, esDelMesActual, sumaKg } from "../lib/formato";
+import { esDelMesActual, sumaKg } from "../lib/formato";
+import { mesDe } from "../lib/certificadoMensual";
 import * as derivados from "../lib/derivados";
 import {
   kgEfectivo,
-  type FilaRanking,
-  type LoteRetiro,
-  type Material,
-  type Mision,
-  type Registro,
-  type ResumenTorre,
+  type Area,
+  type Campana,
   type Contaminante,
+  type Contenedor,
+  type ContenedorPorRetirar,
+  type FilaRanking,
   type Incidencia,
-  type Rol,
+  type Material,
+  type Planta,
+  type Registro,
+  type ResumenMes,
+  type Retiro,
   type Talla,
-  type Torre,
   type Usuario,
 } from "../lib/tipos";
 import { construirAvisos, esNuevo, type Aviso } from "../lib/avisos";
@@ -30,11 +33,15 @@ import {
   puntosDelMes,
   type MisionSistema,
 } from "../lib/misionesSistema";
+import * as servicioAreas from "../services/areas";
 import * as servicioAuth from "../services/auth";
+import * as servicioCampanas from "../services/campanas";
+import * as servicioContenedores from "../services/contenedores";
 import * as servicioIncidencias from "../services/incidencias";
-import * as servicioMisiones from "../services/misiones";
+import * as servicioPlantas from "../services/plantas";
 import * as servicioRegistros from "../services/registros";
-import * as servicioTorres from "../services/torres";
+import * as servicioResumenes from "../services/resumenes";
+import * as servicioRetiros from "../services/retiros";
 
 // Se reexportan para no romper los imports existentes de las pantallas.
 export {
@@ -42,50 +49,61 @@ export {
   ROLES,
   TALLAS,
   nombreContenedor,
+  type Area,
+  type Campana,
   type Contenedor,
+  type ContenedorPorRetirar,
   kgEfectivo,
   kgEstimado,
   type Talla,
   type EstadoRegistro,
   type FilaRanking,
   type Incidencia,
-  type LoteRetiro,
   type Material,
-  type Mision,
+  type Planta,
   type Registro,
-  type ResumenTorre,
+  type ResumenMes,
+  type Retiro,
   type Rol,
-  type Torre,
   type Usuario,
 } from "../lib/tipos";
+export type { DatosRetiro } from "../services/retiros";
 
 interface EcoTrackValor {
   // Sesión
   cargandoSesion: boolean;
   usuario: Usuario | null;
-  miTorre: Torre | null;
+  miPlanta: Planta | null;
   errorDatos: string | null;
 
   // Datos en vivo desde Firestore
+  /** Todas las plantas: para elegir una al promoverse a administrador. */
+  plantas: Planta[];
+  /** Las áreas de mi planta. */
+  areas: Area[];
+  /** Colaborador: los suyos. Validador y administrador: los de su planta. */
   registros: Registro[];
-  torres: Torre[];
 
-  // Derivados del residente
+  // Derivados del colaborador
   misRegistros: Registro[];
   misKgDelMes: number;
   misCertificados: Registro[];
+
+  // Ranking de áreas del mes, calculado con el resumen (sin depósitos ajenos)
+  resumenMes: ResumenMes | null;
+  ranking: FilaRanking[];
   miPosicionRanking: number;
 
-  // Derivados del gestor: trabaja por lote de torre, nunca por residente
-  lotesPorRetirar: LoteRetiro[];
-  kgEnCola: number;
-  retirosConfirmadosHoy: number;
+  // Incentivo vigente de mi planta (null si todavía no se ha definido uno)
+  campana: Campana | null;
 
-  // Misión activa de mi torre (null si todavía no se ha definido una)
-  mision: Mision | null;
+  // Validador y administrador: los contenedores de la planta
+  contenedores: Contenedor[];
+  // Administrador: lo que espera retiro, por contenedor, y los retiros hechos
+  porRetirar: ContenedorPorRetirar[];
+  retiros: Retiro[];
 
-  // Contenedores reportados como contaminados: los de mi torre (admin y
-  // residente) o los que el gestor todavía no retira
+  // Contenedores reportados como contaminados en mi planta
   incidencias: Incidencia[];
   /** Reporta el contenedor contaminado y valida sus depósitos, en un solo lote. */
   reportarYValidar: (
@@ -98,36 +116,37 @@ interface EcoTrackValor {
   avisosNuevos: number;
   marcarAvisosVistos: () => Promise<void>;
 
-  // Misión semanal del sistema, calculada con los depósitos del residente
+  // Misión semanal del sistema, calculada con los depósitos del colaborador
   misionSemanal: MisionSistema;
   ecoPuntosMes: number;
 
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
   iniciarSesionConProveedor: (proveedor: servicioAuth.ProveedorExterno) => Promise<void>;
-  registrarCuenta: (datos: {
-    nombre: string;
-    email: string;
-    password: string;
-    rol: Rol;
-    depto: string;
-    /** Solo para gestor: código que habilita ese rol al crear la cuenta. */
-    codigoRolUsado?: string;
-  }) => Promise<void>;
-  vincularTorre: (codigo: string, depto: string) => Promise<Torre>;
-  vincularComoAdministrador: (codigoTorre: string, codigoAdmin: string) => Promise<Torre>;
-  actualizarPerfil: (datos: { nombre: string; depto?: string }) => Promise<void>;
+  registrarCuenta: (datos: { nombre: string; email: string; password: string }) => Promise<void>;
+  /** El área de un código, para mostrar su nombre antes de unirse. */
+  buscarArea: (codigo: string) => Promise<Area | null>;
+  unirseAArea: (area: Area) => Promise<void>;
+  promoverAAdministrador: (plantaId: string, codigoAdmin: string) => Promise<Planta>;
+  actualizarPerfil: (datos: { nombre: string }) => Promise<void>;
   cambiarContrasena: (actual: string, nueva: string) => Promise<void>;
   cerrarSesion: () => Promise<void>;
   crearRegistro: (material: Material, talla: Talla, contenedor: string) => Promise<string>;
   /** Cada llamada es un lote atómico: o se procesan todos, o ninguno. */
   validarRegistros: (registros: Registro[]) => Promise<void>;
   rechazarRegistros: (ids: string[]) => Promise<void>;
-  confirmarRetiro: (torreId: string) => Promise<string>;
+  /** Registra el retiro de esos contenedores y certifica sus depósitos validados. */
+  registrarRetiro: (
+    datos: servicioRetiros.DatosRetiro,
+    contenedores: string[]
+  ) => Promise<string>;
   registroPorId: (id: string) => Registro | undefined;
-  resumenTorre: (torreId: string | null) => ResumenTorre;
-  guardarMision: (datos: { metaKg: number; incentivo: string }) => Promise<void>;
-  ranking: FilaRanking[];
+  guardarCampana: (datos: {
+    nombre: string;
+    metaParticipacion: number;
+    incentivo: string;
+    terminaEn: number;
+  }) => Promise<void>;
 }
 
 const EcoTrackContext = createContext<EcoTrackValor | null>(null);
@@ -137,10 +156,14 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const [uid, setUid] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [registros, setRegistros] = useState<Registro[]>([]);
-  const [torres, setTorres] = useState<Torre[]>([]);
+  const [plantas, setPlantas] = useState<Planta[]>([]);
+  const [areas, setAreas] = useState<Area[]>([]);
   const [errorDatos, setErrorDatos] = useState<string | null>(null);
-  const [mision, setMision] = useState<Mision | null>(null);
+  const [campana, setCampana] = useState<Campana | null>(null);
+  const [resumenMes, setResumenMes] = useState<ResumenMes | null>(null);
   const [incidencias, setIncidencias] = useState<Incidencia[]>([]);
+  const [contenedores, setContenedores] = useState<Contenedor[]>([]);
+  const [retiros, setRetiros] = useState<Retiro[]>([]);
 
   // Entre `createUser` y la creación del documento de perfil hay una ventana en
   // la que el usuario está autenticado pero aún no tiene perfil. Esta bandera
@@ -175,7 +198,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
         if (registrandoRef.current || creandoPerfilRef.current) return;
 
         // Primer ingreso con Google o Microsoft: no hay registro previo, así
-        // que se crea el perfil de residente aquí. Sirve igual si la cuenta
+        // que se crea el perfil de colaborador aquí. Sirve igual si la cuenta
         // volvió por ventana emergente o por redirección.
         const usuarioAuth = usuarioAuthRef.current;
         const proveedor = servicioAuth.proveedorExterno(usuarioAuth);
@@ -200,21 +223,21 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     });
   }, [uid]);
 
-  // 3. Datos compartidos, en tiempo real: las torres, con la sesión.
+  // 3. Las plantas, con la sesión. En el piloto hay una sola.
   useEffect(() => {
     if (!uid) {
-      setTorres([]);
+      setPlantas([]);
       return;
     }
-    return servicioTorres.escucharTorres(setTorres);
+    return servicioPlantas.escucharPlantas(setPlantas);
   }, [uid]);
 
-  // 3b. Los registros dependen del rol y la torre (ver consultasPara en
+  // 3b. Los registros dependen del rol y la planta (ver consultasPara en
   // services/registros.ts), así que esperan al perfil y se vuelven a pedir si
   // cambian, por ejemplo al promoverse a administrador.
   const idPerfil = usuario?.id ?? null;
   const rolPerfil = usuario?.rol ?? null;
-  const torrePerfil = usuario?.torreId ?? null;
+  const plantaPerfil = usuario?.plantaId ?? null;
   useEffect(() => {
     if (!idPerfil || !rolPerfil) {
       setRegistros([]);
@@ -222,40 +245,59 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     return servicioRegistros.escucharRegistros(
-      { id: idPerfil, rol: rolPerfil, torreId: torrePerfil },
+      { id: idPerfil, rol: rolPerfil, plantaId: plantaPerfil },
       (lista) => {
         setRegistros(lista);
         setErrorDatos(null);
       },
       (error) => setErrorDatos(servicioAuth.mensajeError(error))
     );
-  }, [idPerfil, rolPerfil, torrePerfil]);
+  }, [idPerfil, rolPerfil, plantaPerfil]);
 
-  // 4. Misión activa de mi torre. El gestor no tiene torre, así que nunca escucha una.
+  // 4. Lo compartido por todos los de mi planta: sus áreas, el incentivo, el
+  // resumen del mes (para el ranking) y las incidencias. El mes del resumen
+  // se fija al suscribirse: si la app queda abierta al cambiar de mes, sigue
+  // mostrando el anterior hasta volver a abrirla.
   useEffect(() => {
-    const torreId = usuario?.torreId ?? null;
-    if (!torreId) {
-      setMision(null);
+    if (!plantaPerfil) {
+      setAreas([]);
+      setCampana(null);
+      setResumenMes(null);
+      setIncidencias([]);
       return;
     }
-    return servicioMisiones.escucharMision(torreId, setMision);
-  }, [usuario?.torreId]);
+    const dejar = [
+      servicioAreas.escucharAreas(plantaPerfil, setAreas),
+      servicioCampanas.escucharCampana(plantaPerfil, setCampana),
+      servicioResumenes.escucharResumen(plantaPerfil, mesDe(Date.now()), setResumenMes),
+      servicioIncidencias.escucharIncidencias(plantaPerfil, setIncidencias),
+    ];
+    return () => dejar.forEach((d) => d());
+  }, [plantaPerfil]);
 
-  // 5. Incidencias de contaminación. El gestor ve las pendientes de todas las
-  // torres (son advertencias para su retiro); los demás, las de su torre.
+  // 5. Los contenedores, para el validador y el administrador: las reglas no
+  // dejan que un colaborador los liste (así nadie descubre los códigos sin
+  // estar frente al contenedor).
   useEffect(() => {
-    if (usuario?.rol === "gestor") {
-      return servicioIncidencias.escucharIncidenciasPendientes(setIncidencias);
+    if (!plantaPerfil || (rolPerfil !== "validador" && rolPerfil !== "administrador")) {
+      setContenedores([]);
+      return;
     }
-    if (usuario?.torreId) {
-      return servicioIncidencias.escucharIncidenciasDeTorre(usuario.torreId, setIncidencias);
-    }
-    setIncidencias([]);
-  }, [usuario?.rol, usuario?.torreId]);
+    return servicioContenedores.escucharContenedores(plantaPerfil, setContenedores);
+  }, [plantaPerfil, rolPerfil]);
 
-  const miTorre = useMemo(
-    () => torres.find((t) => t.id === usuario?.torreId) ?? null,
-    [torres, usuario]
+  // 6. Los retiros, solo para el administrador, que es quien los registra.
+  useEffect(() => {
+    if (!plantaPerfil || rolPerfil !== "administrador") {
+      setRetiros([]);
+      return;
+    }
+    return servicioRetiros.escucharRetiros(plantaPerfil, setRetiros);
+  }, [plantaPerfil, rolPerfil]);
+
+  const miPlanta = useMemo(
+    () => plantas.find((p) => p.id === usuario?.plantaId) ?? null,
+    [plantas, usuario?.plantaId]
   );
 
   // ---------------------------------------------------------------- acciones
@@ -272,13 +314,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const registrarCuenta = useCallback(
-    async (datos: {
-      nombre: string;
-      email: string;
-      password: string;
-      rol: Rol;
-      depto: string;
-    }) => {
+    async (datos: { nombre: string; email: string; password: string }) => {
       registrandoRef.current = true;
       try {
         await servicioAuth.registrarCuenta(datos);
@@ -294,43 +330,45 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const vincularTorre = useCallback(
-    async (codigo: string, depto: string) => {
+  const buscarArea = useCallback(
+    (codigo: string) => servicioAreas.buscarAreaPorCodigo(codigo),
+    []
+  );
+
+  const unirseAArea = useCallback(
+    async (area: Area) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      const torre = await servicioTorres.buscarTorrePorCodigo(codigo);
-      if (!torre) throw new Error("Código no válido. Verifícalo con tu administrador.");
-      await servicioAuth.vincularTorreAlPerfil(usuario.id, torre.id, torre.nombre, depto);
-      return torre;
+      await servicioAuth.unirseAArea(usuario.id, area);
     },
     [usuario]
   );
 
   /**
-   * Un residente se promueve a administrador de su torre presentando el
-   * código de esa torre. La regla de Firestore es quien realmente decide: si
+   * Un colaborador se promueve a administrador de una planta presentando el
+   * código de esa planta. La regla de Firestore es quien realmente decide: si
    * el código está mal, esta llamada falla con un mensaje claro en vez del
    * genérico "permission-denied".
    */
-  const vincularComoAdministrador = useCallback(
-    async (codigoTorre: string, codigoAdmin: string) => {
+  const promoverAAdministrador = useCallback(
+    async (plantaId: string, codigoAdmin: string) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
-      const torre = await servicioTorres.buscarTorrePorCodigo(codigoTorre);
-      if (!torre) throw new Error("Código de torre no válido. Verifícalo con tu administrador.");
+      const planta = plantas.find((p) => p.id === plantaId);
+      if (!planta) throw new Error("Elige una planta.");
       try {
-        await servicioAuth.promoverAAdministrador(usuario.id, torre.id, torre.nombre, codigoAdmin);
+        await servicioAuth.promoverAAdministrador(usuario.id, planta.id, codigoAdmin);
       } catch (error) {
         if ((error as { code?: string })?.code === "permission-denied") {
           throw new Error("Código de administrador incorrecto.");
         }
         throw error;
       }
-      return torre;
+      return planta;
     },
-    [usuario]
+    [usuario, plantas]
   );
 
   const actualizarPerfil = useCallback(
-    async (datos: { nombre: string; depto?: string }) => {
+    async (datos: { nombre: string }) => {
       if (!usuario) throw new Error("No hay una sesión activa.");
       // El perfil se escucha en tiempo real: al guardar, `usuario` se refresca solo.
       await servicioAuth.actualizarPerfil(usuario.id, datos);
@@ -375,10 +413,29 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     [registros]
   );
 
-  const guardarMision = useCallback(
-    async (datos: { metaKg: number; incentivo: string }) => {
-      if (!usuario?.torreId) throw new Error("No hay una sesión activa.");
-      await servicioMisiones.guardarMision(usuario.torreId, usuario.id, datos);
+  const guardarCampana = useCallback(
+    async (datos: {
+      nombre: string;
+      metaParticipacion: number;
+      incentivo: string;
+      terminaEn: number;
+    }) => {
+      if (!usuario?.plantaId) throw new Error("No hay una sesión activa.");
+      await servicioCampanas.guardarCampana(usuario.plantaId, usuario.id, datos);
+    },
+    [usuario]
+  );
+
+  const reportarYValidar = useCallback(
+    async (
+      datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante },
+      lista: Registro[]
+    ) => {
+      if (!usuario?.plantaId) throw new Error("No hay una sesión activa.");
+      const reporte = { ...datos, plantaId: usuario.plantaId, reportadoPor: usuario.id };
+      await servicioRegistros.validarRegistros(lista, usuario.id, (lote) =>
+        servicioIncidencias.agregarReporte(lote, reporte)
+      );
     },
     [usuario]
   );
@@ -386,19 +443,18 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   // --------------------------------------------------------------- derivados
 
   // Ver lib/derivados.ts: aquí solo se memorizan.
-  const resumenTorre = useCallback(
-    (torreId: string | null): ResumenTorre =>
-      derivados.resumenDeTorre(torreId, torres, registros, mision),
-    [registros, torres, mision]
+  const ranking = useMemo(
+    () => derivados.rankingDeAreas(areas, resumenMes, usuario?.areaId ?? null),
+    [areas, resumenMes, usuario?.areaId]
   );
 
-  const ranking = useMemo(
-    () => derivados.rankingDeTorres(torres, registros, mision, usuario?.torreId ?? null),
-    [torres, registros, mision, usuario?.torreId]
-  );
+  const miPosicionRanking = useMemo(() => {
+    const indice = ranking.findIndex((a) => a.esMiArea);
+    return indice === -1 ? ranking.length : indice + 1;
+  }, [ranking]);
 
   const misRegistros = useMemo(
-    () => (usuario ? registros.filter((r) => r.residenteId === usuario.id) : []),
+    () => (usuario ? registros.filter((r) => r.colaboradorId === usuario.id) : []),
     [registros, usuario]
   );
 
@@ -420,65 +476,32 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const misionSemanal = useMemo(() => calcularSemanal(misRegistros), [misRegistros]);
   const ecoPuntosMes = useMemo(() => puntosDelMes(misRegistros), [misRegistros]);
 
-  const miPosicionRanking = useMemo(() => {
-    const indice = ranking.findIndex((t) => t.esMiTorre);
-    return indice === -1 ? ranking.length : indice + 1;
-  }, [ranking]);
-
-  // Lo que ve el gestor: un lote por torre (ver lotesPorRetirar en lib/derivados.ts).
-  const lotesPorRetirar = useMemo(
-    () => derivados.lotesPorRetirar(registros, torres),
-    [registros, torres]
+  // Lo que ve el administrador: un grupo por contenedor (ver
+  // contenedoresPorRetirar en lib/derivados.ts).
+  const porRetirar = useMemo(
+    () => derivados.contenedoresPorRetirar(registros, contenedores),
+    [registros, contenedores]
   );
 
-  const kgEnCola = useMemo(
-    () => sumaKg(lotesPorRetirar.map((l) => l.kgTotal)),
-    [lotesPorRetirar]
-  );
-
-  /** Confirma el retiro del contenedor completo de una torre. */
-  const confirmarRetiro = useCallback(
-    async (torreId: string) => {
-      if (!usuario) throw new Error("No hay una sesión activa.");
-      const lote = lotesPorRetirar.find((l) => l.torreId === torreId);
-      if (!lote) throw new Error("Ese lote ya no está disponible.");
-      const codigo = await servicioRegistros.confirmarRetiroDeTorre(lote.registros, usuario.id);
-      // Con el contenedor retirado, sus advertencias de contaminación ya se
-      // atendieron. Si esto fallara, el retiro igual quedó hecho.
-      await servicioIncidencias
-        .marcarAtendidas(
-          incidencias.filter((i) => i.torreId === torreId && !i.atendida),
-          codigo
-        )
-        .catch(() => undefined);
-      return codigo;
-    },
-    [usuario, lotesPorRetirar, incidencias]
-  );
-
-
-  const avisos = useMemo(
-    () => construirAvisos(usuario, registros, lotesPorRetirar, incidencias),
-    [usuario, registros, lotesPorRetirar, incidencias]
-  );
-
-  const reportarYValidar = useCallback(
-    async (
-      datos: { contenedor: string; contenedorNombre: string; contaminante: Contaminante },
-      lista: Registro[]
-    ) => {
-      if (!usuario?.torreId) throw new Error("No hay una sesión activa.");
-      const reporte = {
-        ...datos,
-        torreId: usuario.torreId,
-        torreNombre: usuario.torreNombre ?? usuario.torreId,
-        adminUid: usuario.id,
-      };
-      await servicioRegistros.validarRegistros(lista, usuario.id, (lote) =>
-        servicioIncidencias.agregarReporte(lote, reporte)
+  const registrarRetiro = useCallback(
+    async (datos: servicioRetiros.DatosRetiro, codigos: string[]) => {
+      if (!usuario?.plantaId) throw new Error("No hay una sesión activa.");
+      const elegidos = porRetirar.filter((c) => codigos.includes(c.contenedor));
+      if (elegidos.length === 0) throw new Error("Elige al menos un contenedor con depósitos validados.");
+      return servicioRetiros.registrarRetiro(
+        usuario.plantaId,
+        usuario.id,
+        datos,
+        elegidos,
+        incidencias
       );
     },
-    [usuario]
+    [usuario, porRetirar, incidencias]
+  );
+
+  const avisos = useMemo(
+    () => construirAvisos(usuario, registros, porRetirar, incidencias),
+    [usuario, registros, porRetirar, incidencias]
   );
 
   const avisosNuevos = useMemo(
@@ -491,55 +514,46 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     await servicioAuth.marcarAvisosVistos(usuario.id, Date.now());
   }, [usuario, avisosNuevos]);
 
-  const retirosConfirmadosHoy = useMemo(
-    () =>
-      registros.filter(
-        (r) =>
-          r.estado === "certificado" &&
-          r.certificadoPor === usuario?.id &&
-          esDeHoy(r.certificadoEn)
-      ).length,
-    [registros, usuario]
-  );
-
   const valor: EcoTrackValor = {
     cargandoSesion,
     usuario,
-    miTorre,
+    miPlanta,
     errorDatos,
+    plantas,
+    areas,
     registros,
-    torres,
     misRegistros,
     misKgDelMes,
     misCertificados,
+    resumenMes,
+    ranking,
     miPosicionRanking,
-    lotesPorRetirar,
-    kgEnCola,
-    retirosConfirmadosHoy,
-    mision,
-    misionSemanal,
-    ecoPuntosMes,
+    campana,
+    contenedores,
+    porRetirar,
+    retiros,
     incidencias,
     reportarYValidar,
     avisos,
     avisosNuevos,
     marcarAvisosVistos,
+    misionSemanal,
+    ecoPuntosMes,
     iniciarSesion,
     iniciarSesionConProveedor,
     registrarCuenta,
-    vincularTorre,
-    vincularComoAdministrador,
+    buscarArea,
+    unirseAArea,
+    promoverAAdministrador,
     actualizarPerfil,
     cambiarContrasena,
     cerrarSesion,
     crearRegistro,
     validarRegistros,
     rechazarRegistros,
-    confirmarRetiro,
+    registrarRetiro,
     registroPorId,
-    resumenTorre,
-    guardarMision,
-    ranking,
+    guardarCampana,
   };
 
   return <EcoTrackContext.Provider value={valor}>{children}</EcoTrackContext.Provider>;

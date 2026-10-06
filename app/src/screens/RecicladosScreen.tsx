@@ -18,7 +18,7 @@ import {
 } from "../components/ui";
 
 /**
- * Historial completo del residente: antes vivía como una sección más de
+ * Historial completo del colaborador: antes vivía como una sección más de
  * HomeScreen, pero al crecer obligaba a bajar toda la pantalla para llegar a
  * cerrar sesión. Ahora es su propia pestaña.
  */
