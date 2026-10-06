@@ -1,7 +1,8 @@
 import {
-  addDoc,
   collection,
   doc,
+  getDoc,
+  increment,
   onSnapshot,
   query,
   where,
@@ -9,8 +10,10 @@ import {
   type Query,
   type WriteBatch,
 } from "firebase/firestore";
+import { mesDe } from "../lib/certificadoMensual";
 import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
+import { idParticipacion, idResumen } from "../lib/resumenMes";
 import { inicioDeSemana } from "../lib/misionesSistema";
 import {
   kgEstimado,
@@ -120,24 +123,42 @@ export function escucharRegistros(
   return () => dejar.forEach((d) => d());
 }
 
+/**
+ * Registra un depósito. En el mismo writeBatch atómico suma 1 a los depósitos
+ * de su área en el resumen del mes y, si es su primer depósito del mes, 1 a
+ * los participantes, creando su documento en `participaciones`. Así el
+ * ranking de áreas se arma sin leer los depósitos de los demás. Las reglas
+ * comprueban cada suma con `ultimoRegistro`, que apunta al depósito de este
+ * mismo lote.
+ */
 export async function crearRegistro(
   usuario: Usuario,
   material: Material,
   talla: Talla,
   contenedor: string
 ): Promise<string> {
-  if (!usuario.torreId) {
-    throw new Error("Tu cuenta no está vinculada a una torre.");
+  if (!usuario.plantaId || !usuario.areaId) {
+    throw new Error("Tu cuenta no está unida a un área.");
   }
 
-  // Nombre, depto y torre van tal cual están en el perfil: las reglas exigen
-  // que coincidan con él.
-  const referencia = await addDoc(collection(db, "registros"), {
-    residenteId: usuario.id,
-    residente: usuario.nombre,
-    depto: usuario.depto,
-    torreId: usuario.torreId,
-    torreNombre: usuario.torreNombre,
+  const ahora = Date.now();
+  const mes = mesDe(ahora);
+  const deposito = doc(collection(db, "registros"));
+  const participacion = doc(db, "participaciones", idParticipacion(mes, usuario.id));
+
+  // Si ya existe, ya se le contó como participante este mes. Si dos depósitos
+  // suyos llegaran a la vez, el segundo lote intentaría crearlo de nuevo y las
+  // reglas lo rechazarían: basta con volver a intentarlo.
+  const primeroDelMes = !(await getDoc(participacion)).exists();
+
+  const lote = writeBatch(db);
+
+  // Planta y área van tal cual están en el perfil: las reglas exigen que
+  // coincidan con él. El nombre no se guarda (ver Registro en tipos.ts).
+  lote.set(deposito, {
+    colaboradorId: usuario.id,
+    plantaId: usuario.plantaId,
+    areaId: usuario.areaId,
     material,
     talla,
     // Los kilos salen de la tabla, nunca de lo que escriba el usuario: las
@@ -146,16 +167,38 @@ export async function crearRegistro(
     kgConfirmado: null,
     contenedor,
     estado: "pendiente",
-    creadoEn: Date.now(),
+    creadoEn: ahora,
     validadoEn: null,
     validadoPor: null,
     certificadoEn: null,
     certificadoPor: null,
     codigo: null,
-    codigoRetiro: null,
+    retiroId: null,
   });
 
-  return referencia.id;
+  // Con merge, el primer depósito del mes crea el resumen y los siguientes
+  // solo suman en su área, sin tocar las demás.
+  lote.set(
+    doc(db, "resumenes", idResumen(usuario.plantaId, mes)),
+    {
+      plantaId: usuario.plantaId,
+      mes,
+      areas: {
+        [usuario.areaId]: primeroDelMes
+          ? { depositos: increment(1), participantes: increment(1) }
+          : { depositos: increment(1) },
+      },
+      ultimoRegistro: deposito.id,
+    },
+    { merge: true }
+  );
+
+  if (primeroDelMes) {
+    lote.set(participacion, { uid: usuario.id, mes });
+  }
+
+  await lote.commit();
+  return deposito.id;
 }
 
 /**
