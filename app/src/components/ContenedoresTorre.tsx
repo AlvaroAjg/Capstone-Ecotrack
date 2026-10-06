@@ -5,9 +5,9 @@ import { contenidoQr } from "../lib/qr";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
 import * as servicioContenedores from "../services/contenedores";
 import CodigoQR from "./CodigoQR";
-import { Boton, Seccion, Tarjeta } from "./ui";
+import { Boton, Campo, Seccion, Tarjeta } from "./ui";
 
-/** Opciones al agregar un contenedor: mixto (el residente elige) o de un material. */
+/** Opciones al agregar un contenedor: mixto (el colaborador elige) o de un material. */
 const OPCIONES: { material: Material | null; etiqueta: string; emoji: string }[] = [
   { material: null, etiqueta: "Mixto", emoji: "♻️" },
   ...MATERIALES.map((m) => ({ material: m.nombre, etiqueta: m.nombre, emoji: m.emoji })),
@@ -18,24 +18,25 @@ function emojiDe(material: Material | null): string {
 }
 
 /**
- * Contenedores de la torre, en el panel del administrador. Un punto de
- * reciclaje puede tener un solo contenedor mixto (el residente elige el
- * material) o uno por material, cada uno con su QR: al escanearlo el material
- * ya queda fijado. Desde aquí se agregan, se imprime su QR, se les cambia el
- * código si se filtró o se quitan.
+ * Contenedores de la planta, en la vista del administrador. Un punto limpio
+ * puede tener un solo contenedor mixto (el colaborador elige el material) o
+ * uno por material, cada uno con su QR: al escanearlo el material ya queda
+ * fijado. Desde aquí se agregan, se imprime su QR, se les cambia el código si
+ * se filtró o se quitan.
  */
-export default function ContenedoresTorre({ torreId }: { torreId: string }) {
+export default function ContenedoresTorre({ plantaId }: { plantaId: string }) {
   const [contenedores, setContenedores] = useState<Contenedor[] | null>(null);
   const [abierto, setAbierto] = useState<string | null>(null);
   const [agregando, setAgregando] = useState(false);
+  const [punto, setPunto] = useState("");
   const [ocupado, setOcupado] = useState(false);
 
   useEffect(
     () =>
-      servicioContenedores.escucharContenedores(torreId, (todos) =>
+      servicioContenedores.escucharContenedores(plantaId, (todos) =>
         setContenedores(todos.filter((c) => c.activo))
       ),
-    [torreId]
+    [plantaId]
   );
 
   async function ejecutar(accion: () => Promise<unknown>) {
@@ -50,8 +51,13 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
   }
 
   async function agregar(material: Material | null) {
+    const nombrePunto = punto.trim();
+    if (!nombrePunto) {
+      avisar("Falta el punto limpio", "Escribe dónde está el contenedor, por ejemplo Casino.");
+      return;
+    }
     await ejecutar(async () => {
-      const codigo = await servicioContenedores.crearContenedor(torreId, material);
+      const codigo = await servicioContenedores.crearContenedor(plantaId, nombrePunto, material);
       setAgregando(false);
       setAbierto(codigo);
     });
@@ -79,15 +85,15 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
 
   return (
     <Seccion
-      titulo="Contenedores de la torre"
+      titulo="Contenedores de la planta"
       etiqueta={contenedores ? `${contenedores.length}` : undefined}
     >
       {contenedores && contenedores.length === 0 ? (
         <Tarjeta className="mb-3">
           <Text className="text-gray-600 text-sm">
-            Tu torre todavía no tiene contenedores. Agrega uno para que los residentes
-            puedan registrar sus depósitos: uno mixto, o uno por material si el punto de
-            reciclaje los tiene separados.
+            La planta todavía no tiene contenedores. Agrega uno para que los colaboradores
+            puedan registrar sus depósitos: uno mixto, o uno por material si el punto
+            limpio los tiene separados.
           </Text>
         </Tarjeta>
       ) : null}
@@ -107,7 +113,9 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
               </View>
               <View className="flex-1 min-w-0">
                 <Text className="text-gray-800 font-medium">{nombreContenedor(c)}</Text>
-                <Text className="text-gray-400 text-xs mt-0.5 tracking-widest">{c.codigo}</Text>
+                <Text className="text-gray-400 text-xs mt-0.5">
+                  {c.punto} · <Text className="tracking-widest">{c.codigo}</Text>
+                </Text>
               </View>
               <Text className="text-green-700 text-xs font-semibold">
                 {verQr ? "Ocultar QR" : "Ver QR"}
@@ -116,7 +124,7 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
 
             {verQr ? (
               <View className="items-center mt-4">
-                <CodigoQR texto={contenidoQr(torreId, c.codigo)} tamano={220} />
+                <CodigoQR texto={contenidoQr(plantaId, c.codigo)} tamano={220} />
                 <Text className="text-gray-900 font-bold text-2xl tracking-widest mt-3">
                   {c.codigo}
                 </Text>
@@ -148,9 +156,16 @@ export default function ContenedoresTorre({ torreId }: { torreId: string }) {
 
       {agregando ? (
         <Tarjeta>
+          <Campo
+            etiqueta="Punto limpio"
+            placeholder="Por ejemplo, Casino"
+            value={punto}
+            onChangeText={setPunto}
+            maxLength={40}
+          />
           <Text className="text-gray-800 font-medium mb-1">¿Qué recibe el contenedor?</Text>
           <Text className="text-gray-400 text-xs mb-3">
-            Si es de un material, al escanear su QR el residente no tiene que elegirlo.
+            Si es de un material, al escanear su QR el colaborador no tiene que elegirlo.
           </Text>
           <View className="flex-row flex-wrap">
             {OPCIONES.map((o) => (

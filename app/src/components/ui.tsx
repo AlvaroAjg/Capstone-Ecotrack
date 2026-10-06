@@ -95,7 +95,7 @@ const TABS_INFO: { pantalla: PantallaTab; etiqueta: string; icono: string }[] = 
 ];
 
 /**
- * Barra fija de pestañas para el residente. Solo se muestra en las tres
+ * Barra fija de pestañas para el colaborador. Solo se muestra en las tres
  * pantallas raíz (Inicio, Reciclados, Ranking); escanear, el certificado y
  * "Mi cuenta" se abren por encima, cubriéndola, como en cualquier app con tabs.
  *
@@ -385,7 +385,7 @@ export const ASPECTO_ESTADO: Record<
     emoji: "⏳",
   },
   validado: {
-    texto: "Esperando gestor",
+    texto: "Esperando retiro",
     fondo: "bg-blue-100",
     color: "text-blue-700",
     emoji: "🔎",
@@ -415,8 +415,8 @@ export function Insignia({ estado }: { estado: EstadoRegistro }) {
 
 const ETAPAS: { clave: EstadoRegistro; corto: string }[] = [
   { clave: "pendiente", corto: "Depósito" },
-  { clave: "validado", corto: "Administrador" },
-  { clave: "certificado", corto: "Gestor" },
+  { clave: "validado", corto: "Validación" },
+  { clave: "certificado", corto: "Retiro" },
 ];
 
 export function CadenaVerificacion({ estado }: { estado: EstadoRegistro }) {

@@ -16,23 +16,6 @@ export function validarNombre(nombre: string): string | undefined {
   return undefined;
 }
 
-/** "Depto 305" → "305". El perfil guarda la etiqueta completa; el campo edita solo el número. */
-export function numeroDepto(depto: string): string {
-  return depto.replace(/^depto\.?\s*/i, "").trim();
-}
-
-/** "305" → "Depto 305". */
-export function etiquetaDepto(numero: string): string {
-  return `Depto ${numero.trim().toUpperCase()}`;
-}
-
-export function validarDepto(numero: string): string | undefined {
-  if (!/^[0-9A-Za-z-]{1,6}$/.test(numero.trim())) {
-    return "Usa solo números o letras, por ejemplo 305 o 12B.";
-  }
-  return undefined;
-}
-
 export function validarContrasenaNueva(
   actual: string,
   nueva: string,

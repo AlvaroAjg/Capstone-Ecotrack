@@ -13,30 +13,33 @@ import { mensajeError } from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
 export default function JoinTorreScreen() {
-  const { torres, vincularTorre, vincularComoAdministrador, cerrarSesion } = useEcoTrack();
+  const { plantas, buscarArea, unirseAArea, promoverAAdministrador, cerrarSesion } = useEcoTrack();
 
-  // Por defecto se vincula como residente. El toggle revela el segundo código
-  // que la regla de Firestore exige para promoverse a administrador de esa
-  // torre: sin el código correcto, la escritura simplemente falla.
+  // Por defecto se une a un área como colaborador. El toggle revela el código
+  // que la regla de Firestore exige para promoverse a administrador de una
+  // planta: sin el código correcto, la escritura simplemente falla.
   const [comoAdmin, setComoAdmin] = useState(false);
   const [codigo, setCodigo] = useState("");
   const [codigoAdmin, setCodigoAdmin] = useState("");
-  const [depto, setDepto] = useState("");
+  const [plantaElegida, setPlantaElegida] = useState<string | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [cargando, setCargando] = useState(false);
 
+  // En el piloto hay una sola planta: se elige sola.
+  const plantaId = plantaElegida ?? (plantas.length === 1 ? plantas[0].id : null);
+
   async function handleVincular() {
-    if (!codigo.trim()) {
-      setError("Ingresa el código de tu torre");
-      return;
-    }
     if (comoAdmin) {
+      if (!plantaId) {
+        setError("Elige tu planta");
+        return;
+      }
       if (!codigoAdmin.trim()) {
         setError("Ingresa el código de administrador");
         return;
       }
-    } else if (depto.trim().length < 2) {
-      setError("Ingresa tu departamento (ej: 305)");
+    } else if (!codigo.trim()) {
+      setError("Ingresa el código de tu área");
       return;
     }
 
@@ -44,9 +47,11 @@ export default function JoinTorreScreen() {
     setError(undefined);
     try {
       if (comoAdmin) {
-        await vincularComoAdministrador(codigo, codigoAdmin.trim());
+        await promoverAAdministrador(plantaId!, codigoAdmin.trim());
       } else {
-        await vincularTorre(codigo, `Depto ${depto.trim()}`);
+        const area = await buscarArea(codigo);
+        if (!area) throw new Error("Código no válido. Pídeselo al administrador.");
+        await unirseAArea(area);
       }
       // App.tsx detecta el perfil actualizado y entra al panel correspondiente.
     } catch (e) {
@@ -73,14 +78,14 @@ export default function JoinTorreScreen() {
         >
           <View className="items-center mb-6">
             <View className="w-16 h-16 rounded-2xl bg-green-100 items-center justify-center mb-4">
-              <Text className="text-3xl">🏢</Text>
+              <Text className="text-3xl">🏭</Text>
             </View>
           </View>
 
-          <Text className="text-2xl font-bold text-green-700 mb-1">Vincula tu torre</Text>
+          <Text className="text-2xl font-bold text-green-700 mb-1">Únete a tu área</Text>
           <Text className="text-base text-gray-500 mb-6">
-            Paso 2 de 2 · ingresa el código que te entregó tu administrador. Solo puedes
-            pertenecer a una torre a la vez.
+            Paso 2 de 2 · ingresa el código de tu área que te entregó el administrador.
+            Si después cambias de área, el cambio lo hace el administrador.
           </Text>
 
           {error ? (
@@ -89,37 +94,54 @@ export default function JoinTorreScreen() {
             </View>
           ) : null}
 
-          <Campo
-            etiqueta="Código de invitación"
-            placeholder="ECO-TORRE-A"
-            autoCapitalize="characters"
-            autoCorrect={false}
-            value={codigo}
-            onChangeText={setCodigo}
-            onFocus={() => setError(undefined)}
-            className="text-center text-lg tracking-widest"
-          />
-
           {!comoAdmin ? (
             <Campo
-              etiqueta="Tu departamento"
-              placeholder="305"
-              keyboardType="number-pad"
-              value={depto}
-              onChangeText={setDepto}
-              onFocus={() => setError(undefined)}
-            />
-          ) : (
-            <Campo
-              etiqueta="Código de administrador"
-              placeholder="Te lo entrega el equipo de RecyTrack"
+              etiqueta="Código del área"
+              placeholder="EMB-4821"
               autoCapitalize="characters"
               autoCorrect={false}
-              value={codigoAdmin}
-              onChangeText={setCodigoAdmin}
+              value={codigo}
+              onChangeText={setCodigo}
               onFocus={() => setError(undefined)}
-              className="text-center tracking-widest"
+              className="text-center text-lg tracking-widest"
             />
+          ) : (
+            <>
+              {plantas.length > 1 ? (
+                <View className="flex-row flex-wrap mb-3">
+                  {plantas.map((p) => (
+                    <TouchableOpacity
+                      key={p.id}
+                      onPress={() => {
+                        setPlantaElegida(p.id);
+                        setError(undefined);
+                      }}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: p.id === plantaId }}
+                      className={`border rounded-lg px-3 py-2 mr-2 mb-1 ${
+                        p.id === plantaId ? "bg-green-700 border-green-700" : "bg-white border-gray-300"
+                      }`}
+                    >
+                      <Text
+                        className={`text-xs font-medium ${p.id === plantaId ? "text-white" : "text-gray-700"}`}
+                      >
+                        {p.nombre}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              ) : null}
+              <Campo
+                etiqueta="Código de administrador"
+                placeholder="Te lo entrega el equipo de RecyTrack"
+                autoCapitalize="characters"
+                autoCorrect={false}
+                value={codigoAdmin}
+                onChangeText={setCodigoAdmin}
+                onFocus={() => setError(undefined)}
+                className="text-center tracking-widest"
+              />
+            </>
           )}
 
           <TouchableOpacity
@@ -133,46 +155,16 @@ export default function JoinTorreScreen() {
             <Text className="text-center text-gray-500 text-xs">
               {comoAdmin
                 ? "No soy administrador, soy colaborador"
-                : "¿Eres administrador de esta torre? Toca aquí"}
+                : "¿Eres administrador de la planta? Toca aquí"}
             </Text>
           </TouchableOpacity>
 
           <Boton
-            titulo={cargando ? "Vinculando..." : "Vincular torre"}
+            titulo={cargando ? "Uniendo..." : comoAdmin ? "Entrar como administrador" : "Unirme al área"}
             cargando={cargando}
             onPress={handleVincular}
             className="mt-1"
           />
-
-          <View className="mt-8 bg-gray-50 border border-gray-200 rounded-xl p-4">
-            <Text className="text-gray-500 text-xs mb-2">
-              Torres registradas en el condominio:
-            </Text>
-            {torres.length === 0 ? (
-              <Text className="text-gray-400 text-xs">
-                Todavía no hay torres creadas en Firestore. Usa el botón de
-                configuración inicial en la pantalla de login.
-              </Text>
-            ) : (
-              <View className="flex-row flex-wrap">
-                {torres.map((t) => (
-                  <TouchableOpacity
-                    key={t.id}
-                    onPress={() => {
-                      setCodigo(t.codigoInvitacion);
-                      setError(undefined);
-                    }}
-                    accessibilityRole="button"
-                    className="bg-white border border-gray-300 rounded-lg px-3 py-1 mr-2 mb-1"
-                  >
-                    <Text className="text-gray-700 text-xs font-medium">
-                      {t.codigoInvitacion}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            )}
-          </View>
 
           <TouchableOpacity
             onPress={() => cerrarSesion()}

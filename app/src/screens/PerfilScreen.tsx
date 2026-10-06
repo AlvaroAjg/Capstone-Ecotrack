@@ -8,20 +8,13 @@ import {
   proveedorExterno,
   tieneContrasena,
 } from "../services/auth";
-import {
-  etiquetaDepto,
-  normalizarNombre,
-  numeroDepto,
-  validarContrasenaNueva,
-  validarDepto,
-  validarNombre,
-} from "../lib/perfil";
+import { normalizarNombre, validarContrasenaNueva, validarNombre } from "../lib/perfil";
 import { Aviso, Boton, Campo, Cuerpo, Encabezado, Seccion, Tarjeta, TituloEncabezado } from "../components/ui";
 
 const ETIQUETA_ROL: Record<Rol, string> = {
-  residente: "♻️ Colaborador",
+  colaborador: "♻️ Colaborador",
+  validador: "🔎 Validador de residuos",
   administrador: "🛡️ Administrador",
-  gestor: "🚛 Gestor de reciclaje",
 };
 
 interface Mensaje {
@@ -44,45 +37,34 @@ function FilaDato({ etiqueta, valor }: { etiqueta: string; valor: string }) {
 }
 
 /**
- * "Mi cuenta": se abre al tocar el avatar en cualquiera de los tres paneles.
- * Permite editar nombre y departamento, cambiar la contraseña y cerrar sesión.
- * El correo, el rol y la torre solo se muestran: el rol lo protegen las reglas
- * de Firestore y un usuario pertenece a una única torre a la vez.
+ * "Mi cuenta": se abre al tocar el avatar en cualquier vista. Permite editar
+ * el nombre, cambiar la contraseña y cerrar sesión. El correo, el rol y el
+ * área solo se muestran: el rol lo protegen las reglas de Firestore y el
+ * cambio de área lo hace el administrador.
  */
 export default function PerfilScreen({ nav }: { nav: Navegacion }) {
-  const { usuario, miTorre, actualizarPerfil, cambiarContrasena, cerrarSesion } = useEcoTrack();
+  const { usuario, miPlanta, actualizarPerfil, cambiarContrasena, cerrarSesion } = useEcoTrack();
 
-  const esResidente = usuario?.rol === "residente";
-  const tono = usuario?.rol === "residente" ? "verde" : "oscuro";
+  const tono = usuario?.rol === "colaborador" ? "verde" : "oscuro";
 
   // --- Datos personales
   const [nombre, setNombre] = useState(usuario?.nombre ?? "");
-  const [depto, setDepto] = useState(numeroDepto(usuario?.depto ?? ""));
   const [errorNombre, setErrorNombre] = useState<string | undefined>();
-  const [errorDepto, setErrorDepto] = useState<string | undefined>();
   const [guardando, setGuardando] = useState(false);
   const [mensaje, setMensaje] = useState<Mensaje | null>(null);
 
-  const hayCambios =
-    normalizarNombre(nombre) !== (usuario?.nombre ?? "") ||
-    (esResidente && etiquetaDepto(depto) !== (usuario?.depto ?? ""));
+  const hayCambios = normalizarNombre(nombre) !== (usuario?.nombre ?? "");
 
   async function guardar() {
     const eNombre = validarNombre(nombre);
-    const eDepto = esResidente ? validarDepto(depto) : undefined;
     setErrorNombre(eNombre);
-    setErrorDepto(eDepto);
     setMensaje(null);
-    if (eNombre || eDepto) return;
+    if (eNombre) return;
 
     setGuardando(true);
     try {
-      await actualizarPerfil({
-        nombre: normalizarNombre(nombre),
-        depto: esResidente ? etiquetaDepto(depto) : undefined,
-      });
+      await actualizarPerfil({ nombre: normalizarNombre(nombre) });
       setNombre(normalizarNombre(nombre));
-      if (esResidente) setDepto(numeroDepto(etiquetaDepto(depto)));
       setMensaje({ tono: "info", texto: "Cambios guardados." });
     } catch (e) {
       setMensaje({ tono: "error", texto: mensajeError(e) });
@@ -177,35 +159,23 @@ export default function PerfilScreen({ nav }: { nav: Navegacion }) {
             maxLength={60}
           />
 
-          {esResidente ? (
-            <Campo
-              etiqueta="Departamento"
-              value={depto}
-              onChangeText={setDepto}
-              onFocus={() => {
-                setErrorDepto(undefined);
-                setMensaje(null);
-              }}
-              error={errorDepto}
-              autoCapitalize="characters"
-              maxLength={6}
-              placeholder="305"
-            />
-          ) : null}
-
           <FilaDato etiqueta="Correo electrónico" valor={usuario.email} />
-          {/* El gestor es externo al condominio: no pertenece a ninguna torre. */}
-          {usuario.rol !== "gestor" ? (
+          {/* El administrador ve la planta completa: no pertenece a un área. */}
+          {usuario.rol !== "administrador" ? (
             <FilaDato
-              etiqueta="Torre"
-              valor={miTorre ? `${miTorre.nombre} · ${miTorre.condominio}` : "Sin torre asignada"}
+              etiqueta="Área"
+              valor={
+                usuario.areaNombre
+                  ? `${usuario.areaNombre}${miPlanta ? ` · ${miPlanta.nombre}` : ""}`
+                  : "Sin área asignada"
+              }
             />
           ) : null}
 
           <Text className="text-gray-400 text-[11px] mb-4">
-            {usuario.rol === "gestor"
+            {usuario.rol === "administrador"
               ? "El correo y el rol no se pueden editar desde aquí."
-              : "El correo, el rol y la torre no se pueden editar desde aquí. Solo puedes pertenecer a una torre a la vez."}
+              : "El correo, el rol y el área no se pueden editar desde aquí. Si cambias de área, pídeselo al administrador."}
           </Text>
 
           <Boton

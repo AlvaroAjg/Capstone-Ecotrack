@@ -97,11 +97,11 @@ export default function DepositoScreen({ nav }: { nav: Navegacion }) {
           {!rechazado ? (
             <Etapa
               hecha={registro.certificadoEn !== null}
-              titulo="Certificado por el gestor"
+              titulo="Certificado al retirar el contenedor"
               detalle={
                 registro.certificadoEn
-                  ? `Retiró el contenedor de ${registro.torreNombre}`
-                  : "Esperando que el gestor retire el contenedor"
+                  ? "El material salió de la planta"
+                  : "Esperando que se retire el contenedor"
               }
               momento={registro.certificadoEn}
               ultima
@@ -110,7 +110,7 @@ export default function DepositoScreen({ nav }: { nav: Navegacion }) {
         </Tarjeta>
       </View>
 
-      {registro.codigo || registro.codigoRetiro ? (
+      {registro.codigo || registro.retiroId ? (
         <View className="px-6 mt-6">
           <Tarjeta>
             {registro.codigo ? (
@@ -121,9 +121,9 @@ export default function DepositoScreen({ nav }: { nav: Navegacion }) {
                 </Text>
               </View>
             ) : null}
-            {registro.codigoRetiro ? (
+            {registro.retiroId ? (
               <Text className="text-gray-500 text-xs text-center">
-                Salió en el retiro {registro.codigoRetiro}
+                Salió en el retiro {registro.retiroId}
               </Text>
             ) : null}
           </Tarjeta>

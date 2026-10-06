@@ -85,7 +85,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   const [misionCumplida, setMisionCumplida] = useState<MisionSistema | null>(null);
 
   // Contenedor leído del QR (o escrito a mano). Se busca en Firestore antes de
-  // avanzar: tiene que existir, estar activo y ser de la torre del usuario. Si
+  // avanzar: tiene que existir, estar activo y ser de la planta del usuario. Si
   // es de un material, el material queda fijado y se salta ese paso.
   const [contenedor, setContenedor] = useState<Contenedor | null>(null);
   const [codigoManual, setCodigoManual] = useState("");
@@ -96,7 +96,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
   const buscandoRef = useRef(false);
 
   async function procesarCodigo(texto: string) {
-    const lectura = interpretarQr(texto, usuario?.torreId ?? null);
+    const lectura = interpretarQr(texto, usuario?.plantaId ?? null);
     if (!lectura.ok) {
       setErrorLectura(lectura.error);
       return;
@@ -106,8 +106,8 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
     setBuscando(true);
     try {
       const encontrado = await obtenerContenedor(lectura.codigo);
-      if (!encontrado || encontrado.torreId !== usuario?.torreId) {
-        setErrorLectura("Ese código no corresponde a ningún contenedor de tu torre.");
+      if (!encontrado || encontrado.plantaId !== usuario?.plantaId) {
+        setErrorLectura("Ese código no corresponde a ningún contenedor de tu planta.");
         return;
       }
       if (!encontrado.activo) {

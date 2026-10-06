@@ -8,36 +8,28 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEcoTrack, type Rol } from "../state/EcoTrack";
+import { useEcoTrack } from "../state/EcoTrack";
 import { mensajeError } from "../services/auth";
-import { Aviso, Boton, Campo, Segmentado } from "../components/ui";
+import { Aviso, Boton, Campo } from "../components/ui";
 
 interface Errores {
   nombre?: string;
   email?: string;
   password?: string;
-  codigo?: string;
 }
 
 /**
- * Roles que se pueden elegir al registrarse. Administrador queda afuera a
- * propósito: nadie se autoasigna ese rol. Se llega a él vinculándose a una
- * torre con el código de administrador (ver JoinTorreScreen), no desde aquí.
- * La regla de Firestore lo exige igual, así que esto es solo para no ofrecer
- * en la interfaz un camino que el servidor va a rechazar.
+ * Todos se registran como colaboradores: nadie elige su rol. Al validador lo
+ * nombra el administrador, y el administrador se promueve con el código de su
+ * planta en el paso siguiente (ver JoinTorreScreen). Las reglas de Firestore
+ * lo exigen igual.
  */
-const ROLES_PUBLICOS: { valor: Rol; etiqueta: string }[] = [
-  { valor: "residente", etiqueta: "♻️ Colaborador" },
-  { valor: "gestor", etiqueta: "🚛 Gestor" },
-];
 
 export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
   const { registrarCuenta } = useEcoTrack();
   const [nombre, setNombre] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [rol, setRol] = useState<Rol>("residente");
-  const [codigoGestor, setCodigoGestor] = useState("");
   const [errores, setErrores] = useState<Errores>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
@@ -47,9 +39,6 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
     if (nombre.trim().length < 3) nuevosErrores.nombre = "Ingresa tu nombre completo";
     if (!email.includes("@")) nuevosErrores.email = "Ingresa un correo válido";
     if (password.length < 6) nuevosErrores.password = "Mínimo 6 caracteres";
-    if (rol === "gestor" && !codigoGestor.trim()) {
-      nuevosErrores.codigo = "Ingresa el código de gestor";
-    }
 
     setErrores(nuevosErrores);
     setErrorGeneral(null);
@@ -57,22 +46,10 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
 
     setCargando(true);
     try {
-      await registrarCuenta({
-        nombre: nombre.trim(),
-        email,
-        password,
-        rol,
-        depto: rol === "gestor" ? "Gestor externo" : "",
-        codigoRolUsado: rol === "gestor" ? codigoGestor.trim() : undefined,
-      });
-      // App.tsx detecta la sesión y lleva a vincular torre (o al panel del gestor).
+      await registrarCuenta({ nombre: nombre.trim(), email, password });
+      // App.tsx detecta la sesión y lleva a unirse a un área.
     } catch (error) {
-      const codigo = (error as { code?: string })?.code;
-      setErrorGeneral(
-        rol === "gestor" && codigo === "permission-denied"
-          ? "Código de gestor incorrecto."
-          : mensajeError(error)
-      );
+      setErrorGeneral(mensajeError(error));
     } finally {
       setCargando(false);
     }
@@ -115,20 +92,6 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
             </View>
           ) : null}
 
-          <Text className="text-gray-500 text-xs mb-2 ml-1">Tipo de cuenta</Text>
-          <View className="mb-2">
-            <Segmentado
-              valor={rol}
-              alCambiar={setRol}
-              opciones={ROLES_PUBLICOS.map((r) => ({ valor: r.valor, etiqueta: r.etiqueta }))}
-            />
-          </View>
-          <Text className="text-gray-400 text-[11px] mb-5 ml-1">
-            {rol === "gestor"
-              ? "Necesitas el código de gestor que te entrega el equipo de RecyTrack."
-              : "¿Eres administrador de una torre? Te vinculas como tal en el siguiente paso, con tu código."}
-          </Text>
-
           <Campo
             etiqueta="Nombre completo"
             placeholder="Nombre y apellido"
@@ -157,19 +120,6 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
             onFocus={limpiar("password")}
             error={errores.password}
           />
-
-          {rol === "gestor" ? (
-            <Campo
-              etiqueta="Código de gestor"
-              placeholder="Te lo entrega el equipo de RecyTrack"
-              autoCapitalize="characters"
-              autoCorrect={false}
-              value={codigoGestor}
-              onChangeText={setCodigoGestor}
-              onFocus={limpiar("codigo")}
-              error={errores.codigo}
-            />
-          ) : null}
 
           <Boton
             titulo={cargando ? "Creando cuenta..." : "Continuar"}
