@@ -1,0 +1,125 @@
+@startuml RecyTrack_Modelo_Datos
+' RecyTrack — Modelo de datos (Cloud Firestore), planta de Viñedos Familia Chadwick.
+' Piloto según el Plan EcoTrack Viña (30-sep-2026). Diseñado, aún no implementado:
+' el código en main todavía usa torres, residente y gestor.
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam class {
+  BorderColor #8FA394
+  BackgroundColor #F7F9F7
+  HeaderBackgroundColor #E2EDE5
+}
+title RecyTrack — Modelo de datos (Cloud Firestore)\nPlanta de Viñedos Familia Chadwick
+
+entity "codigosRol" as COD {
+  * plantaId : id
+  --
+  administrador (código de alta)
+  (ilegible desde la app)
+}
+entity "plantas  «antes: torres»" as PLA {
+  * plantaId : id
+  --
+  nombre, empresa
+  validadorUid, suplenteUid
+  creadoEn
+}
+entity "campanas  «antes: misiones»" as CAM {
+  * campanaId : id
+  --
+  plantaId, nombre
+  metaParticipacion (% del área, nunca kg)
+  incentivo, terminaEn
+  activa (una por planta)
+  creadaPor, creadaEn
+}
+entity "areas  «nueva»" as ARE {
+  * areaId : id
+  --
+  plantaId, nombre
+  codigoIngreso (p. ej. EMB-4821)
+  dotacion, activa
+}
+entity "usuarios" as USR {
+  * uid : id (Firebase Auth)
+  --
+  nombre, email
+  rol: colaborador | validador | administrador
+  plantaId, areaId, areaNombre
+  avisosVistosHasta, creadoEn
+}
+entity "contenedores" as CTN {
+  * codigo : id (QR aleatorio)
+  --
+  plantaId, punto (punto limpio)
+  material (null = mixto)
+  activo, creadoEn
+}
+entity "registros" as REG {
+  * registroId : id
+  --
+  colaboradorId, plantaId, areaId
+  contenedor, material, talla (S–XL)
+  kgDeclarado, kgConfirmado
+  estado: pendiente | validado | certificado | rechazado
+  creadoEn
+  validadoEn, validadoPor
+  certificadoEn, certificadoPor
+  codigo, retiroId
+  (sin nombre del colaborador)
+}
+entity "retiros  «nueva»" as RET {
+  * retiroId : id
+  --
+  plantaId, fecha
+  retiradoPor, numeroGuia
+  contenedores[]
+  pesoInformadoKg (opcional)
+  depositos, kgEstimados
+  registradoPor, registradoEn
+}
+entity "incidencias" as INC {
+  * incidenciaId : id
+  --
+  plantaId, contenedor, punto
+  contaminante
+  reportadoEn, reportadoPor (validador)
+  atendida, atendidaEn, retiroId
+}
+
+COD ||--|| PLA
+PLA ||--o{ CAM
+PLA ||--o{ ARE
+PLA ||--o{ USR
+PLA ||--o{ CTN
+PLA ||--o{ RET
+PLA ||--o{ INC
+ARE ||--o{ USR
+USR ||--o{ REG : colaboradorId
+ARE ||--o{ REG : areaId
+CTN ||--o{ REG : contenedor
+RET |o--o{ REG : retiroId
+CTN ||--o{ INC : contenedor
+RET |o--o{ INC : retiroId
+RET }o--o{ CTN : contenedores[]
+
+note bottom of REG
+  El depósito no guarda el nombre: el panel cruza
+  colaboradorId con usuarios (solo los lee el administrador).
+end note
+note bottom of RET
+  Lo registra el administrador en el panel web, en un solo
+  writeBatch que certifica los depósitos validados y atiende
+  las incidencias. Con pesoInformadoKg figura como verificado.
+end note
+
+legend bottom right
+  Se calcula en el cliente, no se guarda: participación por área,
+  ranking de áreas y EcoPuntos, calendario de rondas,
+  certificado mensual del colaborador, reporte mensual de la planta.
+  Roles: colaborador, validador (titular y suplente), administrador.
+  Ya no hay rol gestor.
+endlegend
+@enduml
