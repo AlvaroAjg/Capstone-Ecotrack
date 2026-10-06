@@ -8,9 +8,9 @@
 
 import { cantidadDeposito, formatKg } from "./formato";
 import {
-  kgEfectivo,
+  nombreContenedor,
+  type ContenedorPorRetirar,
   type Incidencia,
-  type LoteRetiro,
   type Registro,
   type Usuario,
 } from "./tipos";
@@ -28,8 +28,8 @@ export interface Aviso {
 }
 
 const DIA = 24 * 60 * 60 * 1000;
-/** El residente ve el avance de sus depósitos del último mes. */
-const VENTANA_RESIDENTE = 30 * DIA;
+/** El colaborador ve el avance de sus depósitos del último mes. */
+const VENTANA_COLABORADOR = 30 * DIA;
 /** Tope de la lista, para que no se vuelva eterna con mucho historial. */
 const MAXIMO = 30;
 /**
@@ -47,20 +47,20 @@ function descripcion(r: Registro): string {
   return `${r.material} · ${cantidadDeposito(r)}`;
 }
 
-/** Residente: cada paso de la cadena de sus propios depósitos. */
-function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
-  const desde = Date.now() - VENTANA_RESIDENTE;
+/** Colaborador: cada paso de la cadena de sus propios depósitos. */
+function avisosColaborador(usuario: Usuario, registros: Registro[]): Aviso[] {
+  const desde = Date.now() - VENTANA_COLABORADOR;
   const avisos: Aviso[] = [];
 
   for (const r of registros) {
-    if (r.residenteId !== usuario.id) continue;
+    if (r.colaboradorId !== usuario.id) continue;
 
     if (r.estado === "rechazado" && r.validadoEn && r.validadoEn >= desde) {
       avisos.push({
         id: `${r.id}-rechazado`,
         emoji: "❌",
         titulo: "Depósito rechazado",
-        detalle: `${descripcion(r)} · el administrador no lo encontró en el contenedor`,
+        detalle: `${descripcion(r)} · el validador no lo encontró en el contenedor`,
         fecha: r.validadoEn,
         registroId: r.id,
       });
@@ -69,8 +69,8 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
       avisos.push({
         id: `${r.id}-validado`,
         emoji: "🛡️",
-        titulo: "Depósito validado por el administrador",
-        detalle: `${descripcion(r)} · ahora espera el retiro del gestor`,
+        titulo: "Depósito validado",
+        detalle: `${descripcion(r)} · ahora espera el retiro del contenedor`,
         fecha: r.validadoEn,
         registroId: r.id,
       });
@@ -79,7 +79,7 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
       avisos.push({
         id: `${r.id}-certificado`,
         emoji: "📄",
-        titulo: "Reciclaje certificado por el gestor",
+        titulo: "Reciclaje certificado",
         detalle: `${descripcion(r)} · ya suma a tu certificado del mes`,
         fecha: r.certificadoEn,
         registroId: r.id,
@@ -90,46 +90,53 @@ function avisosResidente(usuario: Usuario, registros: Registro[]): Aviso[] {
 }
 
 /**
- * Administrador: los depósitos de su torre que esperan validación. Al validar
- * o rechazar uno, su aviso desaparece: la lista es lo que queda por hacer.
+ * Validador: los depósitos de su planta que esperan validación. Al validar o
+ * rechazar uno, su aviso desaparece: la lista es lo que queda por hacer. No
+ * dice de quién es cada depósito: el validador revisa contenedores, no
+ * personas.
  */
-function avisosAdministrador(usuario: Usuario, registros: Registro[]): Aviso[] {
+function avisosValidador(usuario: Usuario, registros: Registro[]): Aviso[] {
   return registros
-    .filter((r) => r.torreId === usuario.torreId && r.estado === "pendiente")
+    .filter((r) => r.plantaId === usuario.plantaId && r.estado === "pendiente")
     .map((r) => ({
       id: `${r.id}-pendiente`,
       emoji: "📥",
       titulo: "Nuevo depósito por validar",
-      detalle: `${r.depto || "Sin depto"} · ${descripcion(r)} · contenedor ${r.contenedor}`,
+      detalle: `${descripcion(r)} · contenedor ${r.contenedor}`,
       fecha: r.creadoEn,
     }));
 }
 
+/** "Contenedor de vidrio (Casino)", o sin el punto si no se conoce. */
+function nombreConPunto(c: ContenedorPorRetirar): string {
+  return `${nombreContenedor(c)}${c.punto ? ` (${c.punto})` : ""}`;
+}
+
 /**
- * Gestor: un aviso por torre con contenedor listo para retiro. Cambia de id
+ * Administrador: un aviso por contenedor listo para retiro. Cambia de id
  * cuando llega un depósito validado nuevo, para volver a marcarse como nuevo.
  */
-function avisosGestor(lotes: LoteRetiro[]): Aviso[] {
-  return lotes.map((l) => {
-    const ultima = Math.max(...l.registros.map((r) => r.validadoEn ?? r.creadoEn));
+function avisosRetiro(porRetirar: ContenedorPorRetirar[]): Aviso[] {
+  return porRetirar.map((c) => {
+    const ultima = Math.max(...c.registros.map((r) => r.validadoEn ?? r.creadoEn));
     return {
-      id: `${l.torreId}-lote-${ultima}`,
+      id: `${c.contenedor}-retiro-${ultima}`,
       emoji: "🚛",
-      titulo: `${l.torreNombre}: contenedor listo para retiro`,
-      detalle: `${formatKg(l.kgTotal)} validados en ${l.depositos} depósito${
-        l.depositos === 1 ? "" : "s"
-      }${l.condominio ? ` · ${l.condominio}` : ""}`,
+      titulo: `${nombreConPunto(c)}: listo para retiro`,
+      detalle: `${formatKg(c.kgEstimado)} validados en ${c.depositos} depósito${
+        c.depositos === 1 ? "" : "s"
+      }`,
       fecha: ultima,
     };
   });
 }
 
 /**
- * Residente: un contenedor de su torre apareció contaminado. Es un aviso para
- * toda la torre, porque no se sabe quién fue: educa sin señalar a nadie.
+ * Colaborador: un contenedor de su planta apareció contaminado. Es un aviso
+ * para toda la planta, porque no se sabe quién fue: educa sin señalar a nadie.
  */
-function avisosContaminacionTorre(incidencias: Incidencia[]): Aviso[] {
-  const desde = Date.now() - VENTANA_RESIDENTE;
+function avisosContaminacion(incidencias: Incidencia[]): Aviso[] {
+  const desde = Date.now() - VENTANA_COLABORADOR;
   return incidencias
     .filter((i) => i.reportadoEn >= desde)
     .map((i) => ({
@@ -137,12 +144,15 @@ function avisosContaminacionTorre(incidencias: Incidencia[]): Aviso[] {
       emoji: "!",
       tono: "alerta" as const,
       titulo: `Se encontró ${i.contaminante.toLowerCase()} en el ${i.contenedorNombre.toLowerCase()}`,
-      detalle: "Recuerda botar cada material en su contenedor. Es un aviso para toda la torre.",
+      detalle: "Recuerda botar cada material en su contenedor. Es un aviso para toda la planta.",
       fecha: i.reportadoEn,
     }));
 }
 
-/** Gestor: un contenedor por retirar viene contaminado. Es una advertencia de seguridad. */
+/**
+ * Administrador: un contenedor por retirar viene contaminado. Es una
+ * advertencia de seguridad para quien lo retira.
+ */
 function avisosPrecaucion(incidencias: Incidencia[]): Aviso[] {
   return incidencias
     .filter((i) => !i.atendida)
@@ -150,8 +160,8 @@ function avisosPrecaucion(incidencias: Incidencia[]): Aviso[] {
       id: `${i.id}-precaucion`,
       emoji: "!",
       tono: "alerta" as const,
-      titulo: `Precaución en ${i.torreNombre}`,
-      detalle: `${i.contaminante} en el ${i.contenedorNombre.toLowerCase()}: retíralo con cuidado.`,
+      titulo: `Precaución en el ${i.contenedorNombre.toLowerCase()}`,
+      detalle: `Tiene ${i.contaminante.toLowerCase()}: avisa a quien lo retire para que lo haga con cuidado.`,
       fecha: i.reportadoEn,
     }));
 }
@@ -160,15 +170,15 @@ function avisosPrecaucion(incidencias: Incidencia[]): Aviso[] {
 export function construirAvisos(
   usuario: Usuario | null,
   registros: Registro[],
-  lotes: LoteRetiro[],
+  porRetirar: ContenedorPorRetirar[],
   incidencias: Incidencia[] = []
 ): Aviso[] {
   if (!usuario) return [];
   const avisos =
-    usuario.rol === "residente"
-      ? [...avisosResidente(usuario, registros), ...avisosContaminacionTorre(incidencias)]
-      : usuario.rol === "administrador"
-        ? avisosAdministrador(usuario, registros)
-        : [...avisosGestor(lotes), ...avisosPrecaucion(incidencias)];
+    usuario.rol === "colaborador"
+      ? [...avisosColaborador(usuario, registros), ...avisosContaminacion(incidencias)]
+      : usuario.rol === "validador"
+        ? avisosValidador(usuario, registros)
+        : [...avisosRetiro(porRetirar), ...avisosPrecaucion(incidencias)];
   return avisos.sort((a, b) => b.fecha - a.fecha).slice(0, MAXIMO);
 }

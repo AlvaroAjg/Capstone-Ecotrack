@@ -8,6 +8,8 @@ import {
 } from "../src/lib/certificadoMensual";
 import { certificado, fecha, fijarAhora, registro, validado } from "./fabrica";
 
+const ANA = { nombre: "Ana", area: "Embotellado · Planta Piloto" };
+
 afterEach(() => {
   vi.useRealTimers();
 });
@@ -31,8 +33,8 @@ test("mesesConCertificado: solo meses con algo certificado, del más reciente al
 
 describe("certificadoDelMes", () => {
   test("sin depósitos certificados ese mes no hay certificado", () => {
-    expect(certificadoDelMes([validado({ creadoEn: fecha(2026, 9, 5) })], "2026-09")).toBeNull();
-    expect(certificadoDelMes([certificado({ creadoEn: fecha(2026, 8, 5) })], "2026-09")).toBeNull();
+    expect(certificadoDelMes([validado({ creadoEn: fecha(2026, 9, 5) })], "2026-09", ANA)).toBeNull();
+    expect(certificadoDelMes([certificado({ creadoEn: fecha(2026, 8, 5) })], "2026-09", ANA)).toBeNull();
   });
 
   test("suma solo lo certificado, pero detalla todos los depósitos del mes", () => {
@@ -45,7 +47,8 @@ describe("certificadoDelMes", () => {
         registro({ creadoEn: fecha(2026, 9, 7), estado: "rechazado", kgDeclarado: 12 }),
         certificado({ creadoEn: fecha(2026, 8, 30), kgDeclarado: 5 }),
       ],
-      "2026-09"
+      "2026-09",
+      ANA
     )!;
 
     expect(c.kgCertificados).toBe(9.2);
@@ -63,28 +66,24 @@ describe("certificadoDelMes", () => {
         certificado({ id: "tarde", creadoEn: fecha(2026, 9, 20) }),
         certificado({ id: "temprano", creadoEn: fecha(2026, 9, 2) }),
       ],
-      "2026-09"
+      "2026-09",
+      ANA
     )!;
     expect(c.registros.map((r) => r.id)).toEqual(["temprano", "tarde"]);
   });
 
-  test("usa el depto del depósito más reciente, si se cambió durante el mes", () => {
-    const c = certificadoDelMes(
-      [
-        certificado({ creadoEn: fecha(2026, 9, 2), depto: "Depto 101" }),
-        certificado({ creadoEn: fecha(2026, 9, 20), depto: "Depto 305" }),
-      ],
-      "2026-09"
-    )!;
-    expect(c.depto).toBe("Depto 305");
+  test("el nombre y el área salen del perfil, porque el depósito no los guarda", () => {
+    const c = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 2) })], "2026-09", ANA)!;
+    expect(c).toMatchObject({ nombre: "Ana", area: "Embotellado · Planta Piloto" });
   });
 
-  test("el código es estable para el residente y el mes, y distinto entre meses y residentes", () => {
+  test("el código es estable para la persona y el mes, y distinto entre meses y personas", () => {
     const deAna = (mes: number) =>
-      certificadoDelMes([certificado({ creadoEn: fecha(2026, mes, 5) })], `2026-0${mes}`)!.codigo;
+      certificadoDelMes([certificado({ creadoEn: fecha(2026, mes, 5) })], `2026-0${mes}`, ANA)!.codigo;
     const deBeto = certificadoDelMes(
-      [certificado({ residenteId: "beto", creadoEn: fecha(2026, 9, 5) })],
-      "2026-09"
+      [certificado({ colaboradorId: "beto", creadoEn: fecha(2026, 9, 5) })],
+      "2026-09",
+      ANA
     )!.codigo;
 
     expect(deAna(9)).toMatch(/^ECO-2609-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}$/);
@@ -99,15 +98,16 @@ describe("certificadoDelMes", () => {
       certificado({ creadoEn: fecha(2026, 9, 5) }),
       certificado({ creadoEn: fecha(2026, 8, 5) }),
     ];
-    expect(certificadoDelMes(registros, "2026-09")!.enCurso).toBe(true);
-    expect(certificadoDelMes(registros, "2026-08")!.enCurso).toBe(false);
+    expect(certificadoDelMes(registros, "2026-09", ANA)!.enCurso).toBe(true);
+    expect(certificadoDelMes(registros, "2026-08", ANA)!.enCurso).toBe(false);
   });
 
   test("tieneEstimados: si algún certificado se declaró por talla", () => {
-    const porTalla = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 5) })], "2026-09")!;
+    const porTalla = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 5) })], "2026-09", ANA)!;
     const enKilos = certificadoDelMes(
       [certificado({ creadoEn: fecha(2026, 9, 5), talla: null, kgDeclarado: 2 })],
-      "2026-09"
+      "2026-09",
+      ANA
     )!;
     expect(tieneEstimados(porTalla)).toBe(true);
     expect(tieneEstimados(enKilos)).toBe(false);

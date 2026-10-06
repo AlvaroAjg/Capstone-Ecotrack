@@ -1,5 +1,5 @@
 import type { ResultadoDescarga } from "./pdfComun";
-import type { ReporteTorre } from "./reporteTorre";
+import type { ReportePlanta } from "./reportePlanta";
 
 /**
  * Versión para el teléfono nativo (Expo Go): el PDF se genera solo en la web
@@ -11,6 +11,6 @@ export const reportePdfDisponible = false;
 
 export type { ResultadoDescarga };
 
-export async function descargarReporte(_reporte: ReporteTorre): Promise<ResultadoDescarga> {
+export async function descargarReporte(_reporte: ReportePlanta): Promise<ResultadoDescarga> {
   throw new Error("La descarga del PDF está disponible en la versión web instalada de RecyTrack.");
 }

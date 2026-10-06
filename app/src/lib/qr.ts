@@ -3,11 +3,11 @@ import qrcode from "qrcode-generator";
 /**
  * Código QR de un contenedor.
  *
- * El contenido del QR es `ECOTRACK:<torreId>:<codigo>`, por ejemplo
- * `ECOTRACK:torre-a:K7QM9X`. El código es aleatorio y no adivinable: para
+ * El contenido del QR es `ECOTRACK:<plantaId>:<codigo>`, por ejemplo
+ * `ECOTRACK:planta-1:K7QM9X`. El código es aleatorio y no adivinable: para
  * registrar un depósito hay que estar frente al contenedor. Bajo el QR impreso
  * va el mismo código, que también se acepta escrito a mano cuando la cámara no
- * lo lee. Qué material recibe y de qué torre es lo dice el documento
+ * lo lee. Qué material recibe y de qué planta es lo dice el documento
  * `contenedores/{codigo}`, no el QR: así un QR alterado no sirve de nada.
  */
 const PREFIJO = "ECOTRACK";
@@ -25,20 +25,20 @@ export function generarCodigoContenedor(): string {
 }
 
 /** Texto que se codifica en el QR impreso en el contenedor. */
-export function contenidoQr(torreId: string, codigo: string): string {
-  return `${PREFIJO}:${torreId}:${codigo}`;
+export function contenidoQr(plantaId: string, codigo: string): string {
+  return `${PREFIJO}:${plantaId}:${codigo}`;
 }
 
 export type LecturaQr = { ok: true; codigo: string } | { ok: false; error: string };
 
 /**
  * Saca el código de contenedor de lo que llegó de la cámara o del campo
- * manual. Solo revisa el formato y la torre del QR: si el contenedor existe,
+ * manual. Solo revisa el formato y la planta del QR: si el contenedor existe,
  * está activo y qué material recibe se comprueba después, contra Firestore.
  */
-export function interpretarQr(texto: string, torreIdUsuario: string | null): LecturaQr {
-  if (!torreIdUsuario) {
-    return { ok: false, error: "Tu cuenta no está vinculada a una torre." };
+export function interpretarQr(texto: string, plantaIdUsuario: string | null): LecturaQr {
+  if (!plantaIdUsuario) {
+    return { ok: false, error: "Tu cuenta no está unida a un área." };
   }
 
   const limpio = texto.trim();
@@ -50,10 +50,10 @@ export function interpretarQr(texto: string, torreIdUsuario: string | null): Lec
     if (partes.length !== 3 || !partes[1] || !partes[2]) {
       return { ok: false, error: "El código QR no tiene el formato de RecyTrack." };
     }
-    if (partes[1] !== torreIdUsuario) {
+    if (partes[1] !== plantaIdUsuario) {
       return {
         ok: false,
-        error: "Ese contenedor es de otra torre. Solo puedes depositar en los de tu torre.",
+        error: "Ese contenedor es de otra planta. Solo puedes depositar en los de tu planta.",
       };
     }
     codigo = partes[2];

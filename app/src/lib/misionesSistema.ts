@@ -1,14 +1,14 @@
-// Misión del sistema: una por semana, igual para todos los residentes.
+// Misión del sistema: una por semana, igual para todos los colaboradores.
 //
-// A diferencia de la misión de la torre (que define el administrador y vive en
+// A diferencia del incentivo de la planta (que define el administrador y vive en
 // Firestore), esta no se guarda en ninguna parte: el catálogo está en el
 // código y el avance se calcula en vivo a partir de los depósitos del propio
-// residente. Así no hay nada que sincronizar ni que un usuario pueda marcar
+// colaborador. Así no hay nada que sincronizar ni que un usuario pueda marcar
 // como cumplido a mano; si un depósito se rechaza, deja de contar solo.
 //
 // Es semanal y no diaria a propósito: la gente junta sus residuos y baja al
 // contenedor una o dos veces por semana, no todos los días. Cada meta se
-// cumple con una o dos bajadas, no depende de cuándo pasa el camión del gestor
+// cumple con una o dos bajadas, no depende de cuándo se retira el contenedor
 // (un depósito cuenta desde que se registra) y ninguna premia la cantidad de
 // depósitos, para no incentivar partir uno en varios.
 
@@ -42,7 +42,7 @@ export function inicioDeSemana(fecha: Date): Date {
 
 /**
  * Número de día estable (independiente del horario de verano), para rotar las
- * misiones de forma que todos los residentes vean la misma cada semana.
+ * misiones de forma que todos los colaboradores vean la misma cada semana.
  */
 function numeroDeDia(fecha: Date): number {
   return Math.floor(Date.UTC(fecha.getFullYear(), fecha.getMonth(), fecha.getDate()) / DIA);

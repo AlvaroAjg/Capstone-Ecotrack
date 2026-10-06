@@ -24,13 +24,13 @@ import {
   type Pincel,
   type ResultadoDescarga,
 } from "./pdfComun";
-import { META_HORAS_CADENA, META_PARTICIPACION, type ReporteTorre } from "./reporteTorre";
+import { META_HORAS_CADENA, META_PARTICIPACION, type ReportePlanta } from "./reportePlanta";
 
 /**
- * Reporte mensual de la torre en PDF, para el administrador (ver
- * reporteTorre.ts para los cálculos y pdfComun.ts para el estilo). Una
+ * Reporte mensual de la planta en PDF, para el administrador (ver
+ * reportePlanta.ts para los cálculos y pdfComun.ts para el estilo). Una
  * primera página con el resumen y los indicadores del piloto, y después el
- * detalle por departamento y los contenedores contaminados.
+ * detalle por área y los contenedores contaminados.
  */
 
 export const reportePdfDisponible = true;
@@ -84,12 +84,12 @@ function tituloSeccion(p: Pincel, texto: string, arriba: number) {
   izquierda(p, texto.toUpperCase(), MARGEN, arriba, 9, { negrita: true, color: GRIS });
 }
 
-export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
+export async function generarReportePdf(r: ReportePlanta): Promise<Uint8Array> {
   const titulo = r.etiqueta.charAt(0).toUpperCase() + r.etiqueta.slice(1);
-  const referencia = `Reporte ${r.torre.nombre} · ${r.etiqueta}`;
+  const referencia = `Reporte ${r.planta.nombre} · ${r.etiqueta}`;
   const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
-    titulo: `Reporte RecyTrack ${r.torre.nombre} ${r.mes}`,
-    asunto: `Reporte mensual de reciclaje de ${r.torre.nombre}, ${r.etiqueta}`,
+    titulo: `Reporte RecyTrack ${r.planta.nombre} ${r.mes}`,
+    asunto: `Reporte mensual de reciclaje de ${r.planta.nombre}, ${r.etiqueta}`,
   });
 
   let p = nuevaPagina();
@@ -105,8 +105,8 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
 
   // ------------------------------------------------------------ portada
   franjaMarca(p);
-  centrado(p, "REPORTE MENSUAL DE LA TORRE", 148, 16, { negrita: true });
-  centrado(p, `${r.torre.nombre}${r.torre.condominio ? ` · ${r.torre.condominio}` : ""}`, 168, 12, {
+  centrado(p, "REPORTE MENSUAL DE LA PLANTA", 148, 16, { negrita: true });
+  centrado(p, `${r.planta.nombre}${r.planta.empresa ? ` · ${r.planta.empresa}` : ""}`, 168, 12, {
     negrita: true,
     color: VERDE,
   });
@@ -121,7 +121,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
   const anchoTarjeta = (ANCHO - 2 * MARGEN - 3 * separacion) / 4;
   const tarjetas: [string, string, Color][] = [
     [formatKg(r.kgCertificados), "kilos certificados", VERDE],
-    [`${r.participacion}%`, `participación (${r.deptosActivos} de ${r.deptosTotales} deptos.)`, TEXTO],
+    [`${r.participacion}%`, `participación (${r.participantes} de ${r.dotacion} personas)`, TEXTO],
     [`${r.depositos.total}`, "depósitos del mes", TEXTO],
     [`${r.contaminaciones.length}`, "contenedores contaminados", r.contaminaciones.length > 0 ? ROJO : VERDE],
   ];
@@ -143,10 +143,10 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
 
   const indicadores: [string, string, string, boolean | null][] = [
     [
-      "Participación de departamentos",
+      "Participación de las personas",
       `${r.participacion}%`,
       `${META_PARTICIPACION}% o más`,
-      r.deptosTotales > 0 ? r.participacion >= META_PARTICIPACION : null,
+      r.dotacion > 0 ? r.participacion >= META_PARTICIPACION : null,
     ],
     [
       "Flujo completo, del depósito al certificado",
@@ -155,12 +155,6 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
         : `${horas(r.horasCadena)} promedio (${r.dentroDe48h}% bajo ${META_HORAS_CADENA} h)`,
       `menos de ${META_HORAS_CADENA} h promedio`,
       r.horasCadena === null ? null : r.horasCadena < META_HORAS_CADENA,
-    ],
-    [
-      "Meta de kilos de la torre",
-      `${formatKg(r.kgCertificados)} de ${formatKg(r.metaKg)} (${r.avanceMeta}%)`,
-      `${formatKg(r.metaKg)} (vigente)`,
-      r.metaKg > 0 ? r.kgCertificados >= r.metaKg : null,
     ],
   ];
   indicadores.forEach(([nombre, resultado, meta, cumple], i) => {
@@ -211,8 +205,8 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
       "Depósitos registrados",
       `${d.total}: ${plural(d.certificados, "certificado", "certificados")}, ${d.validados} esperando retiro, ${d.pendientes} por validar, ${plural(d.rechazados, "rechazado", "rechazados")}`,
     ],
-    ["Retiros del gestor", plural(r.retiros, "retiro", "retiros")],
-    ["Promedio hasta la validación del administrador", horas(r.horasHastaValidacion)],
+    ["Retiros del mes", plural(r.retiros, "retiro", "retiros")],
+    ["Promedio hasta la validación", horas(r.horasHastaValidacion)],
     ["Promedio desde la validación hasta el retiro", horas(r.horasHastaRetiro)],
     ["Promedio de la cadena completa", horas(r.horasCadena)],
   ];
@@ -223,19 +217,19 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
   }
   arriba += 18;
 
-  // ------------------------------------------------------------ departamentos
+  // ------------------------------------------------------------ áreas
   espacio(60);
-  tituloSeccion(p, "Departamentos que más reciclaron", arriba);
-  izquierda(p, "Kilos certificados en el mes. Solo el número de departamento, sin nombres.", MARGEN, arriba + 13, 8, {
+  tituloSeccion(p, "Áreas que más reciclaron", arriba);
+  izquierda(p, "Kilos certificados en el mes. Solo totales por área, sin nombres.", MARGEN, arriba + 13, 8, {
     color: GRIS,
   });
   arriba += 32;
-  if (r.deptos.length === 0) {
-    izquierda(p, "Ningún departamento tiene kilos certificados este mes.", MARGEN, arriba, 9, { color: GRIS });
+  if (r.areas.length === 0) {
+    izquierda(p, "Ningún área tiene kilos certificados este mes.", MARGEN, arriba, 9, { color: GRIS });
     arriba += ALTO_FILA;
   } else {
     const encabezado = () => {
-      ["#", "DEPARTAMENTO", "DEPÓSITOS"].forEach((t, i) =>
+      ["#", "ÁREA", "DEPÓSITOS"].forEach((t, i) =>
         izquierda(p, t, [MARGEN, 70, 250][i], arriba, 7, { negrita: true, color: GRIS })
       );
       derecha(p, "KILOS", DERECHA, arriba, 7, { negrita: true, color: GRIS });
@@ -243,7 +237,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
       arriba += ALTO_FILA + 4;
     };
     encabezado();
-    r.deptos.forEach((fila, i) => {
+    r.areas.forEach((fila, i) => {
       if (arriba + ALTO_FILA > LIMITE_INFERIOR) {
         espacio(ALTO_FILA * 2);
         encabezado();
@@ -258,7 +252,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
         });
       }
       izquierda(p, `${i + 1}`, MARGEN, arriba, 8.5, { color: GRIS });
-      izquierda(p, fila.depto, 70, arriba, 8.5);
+      izquierda(p, fila.area, 70, arriba, 8.5);
       izquierda(p, `${fila.depositos}`, 250, arriba, 8.5, { color: GRIS });
       derecha(p, formatKg(fila.kg), DERECHA, arriba, 8.5, { negrita: true });
       arriba += ALTO_FILA;
@@ -278,7 +272,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
       height: 24,
       color: VERDE_CLARO,
     });
-    izquierda(p, "Ningún contenedor contaminado este mes: la torre está separando bien.", MARGEN + 10, arriba + 6, 9, {
+    izquierda(p, "Ningún contenedor contaminado este mes: la planta está separando bien.", MARGEN + 10, arriba + 6, 9, {
       negrita: true,
       color: VERDE,
     });
@@ -291,7 +285,7 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
         negrita: true,
         color: ROJO,
       });
-      derecha(p, i.atendida ? `Retirado${i.codigoRetiro ? ` (${i.codigoRetiro})` : ""}` : "Por retirar", DERECHA, arriba, 8.5, {
+      derecha(p, i.atendida ? `Retirado${i.retiroId ? ` (${i.retiroId})` : ""}` : "Por retirar", DERECHA, arriba, 8.5, {
         color: GRIS,
       });
       arriba += ALTO_FILA;
@@ -309,8 +303,8 @@ export async function generarReportePdf(r: ReporteTorre): Promise<Uint8Array> {
 }
 
 /** Genera el reporte y lo entrega al usuario (ver entregarPdf). */
-export async function descargarReporte(r: ReporteTorre): Promise<ResultadoDescarga> {
+export async function descargarReporte(r: ReportePlanta): Promise<ResultadoDescarga> {
   const bytes = await generarReportePdf(r);
-  const nombre = `RecyTrack-Reporte-${r.torre.nombre.replace(/\s+/g, "")}-${r.mes}.pdf`;
-  return entregarPdf(bytes, nombre, `Reporte RecyTrack ${r.torre.nombre}`);
+  const nombre = `RecyTrack-Reporte-${r.planta.nombre.replace(/\s+/g, "")}-${r.mes}.pdf`;
+  return entregarPdf(bytes, nombre, `Reporte RecyTrack ${r.planta.nombre}`);
 }

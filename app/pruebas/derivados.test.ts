@@ -1,15 +1,22 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
-  ecoPuntosPorTorre,
-  lotesPorRetirar,
-  rankingDeTorres,
-  resumenDeTorre,
+  contenedoresPorRetirar,
+  rankingDeAreas,
   unirRegistros,
 } from "../src/lib/derivados";
-import type { Mision, Registro } from "../src/lib/tipos";
-import { TORRE_A, TORRE_B, certificado, fecha, fijarAhora, registro, validado } from "./fabrica";
+import {
+  EMBOTELLADO,
+  FERMENTACION,
+  certificado,
+  contenedor,
+  fecha,
+  fijarAhora,
+  registro,
+  resumen,
+  validado,
+} from "./fabrica";
 
-const TORRES = [TORRE_A, TORRE_B];
+const AREAS = [EMBOTELLADO, FERMENTACION];
 
 beforeEach(() => {
   fijarAhora(fecha(2026, 9, 16));
@@ -29,140 +36,113 @@ describe("unirRegistros", () => {
   });
 });
 
-describe("resumenDeTorre", () => {
-  test("kilos del mes: solo lo certificado este mes, aunque se haya depositado el anterior", () => {
-    const registros = [
-      certificado({ kgDeclarado: 0.4 }),
-      // Depositado en agosto, certificado en septiembre: suma a septiembre.
-      certificado({
-        creadoEn: fecha(2026, 8, 30),
-        certificadoEn: fecha(2026, 9, 2),
-        material: "Vidrio",
-        talla: "L",
-        kgDeclarado: 8,
+describe("rankingDeAreas", () => {
+  test("de más a menos participación, marcando mi área", () => {
+    // Embotellado: 5 de 20 (25%). Fermentación: 4 de 10 (40%).
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({
+        embotellado: { depositos: 12, participantes: 5 },
+        fermentacion: { depositos: 6, participantes: 4 },
       }),
-      // Certificado en agosto: no suma.
-      certificado({ creadoEn: fecha(2026, 8, 10), certificadoEn: fecha(2026, 8, 12), kgDeclarado: 5 }),
-      validado({ kgDeclarado: 12 }),
-      certificado({ torreId: "torre-b", kgDeclarado: 3 }),
-    ];
-    expect(resumenDeTorre("torre-a", TORRES, registros, null).kgMes).toBe(8.4);
-  });
-
-  test("participación: departamentos distintos con algún depósito del mes que no fue rechazado", () => {
-    const registros = [
-      registro({ depto: "Depto 101" }),
-      registro({ depto: "Depto 101" }),
-      validado({ depto: "Depto 102" }),
-      registro({ depto: "Depto 103", estado: "rechazado" }),
-      registro({ depto: "Depto 104", creadoEn: fecha(2026, 8, 20) }),
-    ];
-    const r = resumenDeTorre("torre-a", TORRES, registros, null);
-    expect(r.deptosActivos).toBe(2);
-    expect(r.deptosTotales).toBe(20);
-    expect(r.participacion).toBe(10);
-  });
-
-  test("la misión de la torre reemplaza la meta base, solo si es de esa torre", () => {
-    const mision: Mision = {
-      torreId: "torre-a",
-      metaKg: 50,
-      incentivo: "Pizza",
-      actualizadaEn: 0,
-      actualizadaPor: "carla",
-    };
-    const registros = [certificado({ talla: "XL", material: "Papel/cartón", kgDeclarado: 5 })];
-    expect(resumenDeTorre("torre-a", TORRES, registros, mision).metaKg).toBe(50);
-    expect(resumenDeTorre("torre-a", TORRES, registros, mision).avanceMeta).toBe(10);
-    expect(resumenDeTorre("torre-a", TORRES, registros, null).metaKg).toBe(200);
-    expect(resumenDeTorre("torre-b", TORRES, registros, mision).metaKg).toBe(150);
-  });
-
-  test("pendientes de la torre, de cualquier fecha", () => {
-    const antiguo = registro({ creadoEn: fecha(2026, 7, 1) });
-    const r = resumenDeTorre("torre-a", TORRES, [antiguo, validado(), registro({ torreId: "torre-b" })], null);
-    expect(r.pendientes).toEqual([antiguo]);
-  });
-
-  test("sin datos todo es 0, sin pisos artificiales", () => {
-    const r = resumenDeTorre("torre-a", TORRES, [], null);
-    expect(r).toMatchObject({ kgMes: 0, deptosActivos: 0, participacion: 0, avanceMeta: 0 });
-  });
-});
-
-describe("ranking", () => {
-  test("de más a menos kilos certificados, marcando mi torre", () => {
-    const registros = [
-      certificado({ kgDeclarado: 0.4 }),
-      certificado({ torreId: "torre-b", material: "Vidrio", talla: "S", kgDeclarado: 1.5 }),
-    ];
-    const ranking = rankingDeTorres(TORRES, registros, null, "torre-a");
-    expect(ranking.map((f) => [f.torreId, f.kg, f.esMiTorre])).toEqual([
-      ["torre-b", 1.5, false],
-      ["torre-a", 0.4, true],
+      "embotellado"
+    );
+    expect(ranking.map((f) => [f.areaId, f.participacion, f.esMiArea])).toEqual([
+      ["fermentacion", 40, false],
+      ["embotellado", 25, true],
     ]);
   });
 
-  test("incluye a las torres sin depósitos, con 0", () => {
-    const ranking = rankingDeTorres(TORRES, [certificado()], null, null);
+  test("gana la participación, no la cantidad de depósitos", () => {
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({
+        embotellado: { depositos: 50, participantes: 2 },
+        fermentacion: { depositos: 3, participantes: 3 },
+      }),
+      null
+    );
+    expect(ranking[0].areaId).toBe("fermentacion");
+  });
+
+  test("a igual participación, va primero la de más depósitos", () => {
+    // 50% en ambas: 10 de 20 y 5 de 10.
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({
+        embotellado: { depositos: 10, participantes: 10 },
+        fermentacion: { depositos: 15, participantes: 5 },
+      }),
+      null
+    );
+    expect(ranking.map((f) => f.areaId)).toEqual(["fermentacion", "embotellado"]);
+  });
+
+  test("incluye a las áreas sin depósitos, con 0", () => {
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({ embotellado: { depositos: 1, participantes: 1 } }),
+      null
+    );
     expect(ranking).toHaveLength(2);
-    expect(ranking[1]).toMatchObject({ torreId: "torre-b", kg: 0, ecoPuntos: 0 });
+    expect(ranking[1]).toMatchObject({ areaId: "fermentacion", participantes: 0, participacion: 0 });
+  });
+
+  test("sin resumen del mes, todas en 0", () => {
+    const ranking = rankingDeAreas(AREAS, null, "embotellado");
+    expect(ranking.every((f) => f.participacion === 0 && f.depositos === 0)).toBe(true);
+  });
+
+  test("no pasa de 100% si la dotación quedó desactualizada", () => {
+    const [fila] = rankingDeAreas(
+      [FERMENTACION],
+      resumen({ fermentacion: { depositos: 12, participantes: 12 } }),
+      null
+    );
+    expect(fila.participacion).toBe(100);
   });
 });
 
-describe("ecoPuntosPorTorre", () => {
-  test("suma los EcoPuntos de cada residente en su torre", () => {
-    // Con depósitos de dos materiales y 6,5 kg, cualquier misión de la semana
-    // queda cumplida: 50 por residente y semana.
-    const semana = (residenteId: string, torreId: string): Registro[] => [
-      registro({ residenteId, torreId, creadoEn: fecha(2026, 9, 14), material: "Papel/cartón", talla: "XL", kgDeclarado: 5 }),
-      registro({ residenteId, torreId, creadoEn: fecha(2026, 9, 15), material: "Vidrio", talla: "S", kgDeclarado: 1.5 }),
-    ];
-    const puntos = ecoPuntosPorTorre([
-      ...semana("ana", "torre-a"),
-      ...semana("eva", "torre-a"),
-      ...semana("beto", "torre-b"),
-    ]);
-    expect(puntos.get("torre-a")).toBe(100);
-    expect(puntos.get("torre-b")).toBe(50);
-  });
-});
+describe("contenedoresPorRetirar", () => {
+  const CONTENEDORES = [
+    contenedor(),
+    contenedor({ codigo: "VDRQ7X", material: "Vidrio", punto: "Bodega" }),
+  ];
 
-describe("lotesPorRetirar", () => {
-  test("un lote por torre con sus validados, el que espera hace más tiempo primero", () => {
+  test("uno por contenedor con sus validados, el que espera hace más tiempo primero", () => {
     const registros = [
-      validado({ torreId: "torre-a", validadoEn: fecha(2026, 9, 15), kgDeclarado: 0.4 }),
-      validado({ torreId: "torre-a", validadoEn: fecha(2026, 9, 14), material: "Vidrio", talla: "L", kgDeclarado: 8 }),
-      validado({ torreId: "torre-b", validadoEn: fecha(2026, 9, 10), kgDeclarado: 0.4 }),
-      registro({ torreId: "torre-a" }),
-      certificado({ torreId: "torre-a" }),
+      validado({ contenedor: "K7QM9X", validadoEn: fecha(2026, 9, 15), kgDeclarado: 0.4 }),
+      validado({ contenedor: "K7QM9X", validadoEn: fecha(2026, 9, 14), talla: "L", kgDeclarado: 0.8 }),
+      validado({ contenedor: "VDRQ7X", material: "Vidrio", validadoEn: fecha(2026, 9, 10), kgDeclarado: 8 }),
+      registro({ contenedor: "K7QM9X" }),
+      certificado({ contenedor: "K7QM9X" }),
     ];
-    const lotes = lotesPorRetirar(registros, TORRES);
+    const grupos = contenedoresPorRetirar(registros, CONTENEDORES);
 
-    expect(lotes.map((l) => l.torreId)).toEqual(["torre-b", "torre-a"]);
-    expect(lotes[1]).toMatchObject({
-      torreNombre: "Torre A",
+    expect(grupos.map((g) => g.contenedor)).toEqual(["VDRQ7X", "K7QM9X"]);
+    expect(grupos[1]).toMatchObject({
+      punto: "Casino",
+      material: "Plástico",
       depositos: 2,
-      kgTotal: 8.4,
+      kgEstimado: 1.2,
       esperandoDesde: fecha(2026, 9, 14),
-      porMaterial: [
-        { material: "Vidrio", kg: 8 },
-        { material: "Plástico", kg: 0.4 },
-      ],
     });
   });
 
-  test("usa los kilos confirmados por el administrador", () => {
-    const [lote] = lotesPorRetirar([validado({ kgDeclarado: 0.4, kgConfirmado: 0.8 })], TORRES);
-    expect(lote.kgTotal).toBe(0.8);
+  test("usa los kilos confirmados por el validador", () => {
+    const [grupo] = contenedoresPorRetirar(
+      [validado({ kgDeclarado: 0.4, kgConfirmado: 0.8 })],
+      CONTENEDORES
+    );
+    expect(grupo.kgEstimado).toBe(0.8);
   });
 
-  test("si la torre no está en la lista, usa el nombre guardado en el depósito", () => {
-    const [lote] = lotesPorRetirar([validado({ torreId: "torre-z", torreNombre: "Torre Z" })], TORRES);
-    expect(lote.torreNombre).toBe("Torre Z");
+  test("si el contenedor ya no está en la lista, igual se puede retirar", () => {
+    const [grupo] = contenedoresPorRetirar([validado({ contenedor: "ZZZZZZ" })], CONTENEDORES);
+    expect(grupo).toMatchObject({ contenedor: "ZZZZZZ", punto: "", depositos: 1 });
   });
 
-  test("sin validados no hay lotes", () => {
-    expect(lotesPorRetirar([registro(), certificado()], TORRES)).toEqual([]);
+  test("sin validados no hay nada que retirar", () => {
+    expect(contenedoresPorRetirar([registro(), certificado()], CONTENEDORES)).toEqual([]);
   });
 });

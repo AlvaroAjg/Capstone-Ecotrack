@@ -1,8 +1,16 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { construirAvisos, esNuevo, type Aviso } from "../src/lib/avisos";
-import { lotesPorRetirar } from "../src/lib/derivados";
-import type { Incidencia } from "../src/lib/tipos";
-import { TORRE_A, certificado, fecha, fijarAhora, registro, usuario, validado } from "./fabrica";
+import { contenedoresPorRetirar } from "../src/lib/derivados";
+import {
+  certificado,
+  contenedor,
+  fecha,
+  fijarAhora,
+  incidencia as incidenciaBase,
+  registro,
+  usuario,
+  validado,
+} from "./fabrica";
 
 const DIA = 86_400_000;
 
@@ -14,22 +22,9 @@ afterEach(() => {
   vi.useRealTimers();
 });
 
-function incidencia(cambios: Partial<Incidencia> = {}): Incidencia {
-  return {
-    id: "i1",
-    torreId: "torre-a",
-    torreNombre: "Torre A",
-    contenedor: "K7QM9X",
-    contenedorNombre: "Contenedor de papel/cartón",
-    contaminante: "Vidrio",
-    reportadoEn: Date.now() - DIA,
-    reportadoPor: "carla",
-    atendida: false,
-    atendidaEn: null,
-    codigoRetiro: null,
-    ...cambios,
-  };
-}
+/** Una incidencia de ayer: dentro de la ventana de avisos. */
+const incidencia: typeof incidenciaBase = (cambios = {}) =>
+  incidenciaBase({ reportadoEn: Date.now() - DIA, ...cambios });
 
 describe("esNuevo", () => {
   const aviso = (fechaAviso: number): Aviso => ({ id: "a", emoji: "", titulo: "", detalle: "", fecha: fechaAviso });
@@ -45,7 +40,7 @@ describe("esNuevo", () => {
   });
 });
 
-describe("residente", () => {
+describe("colaborador", () => {
   test("un aviso por cada paso de la cadena de sus depósitos", () => {
     const c = certificado({ creadoEn: Date.now() - 2 * DIA });
     const avisos = construirAvisos(usuario(), [c], []);
@@ -58,8 +53,8 @@ describe("residente", () => {
     expect(construirAvisos(usuario(), [r], [])[0].titulo).toBe("Depósito rechazado");
   });
 
-  test("no ve los depósitos de otros residentes", () => {
-    const deBeto = certificado({ residenteId: "beto", creadoEn: Date.now() - DIA });
+  test("no ve los depósitos de otros colaboradores", () => {
+    const deBeto = certificado({ colaboradorId: "beto", creadoEn: Date.now() - DIA });
     expect(construirAvisos(usuario(), [deBeto], [])).toEqual([]);
   });
 
@@ -68,7 +63,7 @@ describe("residente", () => {
     expect(construirAvisos(usuario(), [antiguo], [])).toEqual([]);
   });
 
-  test("ve en rojo la contaminación reciente de su torre", () => {
+  test("ve en rojo la contaminación reciente de su planta", () => {
     const avisos = construirAvisos(usuario(), [], [], [incidencia()]);
     expect(avisos).toHaveLength(1);
     expect(avisos[0].tono).toBe("alerta");
@@ -87,42 +82,65 @@ describe("residente", () => {
   });
 });
 
-describe("administrador", () => {
-  const carla = usuario({ id: "carla", rol: "administrador", depto: "Administración" });
+describe("validador", () => {
+  const carla = usuario({ id: "carla", rol: "validador" });
 
-  test("un aviso por cada depósito pendiente de su torre", () => {
+  test("un aviso por cada depósito pendiente de su planta", () => {
     const pendiente = registro({ creadoEn: Date.now() - 3_600_000 });
-    const avisos = construirAvisos(carla, [pendiente, validado(), registro({ torreId: "torre-b" })], []);
+    const avisos = construirAvisos(
+      carla,
+      [pendiente, validado(), registro({ plantaId: "planta-2" })],
+      []
+    );
     expect(avisos.map((a) => a.id)).toEqual([`${pendiente.id}-pendiente`]);
-    expect(avisos[0].detalle).toContain("Depto 305");
+    expect(avisos[0].detalle).toContain("contenedor K7QM9X");
+  });
+
+  test("no ve contenedores por retirar ni advertencias: eso es del administrador", () => {
+    const registros = [validado()];
+    const avisos = construirAvisos(
+      carla,
+      registros,
+      contenedoresPorRetirar(registros, [contenedor()]),
+      [incidencia()]
+    );
+    expect(avisos).toEqual([]);
   });
 });
 
-describe("gestor", () => {
-  const gus = usuario({ id: "gus", rol: "gestor", torreId: null, torreNombre: null });
+describe("administrador", () => {
+  const adela = usuario({ id: "adela", rol: "administrador", areaId: null, areaNombre: null });
+  const CONTENEDORES = [contenedor(), contenedor({ codigo: "VDRQ7X", material: "Vidrio", punto: "Bodega" })];
 
-  test("un aviso por torre con contenedor listo para retiro", () => {
-    const registros = [validado(), validado(), validado({ torreId: "torre-b", torreNombre: "Torre B" })];
-    const avisos = construirAvisos(gus, registros, lotesPorRetirar(registros, [TORRE_A]));
-    expect(avisos).toHaveLength(2);
+  test("un aviso por contenedor listo para retiro", () => {
+    const registros = [validado(), validado(), validado({ contenedor: "VDRQ7X", material: "Vidrio" })];
+    const avisos = construirAvisos(adela, registros, contenedoresPorRetirar(registros, CONTENEDORES));
     expect(avisos.map((a) => a.titulo).sort()).toEqual([
-      "Torre A: contenedor listo para retiro",
-      "Torre B: contenedor listo para retiro",
+      "Contenedor de plástico (Casino): listo para retiro",
+      "Contenedor de vidrio (Bodega): listo para retiro",
     ]);
   });
 
-  test("el aviso vuelve a ser nuevo si llega otro depósito validado a la torre", () => {
+  test("el aviso vuelve a ser nuevo si llega otro depósito validado al contenedor", () => {
     const primero = validado({ validadoEn: Date.now() - 3_600_000 });
-    const antes = construirAvisos(gus, [primero], lotesPorRetirar([primero], [TORRE_A]));
+    const antes = construirAvisos(adela, [primero], contenedoresPorRetirar([primero], CONTENEDORES));
     const segundo = validado({ validadoEn: Date.now() - 60_000 });
-    const despues = construirAvisos(gus, [primero, segundo], lotesPorRetirar([primero, segundo], [TORRE_A]));
+    const despues = construirAvisos(
+      adela,
+      [primero, segundo],
+      contenedoresPorRetirar([primero, segundo], CONTENEDORES)
+    );
     expect(despues[0].id).not.toBe(antes[0].id);
   });
 
-  test("advierte los contenedores contaminados que aún no retira", () => {
-    const avisos = construirAvisos(gus, [], [], [incidencia(), incidencia({ id: "i2", atendida: true })]);
+  test("advierte los contenedores contaminados que aún no se retiran", () => {
+    const avisos = construirAvisos(adela, [], [], [incidencia(), incidencia({ id: "i2", atendida: true })]);
     expect(avisos).toHaveLength(1);
-    expect(avisos[0].titulo).toBe("Precaución en Torre A");
+    expect(avisos[0].titulo).toBe("Precaución en el contenedor de papel/cartón");
+  });
+
+  test("no recibe un aviso por cada depósito pendiente", () => {
+    expect(construirAvisos(adela, [registro()], [])).toEqual([]);
   });
 });
 

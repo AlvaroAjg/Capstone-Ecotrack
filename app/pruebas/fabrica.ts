@@ -1,7 +1,15 @@
 // Datos de prueba compartidos por los tests de la lógica de la app.
 
 import { vi } from "vitest";
-import type { Registro, Torre, Usuario } from "../src/lib/tipos";
+import type {
+  Area,
+  Contenedor,
+  Incidencia,
+  Planta,
+  Registro,
+  ResumenMes,
+  Usuario,
+} from "../src/lib/tipos";
 
 /** Fecha local; `mes` va de 1 a 12, no de 0 a 11 como en Date. */
 export function fecha(anio: number, mes: number, dia: number, hora = 12): number {
@@ -18,18 +26,38 @@ export function fijarAhora(instante: number = fecha(2026, 9, 16)): void {
   vi.setSystemTime(instante);
 }
 
+export const PLANTA: Planta = {
+  id: "planta-1",
+  nombre: "Planta Piloto",
+  empresa: "Viña Piloto",
+};
+
+export const EMBOTELLADO: Area = {
+  id: "embotellado",
+  plantaId: "planta-1",
+  nombre: "Embotellado",
+  codigo: "EMB-4821",
+  dotacion: 20,
+};
+
+export const FERMENTACION: Area = {
+  id: "fermentacion",
+  plantaId: "planta-1",
+  nombre: "Fermentación",
+  codigo: "FER-1234",
+  dotacion: 10,
+};
+
 let contador = 0;
 
-/** Un depósito pendiente de Ana en la Torre A, con lo que se le cambie. */
+/** Un depósito pendiente de Ana, de Embotellado, con lo que se le cambie. */
 export function registro(cambios: Partial<Registro> = {}): Registro {
   contador++;
   return {
     id: `r${contador}`,
-    residenteId: "ana",
-    residente: "Ana",
-    depto: "Depto 305",
-    torreId: "torre-a",
-    torreNombre: "Torre A",
+    colaboradorId: "ana",
+    plantaId: "planta-1",
+    areaId: "embotellado",
     material: "Plástico",
     talla: "M",
     kgDeclarado: 0.4,
@@ -42,7 +70,7 @@ export function registro(cambios: Partial<Registro> = {}): Registro {
     certificadoEn: null,
     certificadoPor: null,
     codigo: null,
-    codigoRetiro: null,
+    retiroId: null,
     ...cambios,
   };
 }
@@ -57,14 +85,14 @@ export function certificado(cambios: Partial<Registro> = {}): Registro {
     validadoEn: base.creadoEn + 60_000,
     validadoPor: "carla",
     certificadoEn: base.creadoEn + 120_000,
-    certificadoPor: "gus",
+    certificadoPor: "adela",
     codigo: "ECO-AAAA-BBBB",
-    codigoRetiro: "RET-CCCC",
+    retiroId: "RET-CCCC",
     ...cambios,
   };
 }
 
-/** Un depósito validado por el administrador, esperando el retiro. */
+/** Un depósito validado por el validador, esperando el retiro. */
 export function validado(cambios: Partial<Registro> = {}): Registro {
   const base = registro(cambios);
   return {
@@ -77,34 +105,57 @@ export function validado(cambios: Partial<Registro> = {}): Registro {
   };
 }
 
-export const TORRE_A: Torre = {
-  id: "torre-a",
-  nombre: "Torre A",
-  condominio: "Condominio Piloto",
-  codigoInvitacion: "ECO-TORRE-A",
-  metaKg: 200,
-  deptosTotales: 20,
-};
-
-export const TORRE_B: Torre = {
-  id: "torre-b",
-  nombre: "Torre B",
-  condominio: "Condominio Piloto",
-  codigoInvitacion: "ECO-TORRE-B",
-  metaKg: 150,
-  deptosTotales: 10,
-};
-
+/** Ana, colaboradora de Embotellado. */
 export function usuario(cambios: Partial<Usuario> = {}): Usuario {
   return {
     id: "ana",
     nombre: "Ana",
     email: "ana@test.cl",
-    depto: "Depto 305",
-    rol: "residente",
-    torreId: "torre-a",
-    torreNombre: "Torre A",
+    rol: "colaborador",
+    plantaId: "planta-1",
+    areaId: "embotellado",
+    areaNombre: "Embotellado",
     avisosVistosHasta: 0,
     ...cambios,
+  };
+}
+
+/** El contenedor de plástico del punto limpio del casino. */
+export function contenedor(cambios: Partial<Contenedor> = {}): Contenedor {
+  return {
+    codigo: "K7QM9X",
+    plantaId: "planta-1",
+    punto: "Casino",
+    material: "Plástico",
+    activo: true,
+    creadoEn: fecha(2026, 9, 1),
+    ...cambios,
+  };
+}
+
+/** Vidrio encontrado en el contenedor de papel/cartón, todavía sin retirar. */
+export function incidencia(cambios: Partial<Incidencia> = {}): Incidencia {
+  return {
+    id: "i1",
+    plantaId: "planta-1",
+    contenedor: "K7QM9X",
+    contenedorNombre: "Contenedor de papel/cartón",
+    contaminante: "Vidrio",
+    reportadoEn: fecha(2026, 9, 10),
+    reportadoPor: "carla",
+    atendida: false,
+    atendidaEn: null,
+    retiroId: null,
+    ...cambios,
+  };
+}
+
+/** El resumen de septiembre de la planta, con lo que lleve cada área. */
+export function resumen(areas: ResumenMes["areas"] = {}): ResumenMes {
+  return {
+    plantaId: "planta-1",
+    mes: "2026-09",
+    areas,
+    ultimoRegistro: "r1",
   };
 }
