@@ -130,7 +130,7 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
             </View>
             <Text className="text-white text-4xl font-bold">RecyTrack</Text>
             <Text className="text-green-100 text-sm mt-1 text-center">
-              Reciclaje verificado, desde tu torre hacia arriba
+              Reciclaje verificado, área por área
             </Text>
           </View>
 

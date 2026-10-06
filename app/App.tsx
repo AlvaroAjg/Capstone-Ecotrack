@@ -8,7 +8,7 @@ import { BarraInferior, PantallaCargando } from "./src/components/ui";
 import BannerAvisos from "./src/components/BannerAvisos";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
-import JoinTorreScreen from "./src/screens/JoinTorreScreen";
+import UnirseAreaScreen from "./src/screens/UnirseAreaScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import AdminScreen from "./src/screens/AdminScreen";
 import ScanQRScreen from "./src/screens/ScanQRScreen";
@@ -168,7 +168,7 @@ function Raiz() {
   // pertenecen a un área; el administrador, que ve la planta completa, no.
   const sinArea = usuario.rol !== "administrador" && !usuario.areaId;
   if (!usuario.plantaId || sinArea) {
-    return <JoinTorreScreen />;
+    return <UnirseAreaScreen />;
   }
 
   return <PilaApp key={usuario.id} rol={usuario.rol} />;

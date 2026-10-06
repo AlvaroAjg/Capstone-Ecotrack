@@ -8,11 +8,11 @@ import {
   View,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useEcoTrack } from "../state/EcoTrack";
+import { useEcoTrack, type Area } from "../state/EcoTrack";
 import { mensajeError } from "../services/auth";
 import { Aviso, Boton, Campo } from "../components/ui";
 
-export default function JoinTorreScreen() {
+export default function UnirseAreaScreen() {
   const { plantas, buscarArea, unirseAArea, promoverAAdministrador, cerrarSesion } = useEcoTrack();
 
   // Por defecto se une a un área como colaborador. El toggle revela el código
@@ -22,6 +22,10 @@ export default function JoinTorreScreen() {
   const [codigo, setCodigo] = useState("");
   const [codigoAdmin, setCodigoAdmin] = useState("");
   const [plantaElegida, setPlantaElegida] = useState<string | null>(null);
+  // El área del código ingresado. Se muestra su nombre antes de unirse, para
+  // que un código mal tipeado no deje a la persona en el área de otro: el
+  // cambio de área después solo lo hace el administrador.
+  const [areaEncontrada, setAreaEncontrada] = useState<Area | null>(null);
   const [error, setError] = useState<string | undefined>();
   const [cargando, setCargando] = useState(false);
 
@@ -48,10 +52,12 @@ export default function JoinTorreScreen() {
     try {
       if (comoAdmin) {
         await promoverAAdministrador(plantaId!, codigoAdmin.trim());
+      } else if (areaEncontrada) {
+        await unirseAArea(areaEncontrada);
       } else {
         const area = await buscarArea(codigo);
         if (!area) throw new Error("Código no válido. Pídeselo al administrador.");
-        await unirseAArea(area);
+        setAreaEncontrada(area);
       }
       // App.tsx detecta el perfil actualizado y entra al panel correspondiente.
     } catch (e) {
@@ -94,7 +100,22 @@ export default function JoinTorreScreen() {
             </View>
           ) : null}
 
-          {!comoAdmin ? (
+          {!comoAdmin && areaEncontrada ? (
+            <View className="bg-green-50 border border-green-200 rounded-2xl p-4 mb-4 items-center">
+              <Text className="text-xs text-gray-500">El código {areaEncontrada.codigo} es del área</Text>
+              <Text className="text-xl font-bold text-green-800 mt-1">{areaEncontrada.nombre}</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setAreaEncontrada(null);
+                  setError(undefined);
+                }}
+                accessibilityRole="button"
+                className="mt-3"
+              >
+                <Text className="text-green-700 text-xs font-medium">No es mi área, cambiar el código</Text>
+              </TouchableOpacity>
+            </View>
+          ) : !comoAdmin ? (
             <Campo
               etiqueta="Código del área"
               placeholder="EMB-4821"
@@ -147,6 +168,7 @@ export default function JoinTorreScreen() {
           <TouchableOpacity
             onPress={() => {
               setComoAdmin((v) => !v);
+              setAreaEncontrada(null);
               setError(undefined);
             }}
             accessibilityRole="button"
@@ -160,7 +182,13 @@ export default function JoinTorreScreen() {
           </TouchableOpacity>
 
           <Boton
-            titulo={cargando ? "Uniendo..." : comoAdmin ? "Entrar como administrador" : "Unirme al área"}
+            titulo={
+              comoAdmin
+                ? cargando ? "Entrando..." : "Entrar como administrador"
+                : areaEncontrada
+                  ? cargando ? "Uniendo..." : `Unirme a ${areaEncontrada.nombre}`
+                  : cargando ? "Buscando..." : "Buscar mi área"
+            }
             cargando={cargando}
             onPress={handleVincular}
             className="mt-1"
