@@ -11,7 +11,6 @@ import {
 } from "firebase/firestore";
 import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
-import { generarCodigoRetiro, generarCodigoVerificacion } from "../lib/formato";
 import { inicioDeSemana } from "../lib/misionesSistema";
 import {
   kgEstimado,
@@ -217,40 +216,4 @@ export async function rechazarRegistros(ids: string[], adminUid: string): Promis
     });
   }
   await lote.commit();
-}
-
-/**
- * Etapa 2 de la cadena: el gestor confirma el retiro del contenedor de una
- * torre. Lo que se retira es el lote completo, no un depósito suelto, así que
- * todos los depósitos validados de esa torre se certifican juntos.
- *
- * Se usa un `writeBatch` para que la operación sea atómica: o se certifica todo
- * el lote, o no se certifica nada. Cada residente recibe igualmente su propio
- * código de certificado, y todos comparten el código del retiro en el que
- * salieron físicamente.
- */
-export async function confirmarRetiroDeTorre(
-  registros: Registro[],
-  gestorUid: string
-): Promise<string> {
-  if (registros.length === 0) {
-    throw new Error("No hay depósitos validados en ese lote.");
-  }
-
-  const codigoRetiro = generarCodigoRetiro();
-  const ahora = Date.now();
-  const lote = writeBatch(db);
-
-  for (const registro of registros) {
-    lote.update(doc(db, "registros", registro.id), {
-      estado: "certificado",
-      certificadoEn: ahora,
-      certificadoPor: gestorUid,
-      codigo: generarCodigoVerificacion(),
-      codigoRetiro,
-    });
-  }
-
-  await lote.commit();
-  return codigoRetiro;
 }
