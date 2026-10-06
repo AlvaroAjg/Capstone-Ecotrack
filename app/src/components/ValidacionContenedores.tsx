@@ -38,6 +38,13 @@ function resumenTallas(registros: Registro[]): string {
   return `${total}: ${lista}`;
 }
 
+const SIN_PUNTO = "Contenedores fuera de la lista";
+
+/** El punto limpio bajo el que se muestra el contenedor. */
+function puntoDe(g: Grupo): string {
+  return g.contenedor?.punto || SIN_PUNTO;
+}
+
 /** En un contenedor mixto importa también qué materiales se declararon. */
 function resumenMateriales(registros: Registro[]): string {
   const cuenta = new Map<string, number>();
@@ -90,11 +97,20 @@ export default function ValidacionContenedores({
     for (const r of pendientes) {
       porCodigo.set(r.contenedor, [...(porCodigo.get(r.contenedor) ?? []), r]);
     }
-    return Array.from(porCodigo.entries()).map(([codigo, registros]) => ({
-      codigo,
-      contenedor: contenedores.find((c) => c.codigo === codigo) ?? null,
-      registros: registros.sort((a, b) => a.creadoEn - b.creadoEn),
-    }));
+    // Ordenados por punto limpio, en el orden en que el validador los recorre;
+    // los que no se encuentran en la lista quedan al final.
+    return Array.from(porCodigo.entries())
+      .map(([codigo, registros]) => ({
+        codigo,
+        contenedor: contenedores.find((c) => c.codigo === codigo) ?? null,
+        registros: registros.sort((a, b) => a.creadoEn - b.creadoEn),
+      }))
+      .sort(
+        (a, b) =>
+          Number(!a.contenedor) - Number(!b.contenedor) ||
+          puntoDe(a).localeCompare(puntoDe(b), "es") ||
+          a.codigo.localeCompare(b.codigo)
+      );
   }, [pendientes, contenedores]);
 
   async function ejecutar(clave: string, accion: () => Promise<void>) {
@@ -109,11 +125,11 @@ export default function ValidacionContenedores({
     }
   }
 
-  async function noCuadra(g: Grupo, nombre: string) {
+  async function sinMaterial(g: Grupo, nombre: string) {
     const acepta = await confirmar(
-      "El contenedor no cuadra",
-      `Se rechazarán los ${g.registros.length} depósitos pendientes del ${nombre.toLowerCase()}. Úsalo solo si lo que hay en el contenedor no corresponde a lo que se declaró.`,
-      "Rechazar"
+      "Sin material",
+      `Se rechazarán los ${g.registros.length} depósitos pendientes del ${nombre.toLowerCase()}. Úsalo solo si el contenedor está vacío o lo que hay no corresponde a lo que se declaró.`,
+      "Marcar sin material"
     );
     if (!acepta) return;
     await ejecutar(g.codigo, () => alRechazar(g.registros.map((r) => r.id)));
@@ -121,9 +137,9 @@ export default function ValidacionContenedores({
 
   async function reportar(g: Grupo, nombre: string, contaminante: Contaminante) {
     const acepta = await confirmar(
-      "Reportar contaminación",
+      "Con observación",
       `Se registrará ${contaminante.toLowerCase()} en el ${nombre.toLowerCase()}. Los ${g.registros.length} depósitos declarados se validan igual, porque no se sabe quién fue. Se avisará al administrador para que lo retiren con precaución y a los colaboradores de la planta.`,
-      "Reportar y validar"
+      "Validar con observación"
     );
     if (!acepta) return;
     await ejecutar(g.codigo, async () => {
@@ -144,7 +160,9 @@ export default function ValidacionContenedores({
 
   return (
     <>
-      {grupos.map((g) => {
+      {grupos.map((g, i) => {
+        const punto = puntoDe(g);
+        const nuevoPunto = i === 0 || puntoDe(grupos[i - 1]) !== punto;
         const nombre = g.contenedor
           ? nombreContenedor(g.contenedor)
           : `Contenedor ${g.codigo}`;
@@ -154,119 +172,128 @@ export default function ValidacionContenedores({
         const ocupadoAqui = ocupado === g.codigo;
 
         return (
-          <Tarjeta key={g.codigo} className="mb-3">
-            <View className="flex-row justify-between items-start">
-              <View className="flex-1 min-w-0 pr-2">
-                <Text className="text-gray-800 font-semibold">{nombre}</Text>
-                <Text className="text-gray-400 text-xs mt-0.5 tracking-widest">
-                  {g.codigo}
-                  {reemplazado ? "  (código ya no en uso)" : ""}
-                </Text>
-              </View>
-              <Text className="text-gray-700 text-sm font-semibold">{formatKgEstimado(kg)}</Text>
-            </View>
-
-            <View className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 mt-3">
-              <Text className="text-gray-500 text-[11px] mb-1">Se declaró en este contenedor:</Text>
-              <Text className="text-gray-800 text-sm font-medium">{resumenTallas(g.registros)}</Text>
-              {!g.contenedor?.material ? (
-                <Text className="text-gray-500 text-xs mt-1">{resumenMateriales(g.registros)}</Text>
-              ) : null}
-              <Text className="text-gray-400 text-[11px] mt-2">
-                Míralo y compara: ¿cuadra con lo que hay adentro?
+          <React.Fragment key={g.codigo}>
+            {nuevoPunto ? (
+              <Text className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2 mt-1">
+                📍 {punto}
               </Text>
-            </View>
-
-            <View className="flex-row mt-3">
-              <Boton
-                titulo={ocupadoAqui ? "Validando..." : "Validar contenedor"}
-                cargando={ocupadoAqui}
-                deshabilitado={ocupado !== null}
-                onPress={() => ejecutar(g.codigo, () => alValidar(g.registros))}
-                className="flex-1 py-3 mr-2"
-              />
-              <Boton
-                titulo="No cuadra"
-                variante="peligro"
-                deshabilitado={ocupado !== null}
-                onPress={() => noCuadra(g, nombre)}
-                className="flex-1 py-3"
-              />
-            </View>
-
-            {reportando === g.codigo ? (
-              <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
-                <Text className="text-amber-900 text-sm font-medium mb-1">
-                  ¿Qué encontraste que no corresponde?
-                </Text>
-                <Text className="text-amber-800 text-xs mb-3">
-                  Si es poco y es seguro, sácalo (con guantes si es vidrio) y repórtalo igual.
-                </Text>
-                <View className="flex-row flex-wrap">
-                  {CONTAMINANTES.filter((c) => c !== g.contenedor?.material).map((c) => (
-                    <TouchableOpacity
-                      key={c}
-                      onPress={() => reportar(g, nombre, c)}
-                      disabled={ocupado !== null}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Reportar ${c.toLowerCase()} en el ${nombre.toLowerCase()}`}
-                      className="bg-white border border-amber-300 rounded-full px-3 py-1.5 mr-2 mb-2"
-                    >
-                      <Text className="text-amber-900 text-xs font-medium">{c}</Text>
-                    </TouchableOpacity>
-                  ))}
+            ) : null}
+            <Tarjeta className="mb-3">
+              <View className="flex-row justify-between items-start">
+                <View className="flex-1 min-w-0 pr-2">
+                  <Text className="text-gray-800 font-semibold">{nombre}</Text>
+                  <Text className="text-gray-400 text-xs mt-0.5 tracking-widest">
+                    {g.codigo}
+                    {reemplazado ? "  (código ya no en uso)" : ""}
+                  </Text>
                 </View>
-                <TouchableOpacity
-                  onPress={() => setReportando(null)}
-                  accessibilityRole="button"
-                  className="items-center pt-1"
-                >
-                  <Text className="text-amber-700 text-xs">Cancelar</Text>
-                </TouchableOpacity>
+                <Text className="text-gray-700 text-sm font-semibold">{formatKgEstimado(kg)}</Text>
               </View>
-            ) : (
+  
+              <View className="bg-gray-50 border border-gray-200 rounded-xl px-3 py-3 mt-3">
+                <Text className="text-gray-500 text-[11px] mb-1">Se declaró en este contenedor:</Text>
+                <Text className="text-gray-800 text-sm font-medium">{resumenTallas(g.registros)}</Text>
+                {!g.contenedor?.material ? (
+                  <Text className="text-gray-500 text-xs mt-1">{resumenMateriales(g.registros)}</Text>
+                ) : null}
+                <Text className="text-gray-400 text-[11px] mt-2">
+                  Míralo y compara: ¿cuadra con lo que hay adentro?
+                </Text>
+              </View>
+  
+              <View className="flex-row mt-3">
+                <Boton
+                  titulo={ocupadoAqui ? "Validando..." : "Conforme"}
+                  cargando={ocupadoAqui}
+                  deshabilitado={ocupado !== null}
+                  onPress={() => ejecutar(g.codigo, () => alValidar(g.registros))}
+                  className="flex-1 py-3 mr-2"
+                />
+                <Boton
+                  titulo="Sin material"
+                  variante="peligro"
+                  deshabilitado={ocupado !== null}
+                  onPress={() => sinMaterial(g, nombre)}
+                  className="flex-1 py-3"
+                />
+              </View>
+  
+              {reportando === g.codigo ? (
+                <View className="bg-amber-50 border border-amber-200 rounded-xl p-3 mt-3">
+                  <Text className="text-amber-900 text-sm font-medium mb-1">
+                    ¿Qué encontraste que no corresponde?
+                  </Text>
+                  <Text className="text-amber-800 text-xs mb-3">
+                    Si es poco y es seguro, sácalo (con guantes si es vidrio) y repórtalo igual.
+                  </Text>
+                  <View className="flex-row flex-wrap">
+                    {CONTAMINANTES.filter((c) => c !== g.contenedor?.material).map((c) => (
+                      <TouchableOpacity
+                        key={c}
+                        onPress={() => reportar(g, nombre, c)}
+                        disabled={ocupado !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Reportar ${c.toLowerCase()} en el ${nombre.toLowerCase()}`}
+                        className="bg-white border border-amber-300 rounded-full px-3 py-1.5 mr-2 mb-2"
+                      >
+                        <Text className="text-amber-900 text-xs font-medium">{c}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setReportando(null)}
+                    accessibilityRole="button"
+                    className="items-center pt-1"
+                  >
+                    <Text className="text-amber-700 text-xs">Cancelar</Text>
+                  </TouchableOpacity>
+                </View>
+              ) : (
+                <TouchableOpacity
+                  onPress={() => setReportando(g.codigo)}
+                  disabled={ocupado !== null}
+                  accessibilityRole="button"
+                  className="items-center pt-3"
+                >
+                  <Text className="text-amber-700 text-xs font-medium">
+                    Con observación (algo que no corresponde)
+                  </Text>
+                </TouchableOpacity>
+              )}
+  
               <TouchableOpacity
-                onPress={() => setReportando(g.codigo)}
-                disabled={ocupado !== null}
+                onPress={() => setAbierto(verDetalle ? null : g.codigo)}
                 accessibilityRole="button"
                 className="items-center pt-3"
               >
-                <Text className="text-amber-700 text-xs font-medium">Reportar contaminación</Text>
+                <Text className="text-gray-500 text-xs">
+                  {verDetalle ? "Ocultar depósitos" : `Ver depósitos (${g.registros.length})`}
+                </Text>
               </TouchableOpacity>
-            )}
-
-            <TouchableOpacity
-              onPress={() => setAbierto(verDetalle ? null : g.codigo)}
-              accessibilityRole="button"
-              className="items-center pt-3"
-            >
-              <Text className="text-gray-500 text-xs">
-                {verDetalle ? "Ocultar depósitos" : `Ver depósitos (${g.registros.length})`}
-              </Text>
-            </TouchableOpacity>
-
-            {verDetalle
-              ? g.registros.map((r) => (
-                  <View
-                    key={r.id}
-                    className="flex-row items-center border-t border-gray-100 pt-2 mt-2"
-                  >
-                    <Text className="text-gray-600 text-xs flex-1 pr-2">
-                      {r.material}
-                      {r.talla ? ` · talla ${r.talla}` : ""} · {tiempoRelativo(r.creadoEn)}
-                    </Text>
-                    <TouchableOpacity
-                      onPress={() => rechazarUno(r)}
-                      disabled={ocupado !== null}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Rechazar depósito de ${r.material.toLowerCase()} de ${tiempoRelativo(r.creadoEn)}`}
+  
+              {verDetalle
+                ? g.registros.map((r) => (
+                    <View
+                      key={r.id}
+                      className="flex-row items-center border-t border-gray-100 pt-2 mt-2"
                     >
-                      <Text className="text-red-600 text-xs font-medium">Rechazar</Text>
-                    </TouchableOpacity>
-                  </View>
-                ))
-              : null}
-          </Tarjeta>
+                      <Text className="text-gray-600 text-xs flex-1 pr-2">
+                        {r.material}
+                        {r.talla ? ` · talla ${r.talla}` : ""} · {tiempoRelativo(r.creadoEn)}
+                      </Text>
+                      <TouchableOpacity
+                        onPress={() => rechazarUno(r)}
+                        disabled={ocupado !== null}
+                        accessibilityRole="button"
+                        accessibilityLabel={`Rechazar depósito de ${r.material.toLowerCase()} de ${tiempoRelativo(r.creadoEn)}`}
+                      >
+                        <Text className="text-red-600 text-xs font-medium">Rechazar</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                : null}
+            </Tarjeta>
+          </React.Fragment>
         );
       })}
     </>

@@ -10,7 +10,7 @@ import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import UnirseAreaScreen from "./src/screens/UnirseAreaScreen";
 import HomeScreen from "./src/screens/HomeScreen";
-import AdminScreen from "./src/screens/AdminScreen";
+import ValidadorScreen from "./src/screens/ValidadorScreen";
 import ScanQRScreen from "./src/screens/ScanQRScreen";
 import RankingScreen from "./src/screens/RankingScreen";
 import RecicladosScreen from "./src/screens/RecicladosScreen";
@@ -20,7 +20,7 @@ import AvisosScreen from "./src/screens/AvisosScreen";
 
 export type Pantalla =
   | "home"
-  | "admin"
+  | "validador"
   | "escanear"
   | "ranking"
   | "reciclados"
@@ -51,8 +51,8 @@ interface Ruta {
  */
 const INICIO_POR_ROL: Record<Rol, Pantalla> = {
   colaborador: "home",
-  validador: "admin",
-  administrador: "admin",
+  validador: "validador",
+  administrador: "validador",
 };
 
 /**
@@ -93,8 +93,8 @@ function PilaApp({ rol }: { rol: Rol }) {
 
   let pantalla: React.ReactNode;
   switch (actual.pantalla) {
-    case "admin":
-      pantalla = <AdminScreen nav={nav} />;
+    case "validador":
+      pantalla = <ValidadorScreen nav={nav} />;
       break;
     case "escanear":
       pantalla = <ScanQRScreen nav={nav} />;
