@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { Navegacion } from "../../App";
-import { useEcoTrack } from "../state/EcoTrack";
-import { formatKg, porcentaje } from "../lib/formato";
+import { useEcoTrack, type FilaRanking } from "../state/EcoTrack";
+import { diaYMes, formatKg, porcentaje } from "../lib/formato";
+import type { AvanceIncentivo } from "../lib/derivados";
 import { mesesConCertificado } from "../lib/certificadoMensual";
 import { useDescargaCertificado } from "../lib/useDescargaCertificado";
 import { textoAvance, type MisionSistema } from "../lib/misionesSistema";
@@ -26,11 +27,14 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
     misKgDelMes,
     misCertificados,
     misRegistros,
+    ranking,
     miPosicionRanking,
+    miIncentivo,
     misionSemanal,
-    ecoPuntosMes,
+    puntosMes,
     avisosNuevos,
   } = useEcoTrack();
+  const miArea = ranking.find((a) => a.esMiArea);
 
   const { descargar, generando } = useDescargaCertificado();
   // El más reciente con depósitos certificados: al empezar un mes, el
@@ -106,9 +110,20 @@ export default function HomeScreen({ nav }: { nav: Navegacion }) {
         </TouchableOpacity>
       </View>
 
+      {miArea ? (
+        <TarjetaMiArea
+          fila={miArea}
+          posicion={miPosicionRanking}
+          total={ranking.length}
+          alAbrir={() => nav.ir("ranking")}
+        />
+      ) : null}
+
+      {miIncentivo ? <TarjetaIncentivo avance={miIncentivo} /> : null}
+
       <TipReciclaje />
 
-      <Seccion titulo="Tu misión de la semana" etiqueta={`${ecoPuntosMes} EcoPuntos este mes`}>
+      <Seccion titulo="Tu misión de la semana" etiqueta={`${puntosMes} puntos este mes`}>
         <Tarjeta>
           <FilaMision mision={misionSemanal} />
         </Tarjeta>
@@ -128,7 +143,7 @@ function FilaMision({ mision }: { mision: MisionSistema }) {
   return (
     <View
       accessible
-      accessibilityLabel={`Misión de la semana: ${mision.titulo}. ${estado}. ${mision.puntos} EcoPuntos.`}
+      accessibilityLabel={`Misión de la semana: ${mision.titulo}. ${estado}. ${mision.puntos} puntos.`}
     >
       <View className="flex-row items-center mb-2">
         <Text className="mr-2">{mision.completada ? "✅" : mision.emoji}</Text>
@@ -137,6 +152,73 @@ function FilaMision({ mision }: { mision: MisionSistema }) {
       </View>
       <Barra avance={porcentaje(mision.progreso, mision.meta)} />
       <Text className="text-gray-400 text-xs mt-2">{estado}</Text>
+    </View>
+  );
+}
+
+/**
+ * Cómo va mi área en el ranking del mes. Tocarla abre el ranking completo, que
+ * ya está en la barra inferior: aquí solo va el resumen.
+ */
+function TarjetaMiArea({
+  fila,
+  posicion,
+  total,
+  alAbrir,
+}: {
+  fila: FilaRanking;
+  posicion: number;
+  total: number;
+  alAbrir: () => void;
+}) {
+  return (
+    <View className="px-6 mt-4">
+      <TouchableOpacity
+        onPress={alAbrir}
+        activeOpacity={0.8}
+        accessibilityRole="button"
+        accessibilityLabel={`Tu área, ${fila.nombre}: lugar ${posicion} de ${total}, ${fila.participacion}% de participación. Ver el ranking.`}
+      >
+        <Tarjeta>
+          <View className="flex-row justify-between items-center mb-3">
+            <View className="flex-1 min-w-0 pr-2">
+              <Text className="text-gray-400 text-xs">Tu área</Text>
+              <Text className="text-gray-800 font-semibold" numberOfLines={1}>
+                {fila.nombre} · {posicion}° de {total}
+              </Text>
+            </View>
+            <Text className="text-green-700 font-bold text-lg">{fila.participacion}%</Text>
+          </View>
+          <Barra avance={fila.participacion} />
+          <Text className="text-gray-400 text-xs mt-2">
+            {fila.participantes} de {fila.dotacion} personas reciclaron este mes
+          </Text>
+        </Tarjeta>
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+/** El incentivo de la planta y cuánto le falta a mi área para ganarlo. */
+function TarjetaIncentivo({ avance }: { avance: AvanceIncentivo }) {
+  return (
+    <View className="px-6 mt-4">
+      <View className="bg-amber-50 border border-amber-200 rounded-2xl p-4">
+        <View className="flex-row justify-between items-start mb-1">
+          <Text className="text-amber-900 font-semibold flex-1 pr-2">🏆 {avance.nombre}</Text>
+          <Text className="text-amber-700 text-xs">Termina el {diaYMes(avance.terminaEn)}</Text>
+        </View>
+        <Text className="text-amber-800 text-sm mb-3">
+          Si tu área llega al {avance.meta}% de participación: {avance.incentivo}
+        </Text>
+        {/* La barra es el avance hacia la meta, no hacia el 100 %. */}
+        <Barra avance={porcentaje(avance.participacion, avance.meta)} color="bg-amber-500" />
+        <Text className="text-amber-800 text-xs mt-2">
+          {avance.cumplida
+            ? `¡Meta cumplida! Tu área lleva ${avance.participacion}%.`
+            : `Tu área lleva ${avance.participacion}%: falta un ${avance.faltan}% más para la meta.`}
+        </Text>
+      </View>
     </View>
   );
 }

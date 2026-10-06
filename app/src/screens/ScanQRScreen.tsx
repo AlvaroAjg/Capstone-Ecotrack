@@ -344,7 +344,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
               : ""}
           </Text>
           <Text className="text-gray-400 text-xs text-center mb-4">
-            Registrado en {segundos} segundos. Tu depósito ya está en la cola del administrador.
+            Registrado en {segundos} segundos. El validador revisa el punto limpio una vez al día: tu depósito se valida en su próxima ronda.
           </Text>
 
           {/* La bolsa es solo la referencia de cuánto trajo: dentro del
@@ -362,12 +362,12 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           {misionCumplida ? (
             <View
               accessible
-              accessibilityLabel={`Misión de la semana cumplida: ${misionCumplida.titulo}. Ganaste ${misionCumplida.puntos} EcoPuntos.`}
+              accessibilityLabel={`Misión de la semana cumplida: ${misionCumplida.titulo}. Ganaste ${misionCumplida.puntos} puntos.`}
               className="w-full bg-amber-50 border border-amber-200 rounded-2xl p-4 mb-4 items-center"
             >
               <Text className="text-amber-800 font-bold">🎉 ¡Misión de la semana cumplida!</Text>
               <Text className="text-amber-700 text-xs mt-1 text-center">
-                {misionCumplida.titulo} · +{misionCumplida.puntos} EcoPuntos
+                {misionCumplida.titulo} · +{misionCumplida.puntos} puntos
               </Text>
             </View>
           ) : null}

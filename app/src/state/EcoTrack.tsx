@@ -96,6 +96,8 @@ interface EcoTrackValor {
 
   // Incentivo vigente de mi planta (null si todavía no se ha definido uno)
   campana: Campana | null;
+  /** Cómo va mi área frente a la meta del incentivo; null si no hay tarjeta que mostrar. */
+  miIncentivo: derivados.AvanceIncentivo | null;
 
   // Validador y administrador: los contenedores de la planta
   contenedores: Contenedor[];
@@ -118,7 +120,7 @@ interface EcoTrackValor {
 
   // Misión semanal del sistema, calculada con los depósitos del colaborador
   misionSemanal: MisionSistema;
-  ecoPuntosMes: number;
+  puntosMes: number;
 
   // Acciones
   iniciarSesion: (email: string, password: string) => Promise<void>;
@@ -453,6 +455,11 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     return indice === -1 ? ranking.length : indice + 1;
   }, [ranking]);
 
+  const miIncentivo = useMemo(
+    () => derivados.avanceIncentivo(campana, ranking),
+    [campana, ranking]
+  );
+
   const misRegistros = useMemo(
     () => (usuario ? registros.filter((r) => r.colaboradorId === usuario.id) : []),
     [registros, usuario]
@@ -474,7 +481,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   );
 
   const misionSemanal = useMemo(() => calcularSemanal(misRegistros), [misRegistros]);
-  const ecoPuntosMes = useMemo(() => puntosDelMes(misRegistros), [misRegistros]);
+  const puntosMes = useMemo(() => puntosDelMes(misRegistros), [misRegistros]);
 
   // Lo que ve el administrador: un grupo por contenedor (ver
   // contenedoresPorRetirar en lib/derivados.ts).
@@ -529,6 +536,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     ranking,
     miPosicionRanking,
     campana,
+    miIncentivo,
     contenedores,
     porRetirar,
     retiros,
@@ -538,7 +546,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     avisosNuevos,
     marcarAvisosVistos,
     misionSemanal,
-    ecoPuntosMes,
+    puntosMes,
     iniciarSesion,
     iniciarSesionConProveedor,
     registrarCuenta,

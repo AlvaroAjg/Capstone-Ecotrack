@@ -83,13 +83,13 @@ export default function DepositoScreen({ nav }: { nav: Navegacion }) {
           <Etapa
             hecha={registro.validadoEn !== null}
             error={rechazado}
-            titulo={rechazado ? "Rechazado por el administrador" : "Validado por el administrador"}
+            titulo={rechazado ? "Rechazado por el validador" : "Validado por el validador"}
             detalle={
               rechazado
                 ? "No se encontró en el contenedor, así que no suma"
                 : registro.validadoEn
                   ? "Confirmó la deposición en el contenedor"
-                  : "Esperando que el administrador revise el contenedor"
+                  : "Esperando la ronda diaria del validador"
             }
             momento={registro.validadoEn}
             ultima={rechazado}

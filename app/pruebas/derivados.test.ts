@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+  avanceIncentivo,
   contenedoresPorRetirar,
   rankingDeAreas,
   unirRegistros,
@@ -15,6 +16,7 @@ import {
   resumen,
   validado,
 } from "./fabrica";
+import type { Campana } from "../src/lib/tipos";
 
 const AREAS = [EMBOTELLADO, FERMENTACION];
 
@@ -144,5 +146,40 @@ describe("contenedoresPorRetirar", () => {
 
   test("sin validados no hay nada que retirar", () => {
     expect(contenedoresPorRetirar([registro(), certificado()], CONTENEDORES)).toEqual([]);
+  });
+});
+
+describe("avanceIncentivo", () => {
+  const CAMPANA: Campana = {
+    plantaId: "planta-1",
+    nombre: "Septiembre verde",
+    metaParticipacion: 50,
+    incentivo: "Desayuno para el área",
+    terminaEn: fecha(2026, 9, 30),
+    actualizadaEn: fecha(2026, 9, 1),
+    actualizadaPor: "adela",
+  };
+
+  test("cuánto le falta a mi área para la meta", () => {
+    // 6 de 20 personas de Embotellado: 30 %.
+    const ranking = rankingDeAreas(AREAS, resumen({ embotellado: { depositos: 9, participantes: 6 } }), "embotellado");
+    expect(avanceIncentivo(CAMPANA, ranking)).toMatchObject({
+      meta: 50,
+      participacion: 30,
+      faltan: 20,
+      cumplida: false,
+    });
+  });
+
+  test("si mi área pasó la meta, está cumplida y no le falta nada", () => {
+    const ranking = rankingDeAreas(AREAS, resumen({ fermentacion: { depositos: 8, participantes: 7 } }), "fermentacion");
+    expect(avanceIncentivo(CAMPANA, ranking)).toMatchObject({ participacion: 70, faltan: 0, cumplida: true });
+  });
+
+  test("sin campaña, terminada o sin área, no hay tarjeta", () => {
+    const ranking = rankingDeAreas(AREAS, null, "embotellado");
+    expect(avanceIncentivo(null, ranking)).toBeNull();
+    expect(avanceIncentivo({ ...CAMPANA, terminaEn: fecha(2026, 9, 15) }, ranking)).toBeNull();
+    expect(avanceIncentivo(CAMPANA, rankingDeAreas(AREAS, null, null))).toBeNull();
   });
 });

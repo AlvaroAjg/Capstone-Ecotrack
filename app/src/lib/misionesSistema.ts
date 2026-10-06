@@ -117,7 +117,7 @@ export function misionSemanal(misRegistros: Registro[], fecha: Date = new Date()
 }
 
 /**
- * EcoPuntos del mes en curso: 50 por cada misión semanal cumplida, contando
+ * Puntos del mes en curso: 50 por cada misión semanal cumplida, contando
  * toda semana que tenga al menos un día en este mes. Así, si el mes empieza un
  * miércoles, la misión cumplida ese día suma aquí y el total nunca baja
  * mientras el mes avanza.
