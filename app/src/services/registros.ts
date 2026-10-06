@@ -14,7 +14,6 @@ import { mesDe } from "../lib/certificadoMensual";
 import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
 import { idParticipacion, idResumen } from "../lib/resumenMes";
-import { inicioDeSemana } from "../lib/misionesSistema";
 import {
   kgEstimado,
   type Material,
@@ -27,11 +26,9 @@ import {
 function aRegistro(id: string, d: any): Registro {
   return {
     id,
-    residenteId: d.residenteId ?? "",
-    residente: d.residente ?? "",
-    depto: d.depto ?? "",
-    torreId: d.torreId ?? "",
-    torreNombre: d.torreNombre ?? "",
+    colaboradorId: d.colaboradorId ?? "",
+    plantaId: d.plantaId ?? "",
+    areaId: d.areaId ?? "",
     material: d.material as Material,
     talla: d.talla ?? null,
     kgDeclarado: d.kgDeclarado ?? 0,
@@ -44,65 +41,53 @@ function aRegistro(id: string, d: any): Registro {
     certificadoEn: d.certificadoEn ?? null,
     certificadoPor: d.certificadoPor ?? null,
     codigo: d.codigo ?? null,
-    codigoRetiro: d.codigoRetiro ?? null,
+    retiroId: d.retiroId ?? null,
   };
 }
 
 /**
  * Las consultas que necesita cada rol. Nada queda afuera por antigüedad: antes
  * se escuchaban los últimos 300 de todo el sistema, y al pasar de ahí los más
- * viejos desaparecían sin aviso (del certificado, del ranking y, lo peor, de
- * la cola del gestor, que nunca los retiraba).
+ * viejos desaparecían sin aviso.
  *
- * - Todos: los depósitos desde el lunes de la primera semana del mes, para la
- *   participación, los EcoPuntos de cada torre (su misión semanal puede empezar
- *   el mes anterior) y los avisos; y los certificados del mes, para los kilos
- *   del ranking (un depósito del mes pasado puede certificarse en este).
- * - Residente: todos los suyos, para su historial, sus certificados de meses
- *   anteriores y su misión semanal.
- * - Administrador: todos los de su torre, de cualquier fecha: sus pendientes
- *   y el reporte mensual de meses anteriores.
- * - Gestor: todos los validados, de cualquier fecha, que son su cola de retiro.
+ * - Colaborador: solo los suyos, de cualquier fecha, para su historial, sus
+ *   certificados y su misión semanal. No lee los de sus compañeros: el ranking
+ *   de áreas sale del resumen del mes (ver crearRegistro).
+ * - Validador y administrador: todos los de su planta, de cualquier fecha: los
+ *   pendientes por validar, los validados por retirar y el reporte de meses
+ *   anteriores.
  *
- * Ninguna necesita índice compuesto: son rangos sobre un campo o igualdades.
- * Las fechas se fijan al suscribirse; si la app queda abierta al cambiar de
- * mes, las consultas traen de más, no de menos, y los cálculos filtran igual
- * por mes.
+ * Ninguna necesita índice compuesto: son igualdades sobre un solo campo.
+ * Sumarle un rango de fechas a `plantaId ==` exigiría uno en
+ * firestore.indexes.json; para el volumen del piloto (unos 400 depósitos al
+ * mes) no hace falta.
  */
-function consultasPara(uid: string, rol: Rol, torreId: string | null): Query[] {
+function consultasPara(uid: string, rol: Rol, plantaId: string | null): Query[] {
   const registros = collection(db, "registros");
-  const hoy = new Date();
-  const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-  const desdeSemana = inicioDeSemana(inicioMes).getTime();
-
-  const consultas: Query[] = [
-    query(registros, where("creadoEn", ">=", desdeSemana)),
-    query(registros, where("certificadoEn", ">=", inicioMes.getTime())),
-  ];
-  if (rol === "residente") {
-    consultas.push(query(registros, where("residenteId", "==", uid)));
+  if (rol === "colaborador") {
+    return [query(registros, where("colaboradorId", "==", uid))];
   }
-  if (rol === "administrador" && torreId) {
-    consultas.push(query(registros, where("torreId", "==", torreId)));
-  }
-  if (rol === "gestor") {
-    consultas.push(query(registros, where("estado", "==", "validado")));
-  }
-  return consultas;
+  // Sin planta todavía no hay nada que validar ni retirar.
+  if (!plantaId) return [];
+  return [query(registros, where("plantaId", "==", plantaId))];
 }
 
 /**
  * Escucha en vivo los registros que el usuario necesita (ver consultasPara) y
  * entrega la unión, sin repetidos, del más reciente al más antiguo. Espera a
  * que respondan todas las consultas antes del primer aviso, para no mostrar
- * un ranking o una cola a medio cargar.
+ * una lista a medio cargar.
  */
 export function escucharRegistros(
-  usuario: { id: string; rol: Rol; torreId: string | null },
+  usuario: { id: string; rol: Rol; plantaId: string | null },
   callback: (registros: Registro[]) => void,
   alFallar?: (error: Error) => void
 ) {
-  const consultas = consultasPara(usuario.id, usuario.rol, usuario.torreId);
+  const consultas = consultasPara(usuario.id, usuario.rol, usuario.plantaId);
+  if (consultas.length === 0) {
+    callback([]);
+    return () => undefined;
+  }
   const resultados: (Registro[] | undefined)[] = consultas.map(() => undefined);
 
   function entregar() {
@@ -217,9 +202,9 @@ function revisarTamano(cantidad: number): void {
 }
 
 /**
- * Etapa 1 de la cadena: el administrador confirma que los depósitos están en
- * el contenedor. Valida la tanda completa, no bolsa por bolsa, así que se
- * confirman los kilos estimados por la talla declarada.
+ * Etapa 1 de la cadena: el validador (o el administrador) confirma que los
+ * depósitos están en el contenedor. Valida la tanda completa, no bolsa por
+ * bolsa, así que se confirman los kilos estimados por la talla declarada.
  *
  * Todo va en un writeBatch atómico: o se validan todos, o ninguno. Así un
  * corte de conexión a la mitad no deja una tanda validada a medias. Con
@@ -228,7 +213,7 @@ function revisarTamano(cantidad: number): void {
  */
 export async function validarRegistros(
   registros: Registro[],
-  adminUid: string,
+  validadorUid: string,
   ademas?: (lote: WriteBatch) => void
 ): Promise<void> {
   revisarTamano(registros.length);
@@ -239,7 +224,7 @@ export async function validarRegistros(
       estado: "validado",
       kgConfirmado: registro.kgDeclarado,
       validadoEn: ahora,
-      validadoPor: adminUid,
+      validadoPor: validadorUid,
     });
   }
   ademas?.(lote);
@@ -247,7 +232,7 @@ export async function validarRegistros(
 }
 
 /** Rechaza depósitos pendientes, también en un solo lote atómico. */
-export async function rechazarRegistros(ids: string[], adminUid: string): Promise<void> {
+export async function rechazarRegistros(ids: string[], validadorUid: string): Promise<void> {
   revisarTamano(ids.length);
   const ahora = Date.now();
   const lote = writeBatch(db);
@@ -255,7 +240,7 @@ export async function rechazarRegistros(ids: string[], adminUid: string): Promis
     lote.update(doc(db, "registros", id), {
       estado: "rechazado",
       validadoEn: ahora,
-      validadoPor: adminUid,
+      validadoPor: validadorUid,
     });
   }
   await lote.commit();
