@@ -1,6 +1,6 @@
 import "./global.css";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Platform, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
@@ -17,6 +17,8 @@ import RecicladosScreen from "./src/screens/RecicladosScreen";
 import DepositoScreen from "./src/screens/DepositoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 import AvisosScreen from "./src/screens/AvisosScreen";
+import PanelAdmin from "./src/screens/panel/PanelAdmin";
+import AdminEnTelefono from "./src/screens/panel/AdminEnTelefono";
 
 export type Pantalla =
   | "home"
@@ -46,8 +48,8 @@ interface Ruta {
 }
 
 /**
- * El validador usa la vista de validación. El administrador también, mientras
- * no exista el panel web.
+ * El validador usa la vista de validación. El administrador no entra a la pila:
+ * trabaja en el panel web (ver Raiz), así que su entrada no se usa.
  */
 const INICIO_POR_ROL: Record<Rol, Pantalla> = {
   colaborador: "home",
@@ -153,8 +155,16 @@ function PilaAuth() {
   return <LoginScreen alRegistrarse={() => setPantalla("register")} />;
 }
 
+/**
+ * Ancho desde el que el panel del administrador cabe con su menú lateral. Bajo
+ * eso, o en la app nativa, el administrador no tiene una vista de escritorio.
+ */
+const ANCHO_ESCRITORIO = 1024;
+
 function Raiz() {
   const { cargandoSesion, usuario } = useEcoTrack();
+  const { width } = useWindowDimensions();
+  const esPantallaDeEscritorio = Platform.OS === "web" && width >= ANCHO_ESCRITORIO;
 
   if (cargandoSesion) {
     return <PantallaCargando mensaje="Conectando con RecyTrack..." />;
@@ -169,6 +179,10 @@ function Raiz() {
   const sinArea = usuario.rol !== "administrador" && !usuario.areaId;
   if (!usuario.plantaId || sinArea) {
     return <UnirseAreaScreen />;
+  }
+
+  if (usuario.rol === "administrador") {
+    return esPantallaDeEscritorio ? <PanelAdmin key={usuario.id} /> : <AdminEnTelefono />;
   }
 
   return <PilaApp key={usuario.id} rol={usuario.rol} />;
