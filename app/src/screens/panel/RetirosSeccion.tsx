@@ -16,7 +16,7 @@ import { Boton, Campo, Tarjeta } from "../../components/ui";
  * código de certificado (ver registrarRetiro en services/retiros.ts).
  */
 export default function RetirosSeccion() {
-  const { miPlanta, areas, registros, incidencias } = useEcoTrack();
+  const { miPlanta, areas, registros, incidencias, retiros } = useEcoTrack();
   return (
     <View className="max-w-[1100px]">
       <FormularioRetiro />
@@ -29,6 +29,7 @@ export default function RetirosSeccion() {
             areas={areas}
             registros={registros}
             incidencias={incidencias}
+            retiros={retiros}
           />
         </View>
       ) : null}

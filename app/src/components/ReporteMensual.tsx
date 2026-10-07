@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Text, View } from "react-native";
-import type { Area, Incidencia, Planta, Registro } from "../lib/tipos";
+import type { Area, Incidencia, Planta, Registro, Retiro } from "../lib/tipos";
 import { etiquetaMes } from "../lib/certificadoMensual";
 import { avisar, textoDeError } from "../lib/dialogos";
 import { formatKg } from "../lib/formato";
@@ -26,11 +26,13 @@ export default function ReporteMensual({
   areas,
   registros,
   incidencias,
+  retiros,
 }: {
   planta: Planta;
   areas: Area[];
   registros: Registro[];
   incidencias: Incidencia[];
+  retiros: Retiro[];
 }) {
   const meses = useMemo(
     () => mesesReportables(planta.id, registros, incidencias).slice(0, 4),
@@ -39,8 +41,8 @@ export default function ReporteMensual({
   const [mes, setMes] = useState(meses[0]);
   const [generando, setGenerando] = useState(false);
   const reporte = useMemo(
-    () => reporteDePlanta(planta, areas, mes, registros, incidencias),
-    [planta, areas, mes, registros, incidencias]
+    () => reporteDePlanta(planta, areas, mes, registros, incidencias, retiros),
+    [planta, areas, mes, registros, incidencias, retiros]
   );
 
   async function descargar() {
@@ -78,8 +80,8 @@ export default function ReporteMensual({
         {reporte.contaminaciones.length === 1 ? "contenedor contaminado" : "contenedores contaminados"}
       </Text>
       <Text className="text-gray-400 text-[11px] mb-4">
-        Incluye los indicadores del piloto, los kilos por material, los tiempos de la cadena, las
-        áreas que más reciclaron (sin nombres de personas) y los contenedores contaminados.
+        Incluye los indicadores del piloto, los kilos por material, los tiempos de la cadena, la
+        participación de cada área (sin nombres de personas), los retiros y los contenedores contaminados.
       </Text>
       {reportePdfDisponible ? (
         <Boton
