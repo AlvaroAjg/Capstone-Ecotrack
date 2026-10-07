@@ -513,3 +513,27 @@ export function Aviso({
     </View>
   );
 }
+
+/** Opción seleccionable en forma de píldora: filtros y elecciones cortas. */
+export function Chip({
+  texto,
+  activo,
+  alPresionar,
+}: {
+  texto: string;
+  activo: boolean;
+  alPresionar: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={alPresionar}
+      accessibilityRole="button"
+      accessibilityState={{ selected: activo }}
+      className={`border rounded-full px-3 py-1.5 mr-2 mb-2 ${
+        activo ? "bg-green-700 border-green-700" : "bg-white border-gray-300"
+      }`}
+    >
+      <Text className={`text-xs font-medium ${activo ? "text-white" : "text-gray-700"}`}>{texto}</Text>
+    </TouchableOpacity>
+  );
+}

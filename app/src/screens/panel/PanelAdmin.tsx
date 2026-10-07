@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
-import ContenedoresTorre from "../../components/ContenedoresTorre";
+import ContenedoresSeccion from "./ContenedoresSeccion";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Aviso, Tarjeta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
@@ -134,19 +134,15 @@ export default function PanelAdmin() {
 }
 
 function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
-  const { usuario, miPlanta, areas, registros, incidencias } = useEcoTrack();
+  const { miPlanta, areas, registros, incidencias } = useEcoTrack();
 
   switch (seccion) {
     case "resumen":
       return <ResumenSeccion />;
-    // Mientras no exista su sección (#33 y #35), los contenedores y el
-    // reporte se manejan con los mismos componentes que tenía la app.
     case "contenedores":
-      return usuario?.plantaId ? (
-        <View className="-mx-6 -mt-6 max-w-[720px]">
-          <ContenedoresTorre plantaId={usuario.plantaId} />
-        </View>
-      ) : null;
+      return <ContenedoresSeccion />;
+    // Mientras no exista su sección (#35), el reporte se descarga con el mismo
+    // componente que tenía la app.
     case "retiros":
       return miPlanta ? (
         <View className="max-w-[720px]">
