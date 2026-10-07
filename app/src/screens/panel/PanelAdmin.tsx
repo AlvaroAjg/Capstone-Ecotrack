@@ -4,6 +4,7 @@ import { useEcoTrack } from "../../state/EcoTrack";
 import ContenedoresTorre from "../../components/ContenedoresTorre";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Aviso, Tarjeta } from "../../components/ui";
+import ResumenSeccion from "./ResumenSeccion";
 
 export type SeccionPanel =
   | "resumen"
@@ -132,6 +133,8 @@ function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
   const { usuario, miPlanta, areas, registros, incidencias } = useEcoTrack();
 
   switch (seccion) {
+    case "resumen":
+      return <ResumenSeccion />;
     // Mientras no exista su sección (#33 y #35), los contenedores y el
     // reporte se manejan con los mismos componentes que tenía la app.
     case "contenedores":
