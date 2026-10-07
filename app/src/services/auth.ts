@@ -26,24 +26,25 @@ export function escucharSesion(callback: (usuario: User | null) => void) {
   return onAuthStateChanged(auth, callback);
 }
 
+/** Un documento de `usuarios/{uid}` como Usuario. */
+export function aUsuario(uid: string, d: any): Usuario {
+  return {
+    id: uid,
+    nombre: d.nombre ?? "",
+    email: d.email ?? "",
+    rol: (d.rol ?? "colaborador") as Rol,
+    plantaId: d.plantaId ?? null,
+    areaId: d.areaId ?? null,
+    areaNombre: d.areaNombre ?? null,
+    avisosVistosHasta: d.avisosVistosHasta ?? 0,
+  };
+}
+
 /** Escucha el documento de perfil en `usuarios/{uid}` en tiempo real. */
 export function escucharPerfil(uid: string, callback: (u: Usuario | null) => void) {
   return onSnapshot(
     doc(db, "usuarios", uid),
-    (snap) => {
-      if (!snap.exists()) return callback(null);
-      const d = snap.data();
-      callback({
-        id: uid,
-        nombre: d.nombre ?? "",
-        email: d.email ?? "",
-        rol: (d.rol ?? "colaborador") as Rol,
-        plantaId: d.plantaId ?? null,
-        areaId: d.areaId ?? null,
-        areaNombre: d.areaNombre ?? null,
-        avisosVistosHasta: d.avisosVistosHasta ?? 0,
-      });
-    },
+    (snap) => callback(snap.exists() ? aUsuario(uid, snap.data()) : null),
     () => callback(null)
   );
 }

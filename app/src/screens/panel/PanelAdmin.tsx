@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
 import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
-import ContenedoresTorre from "../../components/ContenedoresTorre";
-import ReporteMensual from "../../components/ReporteMensual";
-import { Aviso, Tarjeta } from "../../components/ui";
+import ContenedoresSeccion from "./ContenedoresSeccion";
+import PersonasSeccion from "./PersonasSeccion";
+import IncentivoSeccion from "./IncentivoSeccion";
+import RondasSeccion from "./RondasSeccion";
+import RetirosSeccion from "./RetirosSeccion";
+import { Aviso } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
 
@@ -134,36 +137,18 @@ export default function PanelAdmin() {
 }
 
 function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
-  const { usuario, miPlanta, areas, registros, incidencias } = useEcoTrack();
-
   switch (seccion) {
     case "resumen":
       return <ResumenSeccion />;
-    // Mientras no exista su sección (#33 y #35), los contenedores y el
-    // reporte se manejan con los mismos componentes que tenía la app.
     case "contenedores":
-      return usuario?.plantaId ? (
-        <View className="-mx-6 -mt-6 max-w-[720px]">
-          <ContenedoresTorre plantaId={usuario.plantaId} />
-        </View>
-      ) : null;
+      return <ContenedoresSeccion />;
+    case "personas":
+      return <PersonasSeccion />;
+    case "incentivo":
+      return <IncentivoSeccion />;
+    case "rondas":
+      return <RondasSeccion />;
     case "retiros":
-      return miPlanta ? (
-        <View className="max-w-[720px]">
-          <ReporteMensual planta={miPlanta} areas={areas} registros={registros} incidencias={incidencias} />
-        </View>
-      ) : null;
-    default:
-      return <Proximamente />;
+      return <RetirosSeccion />;
   }
-}
-
-function Proximamente() {
-  return (
-    <Tarjeta className="items-center py-16">
-      <Text className="text-4xl mb-3">🚧</Text>
-      <Text className="text-gray-800 font-semibold text-base">Próximamente</Text>
-      <Text className="text-gray-500 text-sm mt-1">Esta sección todavía está en construcción.</Text>
-    </Tarjeta>
-  );
 }

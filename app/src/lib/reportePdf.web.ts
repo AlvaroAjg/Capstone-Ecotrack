@@ -219,18 +219,23 @@ export async function generarReportePdf(r: ReportePlanta): Promise<Uint8Array> {
 
   // ------------------------------------------------------------ áreas
   espacio(60);
-  tituloSeccion(p, "Áreas que más reciclaron", arriba);
-  izquierda(p, "Kilos certificados en el mes. Solo totales por área, sin nombres.", MARGEN, arriba + 13, 8, {
-    color: GRIS,
-  });
+  tituloSeccion(p, "Participación por área", arriba);
+  izquierda(
+    p,
+    "Personas del área que reciclaron en el mes, sobre su dotación. Solo totales por área, sin nombres.",
+    MARGEN,
+    arriba + 13,
+    8,
+    { color: GRIS }
+  );
   arriba += 32;
   if (r.areas.length === 0) {
-    izquierda(p, "Ningún área tiene kilos certificados este mes.", MARGEN, arriba, 9, { color: GRIS });
+    izquierda(p, "La planta todavía no tiene áreas.", MARGEN, arriba, 9, { color: GRIS });
     arriba += ALTO_FILA;
   } else {
     const encabezado = () => {
-      ["#", "ÁREA", "DEPÓSITOS"].forEach((t, i) =>
-        izquierda(p, t, [MARGEN, 70, 250][i], arriba, 7, { negrita: true, color: GRIS })
+      ["#", "ÁREA", "PARTICIPACIÓN", "PERSONAS"].forEach((t, i) =>
+        izquierda(p, t, [MARGEN, 70, 250, 340][i], arriba, 7, { negrita: true, color: GRIS })
       );
       derecha(p, "KILOS", DERECHA, arriba, 7, { negrita: true, color: GRIS });
       linea(p, arriba + 6);
@@ -253,12 +258,57 @@ export async function generarReportePdf(r: ReportePlanta): Promise<Uint8Array> {
       }
       izquierda(p, `${i + 1}`, MARGEN, arriba, 8.5, { color: GRIS });
       izquierda(p, fila.area, 70, arriba, 8.5);
-      izquierda(p, `${fila.depositos}`, 250, arriba, 8.5, { color: GRIS });
-      derecha(p, formatKg(fila.kg), DERECHA, arriba, 8.5, { negrita: true });
+      izquierda(p, `${fila.participacion}%`, 250, arriba, 8.5, {
+        negrita: true,
+        color: fila.participacion >= META_PARTICIPACION ? VERDE : TEXTO,
+      });
+      izquierda(p, `${fila.participantes} de ${fila.dotacion}`, 340, arriba, 8.5, { color: GRIS });
+      derecha(p, formatKg(fila.kg), DERECHA, arriba, 8.5);
       arriba += ALTO_FILA;
     });
   }
   arriba += 18;
+
+  // ------------------------------------------------------------ retiros
+  // Solo si hubo: sin retiros, la tabla de la cadena ya dice «0 retiros».
+  if (r.listaRetiros.length > 0) {
+    espacio(60);
+    tituloSeccion(p, "Retiros del mes", arriba);
+    izquierda(
+    p,
+    "Verificado: con el peso que informó quien retiró. Estimado: kilos según la talla de cada depósito.",
+    MARGEN,
+    arriba + 13,
+    8,
+    { color: GRIS }
+    );
+    arriba += 32;
+    const encabezado = () => {
+      ["FECHA", "QUIÉN RETIRÓ", "GUÍA", "CONTENEDORES", "TIPO"].forEach((t, i) =>
+        izquierda(p, t, [MARGEN, 120, 280, 350, 430][i], arriba, 7, { negrita: true, color: GRIS })
+      );
+      derecha(p, "KILOS", DERECHA, arriba, 7, { negrita: true, color: GRIS });
+      linea(p, arriba + 6);
+      arriba += ALTO_FILA + 4;
+    };
+    encabezado();
+    for (const retiro of r.listaRetiros) {
+      if (arriba + ALTO_FILA > LIMITE_INFERIOR) {
+        espacio(ALTO_FILA * 2);
+        encabezado();
+      }
+      izquierda(p, fechaCorta(retiro.fecha), MARGEN, arriba, 8.5, { color: GRIS });
+      izquierda(p, retiro.quienRetira.slice(0, 30), 120, arriba, 8.5);
+      izquierda(p, retiro.guia ?? "-", 280, arriba, 8.5, { color: GRIS });
+      izquierda(p, `${retiro.contenedores}`, 350, arriba, 8.5, { color: GRIS });
+      izquierda(p, retiro.verificado ? "Verificado" : "Estimado", 430, arriba, 8.5, {
+        color: retiro.verificado ? VERDE : GRIS,
+      });
+      derecha(p, formatKg(retiro.kg), DERECHA, arriba, 8.5, { negrita: true });
+      arriba += ALTO_FILA;
+    }
+    arriba += 18;
+  }
 
   // ------------------------------------------------------------ contaminación
   espacio(60);

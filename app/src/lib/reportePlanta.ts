@@ -1,10 +1,10 @@
 // Reporte mensual de una planta, para el administrador.
 //
 // Resume el mes de la planta: kilos certificados, participación, depósitos por
-// estado, áreas que más reciclaron, contenedores contaminados y cuánto tarda
-// la cadena. Los indicadores se comparan con las métricas de éxito del
-// piloto (README): participación de al menos 60% y flujo completo, del
-// depósito al certificado, en menos de 48 horas en promedio (se muestra
+// estado, participación de cada área, retiros, contenedores contaminados y
+// cuánto tarda la cadena. Los indicadores se comparan con las métricas de
+// éxito del piloto (README): participación de al menos 60% y flujo completo,
+// del depósito al certificado, en menos de 48 horas en promedio (se muestra
 // además qué porcentaje de los depósitos lo logró).
 //
 // Igual que en el resto de la app, los kilos del mes son los certificados en
@@ -22,6 +22,7 @@ import {
   type Material,
   type Planta,
   type Registro,
+  type Retiro,
 } from "./tipos";
 
 const HORA = 60 * 60 * 1000;
@@ -56,11 +57,34 @@ export interface ReportePlanta {
   /** Suma de la dotación de las áreas: cuántas personas podrían participar. */
   dotacion: number;
   participacion: number;
-  /** Áreas por kilos certificados en el mes, de más a menos. */
-  areas: { area: string; kg: number; depositos: number }[];
+  /**
+   * Todas las áreas, por participación en el mes (personas que reciclaron ÷
+   * dotación), de más a menos, con sus kilos certificados. Es la misma
+   * medida del ranking y del incentivo.
+   */
+  areas: {
+    area: string;
+    participantes: number;
+    dotacion: number;
+    participacion: number;
+    kg: number;
+    depositos: number;
+  }[];
 
   /** Retiros distintos en que salió lo certificado en el mes. */
   retiros: number;
+  /** Los retiros registrados en el mes, del más antiguo al más reciente. */
+  listaRetiros: {
+    codigo: string;
+    fecha: number;
+    quienRetira: string;
+    guia: string | null;
+    contenedores: number;
+    /** El peso informado si lo hubo; si no, los kilos estimados. */
+    kg: number;
+    /** Con peso informado por quien retiró. */
+    verificado: boolean;
+  }[];
   /** Promedios en horas, sobre los depósitos certificados en el mes; null si no hay. */
   horasHastaValidacion: number | null;
   horasHastaRetiro: number | null;
@@ -106,7 +130,8 @@ export function reporteDePlanta(
   areas: Area[],
   mes: string,
   registros: Registro[],
-  incidencias: Incidencia[]
+  incidencias: Incidencia[],
+  retiros: Retiro[] = []
 ): ReportePlanta {
   const deLaPlanta = registros.filter((r) => r.plantaId === planta.id);
   const delMes = deLaPlanta.filter((r) => mesDe(r.creadoEn) === mes);
@@ -127,18 +152,38 @@ export function reporteDePlanta(
   );
   const dotacion = areas.reduce((total, a) => total + a.dotacion, 0);
 
-  const porArea = new Map<string, Registro[]>();
-  for (const r of certificados) {
-    porArea.set(r.areaId, [...(porArea.get(r.areaId) ?? []), r]);
-  }
-  const filasAreas = Array.from(porArea.entries())
-    .map(([areaId, lista]) => ({
-      // Si el área ya no existe, se muestra su id antes que perder sus kilos.
-      area: areas.find((a) => a.id === areaId)?.nombre ?? areaId,
-      kg: sumaKg(lista.map(kgEfectivo)),
-      depositos: lista.length,
-    }))
-    .sort((a, b) => b.kg - a.kg || a.area.localeCompare(b.area, "es"));
+  const filasAreas = areas
+    .map((area) => {
+      const certificadosArea = certificados.filter((r) => r.areaId === area.id);
+      const participantes = new Set(
+        delMes.filter((r) => r.areaId === area.id && r.estado !== "rechazado").map((r) => r.colaboradorId)
+      ).size;
+      return {
+        area: area.nombre,
+        participantes,
+        dotacion: area.dotacion,
+        participacion: porcentaje(participantes, area.dotacion),
+        kg: sumaKg(certificadosArea.map(kgEfectivo)),
+        depositos: certificadosArea.length,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.participacion - a.participacion || b.kg - a.kg || a.area.localeCompare(b.area, "es")
+    );
+
+  const listaRetiros = retiros
+    .filter((r) => r.plantaId === planta.id && mesDe(r.fecha) === mes)
+    .sort((a, b) => a.fecha - b.fecha)
+    .map((r) => ({
+      codigo: r.id,
+      fecha: r.fecha,
+      quienRetira: r.quienRetira,
+      guia: r.guia,
+      contenedores: r.contenedores.length,
+      kg: r.pesoKg ?? r.kgEstimado,
+      verificado: r.pesoKg !== null,
+    }));
 
   const conFechas = certificados.filter((r) => r.validadoEn !== null && r.certificadoEn !== null);
   const cadena = conFechas.map((r) => r.certificadoEn! - r.creadoEn);
@@ -162,6 +207,7 @@ export function reporteDePlanta(
     participacion: porcentaje(activos.size, dotacion),
     areas: filasAreas,
     retiros: new Set(certificados.map((r) => r.retiroId).filter(Boolean)).size,
+    listaRetiros,
     horasHastaValidacion: promedioHoras(conFechas.map((r) => r.validadoEn! - r.creadoEn)),
     horasHastaRetiro: promedioHoras(conFechas.map((r) => r.certificadoEn! - r.validadoEn!)),
     horasCadena: promedioHoras(cadena),

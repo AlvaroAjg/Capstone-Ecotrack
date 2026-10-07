@@ -152,7 +152,7 @@ function RankingAreas({ ranking }: { ranking: FilaRanking[] }) {
   );
 }
 
-function RondaDeHoy({ filas }: { filas: FilaRonda[] }) {
+export function RondaDeHoy({ filas }: { filas: FilaRonda[] }) {
   const porRevisar = filas.filter((f) => f.estado !== "vacio");
   const revisados = porRevisar.filter((f) => f.estado !== "pendiente").length;
 

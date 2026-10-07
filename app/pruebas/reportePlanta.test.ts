@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { mesesReportables, reporteDePlanta } from "../src/lib/reportePlanta";
-import type { Incidencia, Registro } from "../src/lib/tipos";
+import type { Incidencia, Registro, Retiro } from "../src/lib/tipos";
 import {
   EMBOTELLADO,
   FERMENTACION,
@@ -104,18 +104,74 @@ describe("reporteDePlanta", () => {
     expect(r.participacion).toBe(7);
   });
 
-  test("áreas por kilos certificados, de más a menos, sin nombres de personas", () => {
+  test("todas las áreas por participación, con sus kilos, sin nombres de personas", () => {
     const r = reporte("2026-09", [
       certificado({ kgDeclarado: 0.4 }),
-      certificado({ areaId: "fermentacion", material: "Vidrio", talla: "L", kgDeclarado: 8 }),
       certificado({ kgDeclarado: 0.8, talla: "L" }),
-      validado({ areaId: "fermentacion", kgDeclarado: 12 }),
+      certificado({
+        colaboradorId: "beto",
+        areaId: "fermentacion",
+        material: "Vidrio",
+        talla: "L",
+        kgDeclarado: 8,
+      }),
+      validado({ colaboradorId: "carla", areaId: "fermentacion", kgDeclarado: 12 }),
     ]);
+    // Fermentación: 2 de 10 (20 %). Embotellado: solo Ana, 1 de 20 (5 %).
     expect(r.areas).toEqual([
-      { area: "Fermentación", kg: 8, depositos: 1 },
-      { area: "Embotellado", kg: 1.2, depositos: 2 },
+      { area: "Fermentación", participantes: 2, dotacion: 10, participacion: 20, kg: 8, depositos: 1 },
+      { area: "Embotellado", participantes: 1, dotacion: 20, participacion: 5, kg: 1.2, depositos: 2 },
     ]);
     expect(JSON.stringify(r)).not.toContain("Ana");
+  });
+
+  test("un área sin actividad aparece igual, con 0 %", () => {
+    const r = reporte("2026-09", [certificado()]);
+    expect(r.areas.map((a) => [a.area, a.participacion])).toEqual([
+      ["Embotellado", 5],
+      ["Fermentación", 0],
+    ]);
+  });
+
+  test("lista de retiros del mes, verificados si informaron el peso", () => {
+    const base: Retiro = {
+      id: "RET-AAAA",
+      plantaId: "planta-1",
+      fecha: fecha(2026, 9, 10),
+      quienRetira: "Recicladora Sur",
+      guia: "G-1",
+      contenedores: ["K7QM9X", "VDRQ7X"],
+      pesoKg: 30,
+      depositos: 5,
+      kgEstimado: 24.5,
+      registradoPor: "adela",
+      registradoEn: fecha(2026, 9, 10),
+    };
+    const r = reporteDePlanta(PLANTA, AREAS, "2026-09", [], [], [
+      { ...base, id: "RET-BBBB", fecha: fecha(2026, 9, 14), pesoKg: null, guia: null },
+      base,
+      { ...base, id: "RET-CCCC", fecha: fecha(2026, 8, 30) },
+    ]);
+    expect(r.listaRetiros).toEqual([
+      {
+        codigo: "RET-AAAA",
+        fecha: fecha(2026, 9, 10),
+        quienRetira: "Recicladora Sur",
+        guia: "G-1",
+        contenedores: 2,
+        kg: 30,
+        verificado: true,
+      },
+      {
+        codigo: "RET-BBBB",
+        fecha: fecha(2026, 9, 14),
+        quienRetira: "Recicladora Sur",
+        guia: null,
+        contenedores: 2,
+        kg: 24.5,
+        verificado: false,
+      },
+    ]);
   });
 
   test("tiempos de la cadena y el porcentaje dentro de 48 horas", () => {

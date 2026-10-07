@@ -4,7 +4,7 @@ import { certificadoDelMes } from "../src/lib/certificadoMensual";
 import { generarCertificadoPdf } from "../src/lib/certificadoPdf.web";
 import { generarReportePdf } from "../src/lib/reportePdf.web";
 import { reporteDePlanta } from "../src/lib/reportePlanta";
-import type { Area } from "../src/lib/tipos";
+import type { Area, Retiro } from "../src/lib/tipos";
 import {
   EMBOTELLADO,
   PLANTA,
@@ -77,7 +77,20 @@ describe("reporte mensual de la planta", () => {
         retiroId: i % 2 === 0 ? "RET-AAAA" : null,
       })
     );
-    const r = reporteDePlanta(PLANTA, areas, "2026-09", registros, incidencias);
+    const retiros: Retiro[] = Array.from({ length: 40 }, (_, i) => ({
+      id: `RET-${i}`,
+      plantaId: PLANTA.id,
+      fecha: fecha(2026, 9, 1 + (i % 15)),
+      quienRetira: "Recicladora del Valle con un nombre bastante largo",
+      guia: i % 3 === 0 ? null : `G-${i}`,
+      contenedores: ["K7QM9X"],
+      pesoKg: i % 2 === 0 ? 20 : null,
+      depositos: 4,
+      kgEstimado: 3.2,
+      registradoPor: "adela",
+      registradoEn: fecha(2026, 9, 1 + (i % 15)),
+    }));
+    const r = reporteDePlanta(PLANTA, areas, "2026-09", registros, incidencias, retiros);
     const pdf = await abrir(await generarReportePdf(r));
     expect(pdf.getPageCount()).toBeGreaterThan(1);
   });
