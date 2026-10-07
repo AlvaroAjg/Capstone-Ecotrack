@@ -1,6 +1,6 @@
 import "./global.css";
 import React, { useCallback, useState } from "react";
-import { View } from "react-native";
+import { Platform, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
@@ -17,6 +17,7 @@ import RecicladosScreen from "./src/screens/RecicladosScreen";
 import DepositoScreen from "./src/screens/DepositoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 import AvisosScreen from "./src/screens/AvisosScreen";
+import PanelAdmin from "./src/screens/panel/PanelAdmin";
 
 export type Pantalla =
   | "home"
@@ -153,8 +154,16 @@ function PilaAuth() {
   return <LoginScreen alRegistrarse={() => setPantalla("register")} />;
 }
 
+/**
+ * Ancho desde el que el panel del administrador cabe con su menú lateral. Bajo
+ * eso, o en la app nativa, el administrador no tiene una vista de escritorio.
+ */
+const ANCHO_ESCRITORIO = 1024;
+
 function Raiz() {
   const { cargandoSesion, usuario } = useEcoTrack();
+  const { width } = useWindowDimensions();
+  const esPantallaDeEscritorio = Platform.OS === "web" && width >= ANCHO_ESCRITORIO;
 
   if (cargandoSesion) {
     return <PantallaCargando mensaje="Conectando con RecyTrack..." />;
@@ -169,6 +178,10 @@ function Raiz() {
   const sinArea = usuario.rol !== "administrador" && !usuario.areaId;
   if (!usuario.plantaId || sinArea) {
     return <UnirseAreaScreen />;
+  }
+
+  if (usuario.rol === "administrador" && esPantallaDeEscritorio) {
+    return <PanelAdmin key={usuario.id} />;
   }
 
   return <PilaApp key={usuario.id} rol={usuario.rol} />;
