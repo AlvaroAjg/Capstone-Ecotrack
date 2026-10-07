@@ -3,9 +3,9 @@ import { Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
 import { filasPersonas, generarCodigoArea, personasPorArea } from "../../lib/gestionPlanta";
 import { fechaCorta } from "../../lib/formato";
-import { avisar, textoDeError } from "../../lib/dialogos";
+import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import * as servicioAreas from "../../services/areas";
-import { cambiarArea, escucharPersonas } from "../../services/personas";
+import { cambiarArea, cambiarRol, escucharPersonas } from "../../services/personas";
 import { Boton, Campo, Chip, Tarjeta } from "../../components/ui";
 
 /**
@@ -38,7 +38,10 @@ const ETIQUETA_ROL: Record<Usuario["rol"], { texto: string; fondo: string; color
   administrador: { texto: "Administrador", fondo: "bg-gray-900", color: "text-white" },
 };
 
-/** Las personas de la planta: buscar, filtrar por área y cambiarlas de área. */
+/**
+ * Las personas de la planta: buscar, filtrar por área, cambiarlas de área y
+ * nombrar al validador.
+ */
 function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
   const { registros } = useEcoTrack();
   const [busqueda, setBusqueda] = useState("");
@@ -70,9 +73,38 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
     }, "No se pudo cambiar de área");
   }
 
+  async function alternarValidador(persona: Usuario) {
+    const nombrar = persona.rol === "colaborador";
+    const acepta = await confirmar(
+      nombrar ? "Nombrar validador" : "Devolver a colaborador",
+      nombrar
+        ? `${persona.nombre} verá la vista de validación en vez de la de colaborador y podrá validar los depósitos de toda la planta. Sigue en ${persona.areaNombre ?? "su área"}.`
+        : `${persona.nombre} vuelve a la vista de colaborador y deja de validar depósitos.`,
+      nombrar ? "Nombrar" : "Devolver"
+    );
+    if (!acepta) return;
+    await ejecutar(
+      () => cambiarRol(persona, nombrar ? "validador" : "colaborador"),
+      "No se pudo cambiar el rol"
+    );
+  }
+
+  const validadores = personas.filter((p) => p.rol === "validador");
+
   return (
     <Tarjeta>
       <Text className="text-gray-800 text-base font-semibold mb-3">Personas</Text>
+      <View className="bg-blue-50 border border-blue-200 rounded-xl px-4 py-3 mb-4">
+        <Text className="text-blue-900 text-sm font-medium">
+          {validadores.length === 0
+            ? "Todavía no hay validador: nadie revisa los depósitos en el punto limpio."
+            : `Validador${validadores.length === 1 ? "" : "es"}: ${validadores.map((v) => v.nombre).join(", ")}`}
+        </Text>
+        <Text className="text-blue-800 text-xs mt-1">
+          Nombra a quien ya recorre la planta. Puedes nombrar a una segunda persona como suplente
+          para los días en que el titular no está.
+        </Text>
+      </View>
       <View className="flex-row items-start">
         <View className="w-72 mr-4">
           <Campo
@@ -104,7 +136,7 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
         <Text className="w-48 text-gray-500 text-xs font-semibold">Área</Text>
         <Text className="w-32 text-gray-500 text-xs font-semibold">Rol</Text>
         <Text className="w-36 text-gray-500 text-xs font-semibold">Último depósito</Text>
-        <View className="w-56" />
+        <View className="w-80" />
       </View>
 
       {filas.length === 0 ? (
@@ -140,15 +172,27 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
               <Text className="w-36 text-gray-700 text-sm">
                 {ultimoDeposito ? fechaCorta(ultimoDeposito) : "Nunca"}
               </Text>
-              <View className="w-56 flex-row justify-end">
+              <View className="w-80 flex-row justify-end">
                 {gestionable ? (
-                  <TouchableOpacity
-                    onPress={() => setMoviendo(moviendo === persona.id ? null : persona.id)}
-                    disabled={ocupado}
-                    accessibilityRole="button"
-                  >
-                    <Text className="text-green-700 text-sm font-semibold">Cambiar de área</Text>
-                  </TouchableOpacity>
+                  <>
+                    <TouchableOpacity
+                      onPress={() => alternarValidador(persona)}
+                      disabled={ocupado}
+                      accessibilityRole="button"
+                      className="mr-4"
+                    >
+                      <Text className="text-blue-700 text-sm font-semibold">
+                        {persona.rol === "validador" ? "Devolver a colaborador" : "Nombrar validador"}
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setMoviendo(moviendo === persona.id ? null : persona.id)}
+                      disabled={ocupado}
+                      accessibilityRole="button"
+                    >
+                      <Text className="text-green-700 text-sm font-semibold">Cambiar de área</Text>
+                    </TouchableOpacity>
+                  </>
                 ) : null}
               </View>
             </View>

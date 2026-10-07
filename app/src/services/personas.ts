@@ -19,3 +19,12 @@ export function escucharPersonas(plantaId: string, callback: (personas: Usuario[
 export async function cambiarArea(persona: Usuario, area: Area): Promise<void> {
   await updateDoc(doc(db, "usuarios", persona.id), { areaId: area.id, areaNombre: area.nombre });
 }
+
+/**
+ * Nombra validadora a una persona de la planta o la devuelve a colaboradora.
+ * Sigue en su área. Nadie más puede cambiar un rol, y a administrador no se
+ * llega por aquí (ver promoverAAdministrador).
+ */
+export async function cambiarRol(persona: Usuario, rol: "colaborador" | "validador"): Promise<void> {
+  await updateDoc(doc(db, "usuarios", persona.id), { rol });
+}
