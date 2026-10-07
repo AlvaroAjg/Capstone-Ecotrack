@@ -2,7 +2,7 @@
 // planta: contenedores por punto limpio, áreas y personas. Son funciones puras
 // (sin React ni Firestore) para poder probarlas.
 
-import { nombreContenedor, type Contenedor, type Usuario } from "./tipos";
+import { nombreContenedor, type Contenedor, type Registro, type Usuario } from "./tipos";
 
 export interface PuntoLimpio {
   punto: string;
@@ -65,4 +65,37 @@ export function personasPorArea(personas: Usuario[]): Record<string, number> {
     cuenta[p.areaId] = (cuenta[p.areaId] ?? 0) + 1;
   }
   return cuenta;
+}
+
+export interface FilaPersona {
+  persona: Usuario;
+  /** Último depósito que registró; null si nunca ha depositado. */
+  ultimoDeposito: number | null;
+}
+
+/** Para buscar sin importar mayúsculas ni tildes. */
+function normalizar(texto: string): string {
+  return texto.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
+}
+
+/**
+ * Las personas de la planta para la tabla del panel, por nombre, con la fecha
+ * de su último depósito. `busqueda` filtra por nombre (sin importar tildes) y
+ * `areaId`, por área; null muestra todas.
+ */
+export function filasPersonas(
+  personas: Usuario[],
+  registros: Registro[],
+  filtro: { busqueda: string; areaId: string | null }
+): FilaPersona[] {
+  const ultimo = new Map<string, number>();
+  for (const r of registros) {
+    ultimo.set(r.colaboradorId, Math.max(ultimo.get(r.colaboradorId) ?? 0, r.creadoEn));
+  }
+  const buscado = normalizar(filtro.busqueda);
+  return personas
+    .filter((p) => !buscado || normalizar(p.nombre).includes(buscado))
+    .filter((p) => filtro.areaId === null || p.areaId === filtro.areaId)
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
+    .map((persona) => ({ persona, ultimoDeposito: ultimo.get(persona.id) ?? null }));
 }

@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
-import { generarCodigoArea, personasPorArea } from "../../lib/gestionPlanta";
+import { filasPersonas, generarCodigoArea, personasPorArea } from "../../lib/gestionPlanta";
+import { fechaCorta } from "../../lib/formato";
 import { avisar, textoDeError } from "../../lib/dialogos";
 import * as servicioAreas from "../../services/areas";
-import { escucharPersonas } from "../../services/personas";
+import { cambiarArea, escucharPersonas } from "../../services/personas";
 import { Boton, Campo, Chip, Tarjeta } from "../../components/ui";
 
 /**
@@ -26,7 +27,146 @@ export default function PersonasSeccion() {
   return (
     <View>
       <TablaAreas plantaId={usuario.plantaId} areas={areas} personas={personas} />
+      <TablaPersonas personas={personas} areas={areas} />
     </View>
+  );
+}
+
+const ETIQUETA_ROL: Record<Usuario["rol"], { texto: string; fondo: string; color: string }> = {
+  colaborador: { texto: "Colaborador", fondo: "bg-gray-100", color: "text-gray-700" },
+  validador: { texto: "Validador", fondo: "bg-blue-100", color: "text-blue-800" },
+  administrador: { texto: "Administrador", fondo: "bg-gray-900", color: "text-white" },
+};
+
+/** Las personas de la planta: buscar, filtrar por área y cambiarlas de área. */
+function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
+  const { registros } = useEcoTrack();
+  const [busqueda, setBusqueda] = useState("");
+  const [areaFiltro, setAreaFiltro] = useState<string | null>(null);
+  // Persona a la que se le está eligiendo un área nueva.
+  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  const filas = useMemo(
+    () => filasPersonas(personas, registros, { busqueda, areaId: areaFiltro }),
+    [personas, registros, busqueda, areaFiltro]
+  );
+
+  async function ejecutar(accion: () => Promise<void>, alFallar: string) {
+    setOcupado(true);
+    try {
+      await accion();
+    } catch (e) {
+      avisar(alFallar, textoDeError(e));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  function mover(persona: Usuario, area: Area) {
+    return ejecutar(async () => {
+      await cambiarArea(persona, area);
+      setMoviendo(null);
+    }, "No se pudo cambiar de área");
+  }
+
+  return (
+    <Tarjeta>
+      <Text className="text-gray-800 text-base font-semibold mb-3">Personas</Text>
+      <View className="flex-row items-start">
+        <View className="w-72 mr-4">
+          <Campo
+            etiqueta="Buscar por nombre"
+            placeholder="Nombre"
+            value={busqueda}
+            onChangeText={setBusqueda}
+          />
+        </View>
+        <View className="flex-1 flex-row flex-wrap pt-5">
+          <Chip
+            texto="Todas las áreas"
+            activo={areaFiltro === null}
+            alPresionar={() => setAreaFiltro(null)}
+          />
+          {areas.map((a) => (
+            <Chip
+              key={a.id}
+              texto={a.nombre}
+              activo={areaFiltro === a.id}
+              alPresionar={() => setAreaFiltro(a.id)}
+            />
+          ))}
+        </View>
+      </View>
+
+      <View className="flex-row border-b border-gray-200 pb-2 mt-2">
+        <Text className="flex-1 text-gray-500 text-xs font-semibold">Nombre</Text>
+        <Text className="w-48 text-gray-500 text-xs font-semibold">Área</Text>
+        <Text className="w-32 text-gray-500 text-xs font-semibold">Rol</Text>
+        <Text className="w-36 text-gray-500 text-xs font-semibold">Último depósito</Text>
+        <View className="w-56" />
+      </View>
+
+      {filas.length === 0 ? (
+        <Text className="text-gray-500 text-sm py-4">
+          {personas.length === 0
+            ? "Todavía no hay personas en la planta. Se suman cuando se unen a un área con su código."
+            : "Nadie coincide con la búsqueda."}
+        </Text>
+      ) : null}
+
+      {filas.map(({ persona, ultimoDeposito }) => {
+        const rol = ETIQUETA_ROL[persona.rol];
+        const gestionable = persona.rol !== "administrador";
+        return (
+          <View key={persona.id} className="border-b border-gray-100 py-3">
+            <View className="flex-row items-center">
+              <View className="flex-1 min-w-0 pr-2">
+                <Text className="text-gray-800 text-sm font-medium" numberOfLines={1}>
+                  {persona.nombre || "Sin nombre"}
+                </Text>
+                <Text className="text-gray-400 text-xs" numberOfLines={1}>
+                  {persona.email}
+                </Text>
+              </View>
+              <Text className="w-48 text-gray-700 text-sm" numberOfLines={1}>
+                {persona.areaNombre ?? "—"}
+              </Text>
+              <View className="w-32">
+                <View className={`self-start rounded-full px-2.5 py-1 ${rol.fondo}`}>
+                  <Text className={`text-xs font-semibold ${rol.color}`}>{rol.texto}</Text>
+                </View>
+              </View>
+              <Text className="w-36 text-gray-700 text-sm">
+                {ultimoDeposito ? fechaCorta(ultimoDeposito) : "Nunca"}
+              </Text>
+              <View className="w-56 flex-row justify-end">
+                {gestionable ? (
+                  <TouchableOpacity
+                    onPress={() => setMoviendo(moviendo === persona.id ? null : persona.id)}
+                    disabled={ocupado}
+                    accessibilityRole="button"
+                  >
+                    <Text className="text-green-700 text-sm font-semibold">Cambiar de área</Text>
+                  </TouchableOpacity>
+                ) : null}
+              </View>
+            </View>
+
+            {moviendo === persona.id ? (
+              <View className="flex-row flex-wrap items-center bg-gray-50 rounded-xl px-3 pt-3 pb-1 mt-2">
+                <Text className="text-gray-600 text-xs mr-3 mb-2">Mover a:</Text>
+                {areas
+                  .filter((a) => a.id !== persona.areaId)
+                  .map((a) => (
+                    <Chip key={a.id} texto={a.nombre} activo={false} alPresionar={() => mover(persona, a)} />
+                  ))}
+              </View>
+            ) : null}
+          </View>
+        );
+      })}
+    </Tarjeta>
   );
 }
 

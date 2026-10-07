@@ -1,6 +1,11 @@
 import { describe, expect, test } from "vitest";
-import { agruparPorPunto, generarCodigoArea, personasPorArea } from "../src/lib/gestionPlanta";
-import { contenedor, usuario } from "./fabrica";
+import {
+  agruparPorPunto,
+  filasPersonas,
+  generarCodigoArea,
+  personasPorArea,
+} from "../src/lib/gestionPlanta";
+import { contenedor, fecha, registro, usuario } from "./fabrica";
 
 describe("agruparPorPunto", () => {
   test("agrupa los activos por punto limpio, el mixto primero", () => {
@@ -43,5 +48,37 @@ describe("personasPorArea", () => {
       usuario({ id: "e", areaId: null }),
     ]);
     expect(cuenta).toEqual({ embotellado: 2, fermentacion: 1 });
+  });
+});
+
+describe("filasPersonas", () => {
+  const PERSONAS = [
+    usuario({ id: "ana", nombre: "Ana Pérez" }),
+    usuario({ id: "bruno", nombre: "Bruno Díaz", areaId: "fermentacion" }),
+    usuario({ id: "carla", nombre: "Carla Soto", rol: "validador" }),
+  ];
+
+  test("por nombre, con la fecha del último depósito de cada uno", () => {
+    const filas = filasPersonas(
+      PERSONAS,
+      [
+        registro({ colaboradorId: "ana", creadoEn: fecha(2026, 9, 3) }),
+        registro({ colaboradorId: "ana", creadoEn: fecha(2026, 9, 10) }),
+      ],
+      { busqueda: "", areaId: null }
+    );
+    expect(filas.map((f) => f.persona.id)).toEqual(["ana", "bruno", "carla"]);
+    expect(filas[0].ultimoDeposito).toBe(fecha(2026, 9, 10));
+    expect(filas[1].ultimoDeposito).toBeNull();
+  });
+
+  test("busca por nombre sin importar mayúsculas ni tildes", () => {
+    const filas = filasPersonas(PERSONAS, [], { busqueda: "perez", areaId: null });
+    expect(filas.map((f) => f.persona.id)).toEqual(["ana"]);
+  });
+
+  test("filtra por área", () => {
+    const filas = filasPersonas(PERSONAS, [], { busqueda: "", areaId: "fermentacion" });
+    expect(filas.map((f) => f.persona.id)).toEqual(["bruno"]);
   });
 });
