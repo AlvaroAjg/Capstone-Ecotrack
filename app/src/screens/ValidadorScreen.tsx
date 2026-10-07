@@ -3,8 +3,6 @@ import { Text, View } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack } from "../state/EcoTrack";
 import { avisar, confirmar, textoDeError } from "../lib/dialogos";
-import ContenedoresTorre from "../components/ContenedoresTorre";
-import ReporteMensual from "../components/ReporteMensual";
 import ValidacionContenedores from "../components/ValidacionContenedores";
 import {
   AvatarPerfil,
@@ -27,18 +25,14 @@ export default function ValidadorScreen({ nav }: { nav: Navegacion }) {
   const {
     usuario,
     miPlanta,
-    areas,
     errorDatos,
     validarRegistros,
     rechazarRegistros,
     avisosNuevos,
-    incidencias,
     registros,
     reportarYValidar,
   } = useEcoTrack();
 
-  const esAdministrador = usuario?.rol === "administrador";
-  const rol = esAdministrador ? "Administrador" : "Validador";
   const pendientes = useMemo(() => registros.filter((r) => r.estado === "pendiente"), [registros]);
   const [validandoTanda, setValidandoTanda] = useState(false);
 
@@ -76,10 +70,10 @@ export default function ValidadorScreen({ nav }: { nav: Navegacion }) {
         <View className="flex-row justify-between items-center">
           <View className="flex-1 pr-3">
             <Text className="text-gray-300 text-sm">
-              {rol} · {miPlanta?.nombre ?? "Sin planta"}
+              Validador · {miPlanta?.nombre ?? "Sin planta"}
             </Text>
             <Text className="text-white text-2xl font-bold mt-1" numberOfLines={1}>
-              {usuario?.nombre ?? rol}
+              {usuario?.nombre ?? "Validador"}
             </Text>
             <Text className="text-gray-400 text-sm mt-1">
               {pendientes.length === 0
@@ -89,7 +83,7 @@ export default function ValidadorScreen({ nav }: { nav: Navegacion }) {
           </View>
           <CampanaAvisos nuevos={avisosNuevos} alPresionar={() => nav.ir("avisos")} />
           <AvatarPerfil
-            nombre={usuario?.nombre ?? rol}
+            nombre={usuario?.nombre ?? "Validador"}
             alPresionar={() => nav.ir("perfil")}
             color="bg-gray-700"
           />
@@ -131,21 +125,6 @@ export default function ValidadorScreen({ nav }: { nav: Navegacion }) {
           </>
         )}
       </Seccion>
-
-      {/* Mientras no exista el panel web (#32), el administrador sigue
-          definiendo aquí los contenedores y descargando el reporte. */}
-      {esAdministrador && usuario?.plantaId ? <ContenedoresTorre plantaId={usuario.plantaId} /> : null}
-
-      {esAdministrador && miPlanta ? (
-        <Seccion titulo="Reporte mensual">
-          <ReporteMensual
-            planta={miPlanta}
-            areas={areas}
-            registros={registros}
-            incidencias={incidencias}
-          />
-        </Seccion>
-      ) : null}
     </Cuerpo>
   );
 }

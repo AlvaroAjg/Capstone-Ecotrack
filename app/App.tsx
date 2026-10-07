@@ -18,6 +18,7 @@ import DepositoScreen from "./src/screens/DepositoScreen";
 import PerfilScreen from "./src/screens/PerfilScreen";
 import AvisosScreen from "./src/screens/AvisosScreen";
 import PanelAdmin from "./src/screens/panel/PanelAdmin";
+import AdminEnTelefono from "./src/screens/panel/AdminEnTelefono";
 
 export type Pantalla =
   | "home"
@@ -47,8 +48,8 @@ interface Ruta {
 }
 
 /**
- * El validador usa la vista de validación. El administrador también, mientras
- * no exista el panel web.
+ * El validador usa la vista de validación. El administrador no entra a la pila:
+ * trabaja en el panel web (ver Raiz), así que su entrada no se usa.
  */
 const INICIO_POR_ROL: Record<Rol, Pantalla> = {
   colaborador: "home",
@@ -180,8 +181,8 @@ function Raiz() {
     return <UnirseAreaScreen />;
   }
 
-  if (usuario.rol === "administrador" && esPantallaDeEscritorio) {
-    return <PanelAdmin key={usuario.id} />;
+  if (usuario.rol === "administrador") {
+    return esPantallaDeEscritorio ? <PanelAdmin key={usuario.id} /> : <AdminEnTelefono />;
   }
 
   return <PilaApp key={usuario.id} rol={usuario.rol} />;
