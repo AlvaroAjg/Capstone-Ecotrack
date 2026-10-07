@@ -379,7 +379,7 @@ export const ASPECTO_ESTADO: Record<
   { texto: string; fondo: string; color: string; emoji: string }
 > = {
   pendiente: {
-    texto: "Esperando administrador",
+    texto: "Esperando validación",
     fondo: "bg-amber-100",
     color: "text-amber-700",
     emoji: "⏳",
@@ -424,7 +424,7 @@ export function CadenaVerificacion({ estado }: { estado: EstadoRegistro }) {
     return (
       <View className="bg-red-50 rounded-xl p-3">
         <Text className="text-red-600 text-sm font-medium text-center">
-          ✕ Depósito rechazado por el administrador
+          ✕ Depósito rechazado por el validador
         </Text>
       </View>
     );

@@ -21,7 +21,7 @@ interface Errores {
 /**
  * Todos se registran como colaboradores: nadie elige su rol. Al validador lo
  * nombra el administrador, y el administrador se promueve con el código de su
- * planta en el paso siguiente (ver JoinTorreScreen). Las reglas de Firestore
+ * planta en el paso siguiente (ver UnirseAreaScreen). Las reglas de Firestore
  * lo exigen igual.
  */
 

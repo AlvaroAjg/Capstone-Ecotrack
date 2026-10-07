@@ -102,3 +102,8 @@ export function esDeHoy(timestamp: number | null): boolean {
     fecha.getFullYear() === hoy.getFullYear()
   );
 }
+
+/** "30 de septiembre": para fechas cercanas, como el término de un incentivo. */
+export function diaYMes(timestamp: number): string {
+  return new Date(timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "long" });
+}

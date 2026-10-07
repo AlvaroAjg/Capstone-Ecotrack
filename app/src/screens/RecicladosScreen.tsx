@@ -104,7 +104,7 @@ function TarjetaActividad({
 }) {
   const aspecto = ASPECTO_ESTADO[registro.estado];
   // Solo pasa en depósitos antiguos, registrados en kilos: con talla de bolsa
-  // el administrador valida la tanda y no corrige depósito por depósito.
+  // el validador valida la tanda y no corrige depósito por depósito.
   const pesoCorregido =
     registro.kgConfirmado !== null &&
     Math.abs(registro.kgConfirmado - registro.kgDeclarado) > 0.01;
@@ -129,7 +129,7 @@ function TarjetaActividad({
           </Text>
           {pesoCorregido ? (
             <Text className="text-amber-600 text-[10px] mt-1">
-              Peso ajustado por el administrador (declaraste{" "}
+              Peso ajustado por el validador (declaraste{" "}
               {formatKg(registro.kgDeclarado)})
             </Text>
           ) : null}

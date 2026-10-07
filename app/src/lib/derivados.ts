@@ -7,6 +7,7 @@ import { porcentaje, sumaKg } from "./formato";
 import {
   kgEfectivo,
   type Area,
+  type Campana,
   type Contenedor,
   type ContenedorPorRetirar,
   type FilaRanking,
@@ -92,4 +93,41 @@ export function contenedoresPorRetirar(
       };
     })
     .sort((a, b) => a.esperandoDesde - b.esperandoDesde);
+}
+
+/** Lo que muestra la tarjeta del incentivo en el inicio del colaborador. */
+export interface AvanceIncentivo {
+  nombre: string;
+  incentivo: string;
+  meta: number;
+  /** Participación de mi área en el mes, en %. */
+  participacion: number;
+  /** Puntos de participación que le faltan a mi área; 0 si ya cumplió. */
+  faltan: number;
+  cumplida: boolean;
+  terminaEn: number;
+}
+
+/**
+ * Cómo va mi área frente a la meta del incentivo. Devuelve null si no hay
+ * campaña, si ya terminó o si no tengo área: en esos casos la tarjeta no se
+ * muestra, para no dejar en el inicio una meta que ya no se puede cumplir.
+ */
+export function avanceIncentivo(
+  campana: Campana | null,
+  ranking: FilaRanking[],
+  ahora: number = Date.now()
+): AvanceIncentivo | null {
+  const miArea = ranking.find((a) => a.esMiArea);
+  if (!campana || !miArea || campana.terminaEn < ahora) return null;
+  const faltan = Math.max(0, campana.metaParticipacion - miArea.participacion);
+  return {
+    nombre: campana.nombre,
+    incentivo: campana.incentivo,
+    meta: campana.metaParticipacion,
+    participacion: miArea.participacion,
+    faltan,
+    cumplida: faltan === 0,
+    terminaEn: campana.terminaEn,
+  };
 }
