@@ -250,11 +250,12 @@ function TipReciclaje() {
         </View>
         {abierto ? (
           <Text className="text-green-800 text-xs mt-2 leading-5">
-            No hace falta bajar por cada botella. Guarda tus reciclables en una bolsa
-            durante la semana y regístralos de una vez: es un solo escaneo, la talla
-            estima mejor los kilos y todo suma igual a tu certificado del mes. En el
-            contenedor, vacía la bolsa y guárdala: no la botes adentro, porque contamina
-            el reciclaje. Si igual quieres botar una sola botella, regístrala como talla S.
+            No hace falta ir al punto limpio por cada botella o lata. Junta en una bolsa lo
+            que reciclas durante la jornada, en tu puesto o en el casino, y llévalo de una
+            vez, por ejemplo al terminar el turno: es un solo escaneo, la talla estima mejor
+            los kilos y suma igual a tu certificado y a la participación de tu área. En el
+            contenedor, vacía la bolsa y guárdala: no la botes adentro, porque contamina el
+            reciclaje. Si igual quieres botar una sola botella, regístrala como talla S.
           </Text>
         ) : null}
       </TouchableOpacity>
