@@ -15,7 +15,7 @@ import {
   updateProfile,
   type User,
 } from "firebase/auth";
-import { doc, onSnapshot, setDoc, updateDoc } from "firebase/firestore";
+import { doc, onSnapshot, runTransaction, setDoc, updateDoc } from "firebase/firestore";
 import { auth, db } from "../lib/firebase";
 import type { Area, Rol, Usuario } from "../lib/tipos";
 
@@ -81,16 +81,24 @@ export async function registrarCuenta(params: {
  * `codigoRolUsado` coincide con el código de esa planta en `codigosRol`: la
  * regla de Firestore es quien realmente decide, esta función solo entrega los
  * datos. Si el código está mal, la escritura falla con "permission-denied".
+ *
+ * Va en una transacción y no con updateDoc porque Firestore aplica un
+ * updateDoc en el dispositivo antes de que el servidor responda: la app
+ * alcanzaba a mostrar el panel con el rol nuevo y, cuando la regla lo
+ * rechazaba, volvía a la pantalla del código sin mostrar el error. Una
+ * transacción solo se ve cuando el servidor la confirma.
  */
 export async function promoverAAdministrador(
   uid: string,
   plantaId: string,
   codigoRolUsado: string
 ): Promise<void> {
-  await updateDoc(doc(db, "usuarios", uid), {
-    rol: "administrador",
-    plantaId,
-    codigoRolUsado,
+  await runTransaction(db, async (tx) => {
+    tx.update(doc(db, "usuarios", uid), {
+      rol: "administrador",
+      plantaId,
+      codigoRolUsado,
+    });
   });
 }
 
