@@ -1,10 +1,13 @@
 import React, { useMemo, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { Platform, Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import { MATERIALES, nombreContenedor, type Contenedor, type Material } from "../../lib/tipos";
 import { agruparPorPunto } from "../../lib/gestionPlanta";
+import { contenidoQr } from "../../lib/qr";
+import { htmlEtiquetaQr } from "../../lib/etiquetaQr";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import * as servicioContenedores from "../../services/contenedores";
+import CodigoQR from "../../components/CodigoQR";
 import { Boton, Campo, Chip, Tarjeta } from "../../components/ui";
 
 /** Mixto (el colaborador elige el material al depositar) o de un material. */
@@ -23,10 +26,14 @@ function emojiDe(material: Material | null): string {
  * escanearlo, el material ya queda fijado.
  */
 export default function ContenedoresSeccion() {
-  const { usuario, contenedores } = useEcoTrack();
+  const { usuario, miPlanta, contenedores } = useEcoTrack();
   const puntos = useMemo(() => agruparPorPunto(contenedores), [contenedores]);
   const [agregando, setAgregando] = useState(false);
   const [ocupado, setOcupado] = useState(false);
+  // Por código y no por objeto: al crear un contenedor o cambiarle el código,
+  // el documento llega después por el listener, y así se muestra apenas llega.
+  const [qrAbierto, setQrAbierto] = useState<string | null>(null);
+  const contenedorQr = contenedores.find((c) => c.codigo === qrAbierto && c.activo) ?? null;
 
   async function ejecutar(accion: () => Promise<unknown>) {
     setOcupado(true);
@@ -46,7 +53,7 @@ export default function ContenedoresSeccion() {
       "Cambiar código"
     );
     if (!acepta) return;
-    await ejecutar(() => servicioContenedores.cambiarCodigo(c));
+    await ejecutar(async () => setQrAbierto(await servicioContenedores.cambiarCodigo(c)));
   }
 
   async function desactivar(c: Contenedor) {
@@ -78,7 +85,18 @@ export default function ContenedoresSeccion() {
         <FormularioContenedor
           plantaId={usuario.plantaId}
           puntosExistentes={puntos.map((p) => p.punto)}
-          alTerminar={() => setAgregando(false)}
+          alTerminar={(codigo) => {
+            setAgregando(false);
+            if (codigo) setQrAbierto(codigo);
+          }}
+        />
+      ) : null}
+
+      {contenedorQr ? (
+        <VistaQr
+          contenedor={contenedorQr}
+          nombrePlanta={miPlanta?.nombre ?? ""}
+          alCerrar={() => setQrAbierto(null)}
         />
       ) : null}
 
@@ -98,6 +116,13 @@ export default function ContenedoresSeccion() {
                       <Text className="text-gray-500 text-xs mt-0.5 tracking-widest">{c.codigo}</Text>
                     </View>
                   </View>
+                  <Boton
+                    titulo="Ver e imprimir QR"
+                    icono="🖨️"
+                    variante="secundario"
+                    onPress={() => setQrAbierto(c.codigo)}
+                    className="py-2 mb-2"
+                  />
                   <View className="flex-row">
                     <Boton
                       titulo="Cambiar código"
@@ -132,7 +157,8 @@ function FormularioContenedor({
 }: {
   plantaId: string;
   puntosExistentes: string[];
-  alTerminar: () => void;
+  /** Con el código del contenedor creado, o sin nada si se canceló. */
+  alTerminar: (codigo?: string) => void;
 }) {
   const [punto, setPunto] = useState<string | null>(puntosExistentes[0] ?? null);
   const [puntoNuevo, setPuntoNuevo] = useState("");
@@ -153,8 +179,7 @@ function FormularioContenedor({
     }
     setGuardando(true);
     try {
-      await servicioContenedores.crearContenedor(plantaId, nombrePunto, material);
-      alTerminar();
+      alTerminar(await servicioContenedores.crearContenedor(plantaId, nombrePunto, material));
     } catch (e) {
       avisar("No se pudo agregar", textoDeError(e));
     } finally {
@@ -201,7 +226,57 @@ function FormularioContenedor({
 
       <View className="flex-row">
         <Boton titulo="Agregar" cargando={guardando} onPress={guardar} className="py-3 px-6 mr-2" />
-        <Boton titulo="Cancelar" variante="secundario" onPress={alTerminar} className="py-3 px-6" />
+        <Boton titulo="Cancelar" variante="secundario" onPress={() => alTerminar()} className="py-3 px-6" />
+      </View>
+    </Tarjeta>
+  );
+}
+
+/**
+ * El QR de un contenedor con su código, material y punto limpio. «Imprimir»
+ * abre la etiqueta en una ventana aparte (ver lib/etiquetaQr.ts) para no
+ * imprimir el panel entero.
+ */
+function VistaQr({
+  contenedor,
+  nombrePlanta,
+  alCerrar,
+}: {
+  contenedor: Contenedor;
+  nombrePlanta: string;
+  alCerrar: () => void;
+}) {
+  function imprimir() {
+    const ventana = window.open("", "_blank", "width=480,height=640");
+    if (!ventana) {
+      avisar("No se abrió la etiqueta", "Permite las ventanas emergentes de RecyTrack en el navegador.");
+      return;
+    }
+    ventana.document.write(htmlEtiquetaQr(contenedor, nombrePlanta));
+    ventana.document.close();
+    ventana.focus();
+    ventana.print();
+  }
+
+  return (
+    <Tarjeta className="mb-6 max-w-[640px] flex-row items-center">
+      <CodigoQR texto={contenidoQr(contenedor.plantaId, contenedor.codigo)} tamano={200} />
+      <View className="flex-1 ml-6">
+        <Text className="text-gray-900 font-bold text-3xl tracking-widest">{contenedor.codigo}</Text>
+        <Text className="text-gray-800 font-semibold mt-2">{nombreContenedor(contenedor)}</Text>
+        <Text className="text-gray-500 text-sm mt-0.5">
+          {contenedor.punto} · {nombrePlanta}
+        </Text>
+        <Text className="text-gray-400 text-xs mt-3 mb-4 leading-4">
+          Imprímelo y pégalo en el contenedor. El código va debajo del QR para escribirlo si la
+          cámara no lo lee.
+        </Text>
+        <View className="flex-row">
+          {Platform.OS === "web" ? (
+            <Boton titulo="Imprimir" icono="🖨️" onPress={imprimir} className="py-3 px-5 mr-2" />
+          ) : null}
+          <Boton titulo="Cerrar" variante="secundario" onPress={alCerrar} className="py-3 px-5" />
+        </View>
       </View>
     </Tarjeta>
   );
