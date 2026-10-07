@@ -1,7 +1,6 @@
 import {
   collection,
   doc,
-  getDoc,
   onSnapshot,
   query,
   where,
@@ -54,13 +53,16 @@ const MAXIMO_POR_LOTE = 500;
 
 /**
  * El id del retiro es su código (`RET-K7QM`), que es lo que se ve en el
- * certificado y el reporte. Se comprueba que esté libre: escribir sobre un
- * retiro existente sería editarlo, y las reglas no lo permiten.
+ * certificado y el reporte. Se compara con los retiros de la planta que la app
+ * ya tiene, y no con un getDoc: las reglas solo dejan leer un retiro de la
+ * propia planta, así que leer uno que todavía no existe se rechaza. Si el
+ * código coincidiera con el de otra planta, el lote falla igual (escribir
+ * sobre un retiro existente sería editarlo) y no queda nada a medias.
  */
-async function codigoLibre(): Promise<string> {
+function codigoLibre(usados: string[]): string {
   for (let intento = 0; intento < 5; intento++) {
     const codigo = generarCodigoRetiro();
-    if (!(await getDoc(doc(db, "retiros", codigo))).exists()) return codigo;
+    if (!usados.includes(codigo)) return codigo;
   }
   throw new Error("No se pudo generar un código de retiro. Intenta de nuevo.");
 }
@@ -81,7 +83,9 @@ export async function registrarRetiro(
   adminUid: string,
   datos: DatosRetiro,
   porRetirar: ContenedorPorRetirar[],
-  incidencias: Incidencia[]
+  incidencias: Incidencia[],
+  /** Códigos de los retiros que la planta ya tiene, para no repetir uno. */
+  codigosUsados: string[]
 ): Promise<string> {
   const registros = porRetirar.flatMap((c) => c.registros);
   if (registros.length === 0) {
@@ -98,7 +102,7 @@ export async function registrarRetiro(
     );
   }
 
-  const codigo = await codigoLibre();
+  const codigo = codigoLibre(codigosUsados);
   const ahora = Date.now();
   const lote = writeBatch(db);
 
