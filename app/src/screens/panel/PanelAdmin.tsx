@@ -5,6 +5,7 @@ import ContenedoresTorre from "../../components/ContenedoresTorre";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Aviso, Tarjeta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
+import CampanaPanel from "./CampanaPanel";
 
 export type SeccionPanel =
   | "resumen"
@@ -108,13 +109,16 @@ export default function PanelAdmin() {
       </View>
 
       <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 40, paddingVertical: 32 }}>
-        <View className="flex-row items-end justify-between mb-6">
+        {/* z-10 en la fila y no solo en la campana: si no, la lista de avisos
+            queda debajo de lo que viene después en la página. */}
+        <View className="flex-row items-end justify-between mb-6 z-10">
           <View>
             <Text className="text-gray-500 text-sm">
               {miPlanta?.nombre ?? ""} · {hoyLargo()}
             </Text>
             <Text className="text-gray-900 text-3xl font-bold mt-1">{actual.etiqueta}</Text>
           </View>
+          <CampanaPanel />
         </View>
 
         {errorDatos ? (
