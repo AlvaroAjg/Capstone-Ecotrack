@@ -3,6 +3,7 @@
 // registra el retiro está en services/retiros.ts.
 
 import { leerFechaTermino } from "./incentivo";
+import type { Retiro } from "./tipos";
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -52,4 +53,21 @@ export function validarRetiro(
     ok: true,
     datos: { fecha: Math.min(fin, ahora), quienRetira, guia: guia || null, pesoKg },
   };
+}
+
+/**
+ * Los retiros del mes de `ahora`, del más reciente al más antiguo. Un retiro
+ * es «verificado» si quien retiró informó el peso, y «estimado» si solo se
+ * conocen los kilos estimados por la talla de cada depósito.
+ */
+export function retirosDelMes(
+  retiros: Retiro[],
+  ahora: number = Date.now()
+): (Retiro & { verificado: boolean })[] {
+  const hoy = new Date(ahora);
+  const desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime();
+  return retiros
+    .filter((r) => r.fecha >= desde && r.fecha <= ahora)
+    .sort((a, b) => b.fecha - a.fecha)
+    .map((r) => ({ ...r, verificado: r.pesoKg !== null }));
 }

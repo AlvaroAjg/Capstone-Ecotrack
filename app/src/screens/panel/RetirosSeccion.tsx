@@ -1,10 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import { nombreContenedor } from "../../lib/tipos";
-import { validarRetiro } from "../../lib/retiros";
+import { retirosDelMes, validarRetiro } from "../../lib/retiros";
 import { textoFecha } from "../../lib/incentivo";
-import { formatKg, tiempoRelativo } from "../../lib/formato";
+import { fechaCorta, formatKg, tiempoRelativo } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Boton, Campo, Tarjeta } from "../../components/ui";
@@ -20,6 +20,7 @@ export default function RetirosSeccion() {
   return (
     <View className="max-w-[1100px]">
       <FormularioRetiro />
+      <HistorialRetiros />
       {miPlanta ? (
         <View className="max-w-[720px]">
           <Text className="text-gray-800 text-base font-semibold mb-3">Reporte mensual</Text>
@@ -187,6 +188,65 @@ function FormularioRetiro() {
           </Text>
         ) : null}
       </View>
+    </Tarjeta>
+  );
+}
+
+/** Los retiros del mes, del más reciente al más antiguo (ver retirosDelMes). */
+function HistorialRetiros() {
+  const { retiros, contenedores } = useEcoTrack();
+  const delMes = useMemo(() => retirosDelMes(retiros), [retiros]);
+  const nombreDe = (codigo: string) => {
+    const c = contenedores.find((x) => x.codigo === codigo);
+    return c ? `${c.punto} · ${nombreContenedor(c)}` : codigo;
+  };
+
+  return (
+    <Tarjeta className="mb-6">
+      <Text className="text-gray-800 text-base font-semibold mb-3">Retiros del mes</Text>
+      {delMes.length === 0 ? (
+        <Text className="text-gray-500 text-sm">Todavía no hay retiros registrados este mes.</Text>
+      ) : (
+        <>
+          <View className="flex-row border-b border-gray-200 pb-2">
+            <Text className="w-28 text-gray-500 text-xs font-semibold">Fecha</Text>
+            <Text className="w-44 text-gray-500 text-xs font-semibold">Quién retiró</Text>
+            <Text className="w-28 text-gray-500 text-xs font-semibold">Guía</Text>
+            <Text className="flex-1 text-gray-500 text-xs font-semibold">Contenedores</Text>
+            <Text className="w-28 text-gray-500 text-xs font-semibold text-right">Peso</Text>
+            <Text className="w-28 text-gray-500 text-xs font-semibold text-right">Tipo</Text>
+          </View>
+          {delMes.map((r) => (
+            <View key={r.id} className="flex-row items-center py-3 border-b border-gray-100">
+              <View className="w-28">
+                <Text className="text-gray-800 text-sm">{fechaCorta(r.fecha)}</Text>
+                <Text className="text-gray-400 text-xs">{r.id}</Text>
+              </View>
+              <Text className="w-44 text-gray-800 text-sm" numberOfLines={1}>
+                {r.quienRetira}
+              </Text>
+              <Text className="w-28 text-gray-600 text-sm">{r.guia ?? "—"}</Text>
+              <Text className="flex-1 text-gray-600 text-xs pr-2">
+                {r.contenedores.map(nombreDe).join(", ")} · {r.depositos} depósitos
+              </Text>
+              <Text className="w-28 text-right text-gray-900 text-sm font-semibold">
+                {formatKg(r.pesoKg ?? r.kgEstimado)}
+              </Text>
+              <View className="w-28 items-end">
+                <View className={`rounded-full px-2.5 py-1 ${r.verificado ? "bg-green-100" : "bg-gray-100"}`}>
+                  <Text className={`text-xs font-semibold ${r.verificado ? "text-green-800" : "text-gray-600"}`}>
+                    {r.verificado ? "Verificado" : "Estimado"}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))}
+          <Text className="text-gray-400 text-xs mt-3">
+            Verificado: con el peso que informó quien retiró. Estimado: sin peso, se muestran los kilos
+            estimados por la talla de cada depósito.
+          </Text>
+        </>
+      )}
     </Tarjeta>
   );
 }
