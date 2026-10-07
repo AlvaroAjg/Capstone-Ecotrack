@@ -500,10 +500,11 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
         usuario.id,
         datos,
         elegidos,
-        incidencias
+        incidencias,
+        retiros.map((r) => r.id)
       );
     },
-    [usuario, porRetirar, incidencias]
+    [usuario, porRetirar, incidencias, retiros]
   );
 
   const avisos = useMemo(
