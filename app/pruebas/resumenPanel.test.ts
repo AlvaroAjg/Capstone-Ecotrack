@@ -1,16 +1,17 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { rankingDeAreas } from "../src/lib/derivados";
-import { indicadoresDelMes, rondaDeHoy } from "../src/lib/resumenPanel";
 import {
-  EMBOTELLADO,
-  FERMENTACION,
+  indicadoresDelMes,
+  kilosPorMaterial,
+  rondaDeHoy,
+  validadosPorSemana,
+} from "../src/lib/resumenPanel";
+import {
   certificado,
   contenedor,
   fecha,
   fijarAhora,
   incidencia,
   registro,
-  resumen,
   validado,
 } from "./fabrica";
 
@@ -24,22 +25,7 @@ afterEach(() => {
 });
 
 describe("indicadoresDelMes", () => {
-  const ranking = rankingDeAreas(
-    [EMBOTELLADO, FERMENTACION],
-    resumen({
-      embotellado: { depositos: 9, participantes: 6 },
-      fermentacion: { depositos: 4, participantes: 3 },
-    }),
-    null
-  );
-
-  test("participación de la planta: participantes de todas las áreas ÷ su dotación", () => {
-    const ind = indicadoresDelMes([], [], ranking);
-    // 9 de 30 personas.
-    expect(ind).toMatchObject({ participacion: 30, participantes: 9, dotacion: 30 });
-  });
-
-  test("cuenta y pesa los validados del mes, no los de meses anteriores", () => {
+  test("cuenta y pesa los validados del mes elegido, no los de otros meses", () => {
     const registros = [
       validado({ validadoEn: fecha(2026, 9, 3), kgDeclarado: 0.4 }),
       certificado({ validadoEn: fecha(2026, 9, 10), kgDeclarado: 1.2 }),
@@ -48,11 +34,15 @@ describe("indicadoresDelMes", () => {
       registro(),
       registro({ estado: "rechazado", validadoEn: fecha(2026, 9, 10) }),
     ];
-    const ind = indicadoresDelMes(registros, [], ranking);
-    expect(ind).toMatchObject({ validados: 2, kgEstimados: 1.6, porValidar: 2 });
+    expect(indicadoresDelMes(registros, [], "2026-09")).toMatchObject({
+      validados: 2,
+      kgEstimados: 1.6,
+      porValidar: 2,
+    });
+    expect(indicadoresDelMes(registros, [], "2026-08")).toMatchObject({ validados: 1, kgEstimados: 5 });
   });
 
-  test("una ronda es un día con validaciones, rechazos o reportes", () => {
+  test("una ronda es un día con validaciones, rechazos o reportes; se compara con los días hábiles", () => {
     const registros = [
       validado({ validadoEn: fecha(2026, 9, 3, 8) }),
       validado({ validadoEn: fecha(2026, 9, 3, 9) }),
@@ -63,10 +53,67 @@ describe("indicadoresDelMes", () => {
       incidencia({ reportadoEn: fecha(2026, 9, 10) }),
       incidencia({ id: "i2", reportadoEn: fecha(2026, 8, 20) }),
     ];
-    const ind = indicadoresDelMes(registros, incidencias, ranking);
+    const ind = indicadoresDelMes(registros, incidencias, "2026-09");
     // 3, 7 y 10 de septiembre.
     expect(ind.rondas).toBe(3);
     expect(ind.conObservacion).toBe(1);
+    // Del martes 1 al miércoles 16 de septiembre hay 12 días de lunes a viernes.
+    expect(ind.diasHabiles).toBe(12);
+    // Un mes que ya terminó cuenta todos sus días hábiles: agosto de 2026 tiene 21.
+    expect(indicadoresDelMes([], [], "2026-08").diasHabiles).toBe(21);
+  });
+
+  test("un lote es un contenedor revisado en un día; sin material si se rechazó", () => {
+    const registros = [
+      validado({ contenedor: "PLA111", validadoEn: fecha(2026, 9, 3, 8) }),
+      validado({ contenedor: "PLA111", validadoEn: fecha(2026, 9, 3, 9) }),
+      validado({ contenedor: "VID222", validadoEn: fecha(2026, 9, 3, 8) }),
+      registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 7) }),
+      registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 7) }),
+    ];
+    expect(indicadoresDelMes(registros, [], "2026-09")).toMatchObject({ lotesRevisados: 3, sinMaterial: 1 });
+  });
+});
+
+describe("validadosPorSemana", () => {
+  test("de lunes a domingo, cortadas en el borde del mes, con la de hoy en curso", () => {
+    const semanas = validadosPorSemana(
+      [
+        validado({ validadoEn: fecha(2026, 9, 2) }),
+        validado({ validadoEn: fecha(2026, 9, 6) }),
+        certificado({ validadoEn: fecha(2026, 9, 15) }),
+        registro({ estado: "rechazado", validadoEn: fecha(2026, 9, 15) }),
+        validado({ validadoEn: fecha(2026, 8, 31) }),
+      ],
+      "2026-09"
+    );
+    // Septiembre de 2026 parte un martes.
+    expect(semanas).toEqual([
+      { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false },
+      { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false },
+      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false },
+      { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true },
+      { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true },
+    ]);
+  });
+});
+
+describe("kilosPorMaterial", () => {
+  test("los kilos validados del mes por material, de más a menos, con su porcentaje", () => {
+    const materiales = kilosPorMaterial(
+      [
+        validado({ material: "Plástico", kgDeclarado: 0.4, validadoEn: fecha(2026, 9, 3) }),
+        validado({ material: "Vidrio", talla: "M", kgDeclarado: 4, validadoEn: fecha(2026, 9, 4) }),
+        certificado({ material: "Plástico", kgDeclarado: 0.8, validadoEn: fecha(2026, 9, 5) }),
+        registro({ material: "Metal", kgDeclarado: 3 }),
+        validado({ material: "Metal", kgDeclarado: 3, validadoEn: fecha(2026, 8, 30) }),
+      ],
+      "2026-09"
+    );
+    expect(materiales).toEqual([
+      { material: "Vidrio", kg: 4, depositos: 1, porcentaje: 77 },
+      { material: "Plástico", kg: 1.2, depositos: 2, porcentaje: 23 },
+    ]);
   });
 });
 
