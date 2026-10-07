@@ -5,8 +5,8 @@ import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
 import IncentivoSeccion from "./IncentivoSeccion";
 import RondasSeccion from "./RondasSeccion";
-import ReporteMensual from "../../components/ReporteMensual";
-import { Aviso, Tarjeta } from "../../components/ui";
+import RetirosSeccion from "./RetirosSeccion";
+import { Aviso } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
 
@@ -137,8 +137,6 @@ export default function PanelAdmin() {
 }
 
 function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
-  const { miPlanta, areas, registros, incidencias } = useEcoTrack();
-
   switch (seccion) {
     case "resumen":
       return <ResumenSeccion />;
@@ -150,25 +148,7 @@ function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
       return <IncentivoSeccion />;
     case "rondas":
       return <RondasSeccion />;
-    // Mientras no exista su sección (#35), el reporte se descarga con el mismo
-    // componente que tenía la app.
     case "retiros":
-      return miPlanta ? (
-        <View className="max-w-[720px]">
-          <ReporteMensual planta={miPlanta} areas={areas} registros={registros} incidencias={incidencias} />
-        </View>
-      ) : null;
-    default:
-      return <Proximamente />;
+      return <RetirosSeccion />;
   }
-}
-
-function Proximamente() {
-  return (
-    <Tarjeta className="items-center py-16">
-      <Text className="text-4xl mb-3">🚧</Text>
-      <Text className="text-gray-800 font-semibold text-base">Próximamente</Text>
-      <Text className="text-gray-500 text-sm mt-1">Esta sección todavía está en construcción.</Text>
-    </Tarjeta>
-  );
 }
