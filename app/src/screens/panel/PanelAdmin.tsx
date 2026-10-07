@@ -4,6 +4,7 @@ import { useEcoTrack } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
 import IncentivoSeccion from "./IncentivoSeccion";
+import RondasSeccion from "./RondasSeccion";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Aviso, Tarjeta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
@@ -147,6 +148,8 @@ function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
       return <PersonasSeccion />;
     case "incentivo":
       return <IncentivoSeccion />;
+    case "rondas":
+      return <RondasSeccion />;
     // Mientras no exista su sección (#35), el reporte se descarga con el mismo
     // componente que tenía la app.
     case "retiros":
