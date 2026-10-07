@@ -33,7 +33,6 @@ export default function ContenedoresSeccion() {
   // Por código y no por objeto: al crear un contenedor o cambiarle el código,
   // el documento llega después por el listener, y así se muestra apenas llega.
   const [qrAbierto, setQrAbierto] = useState<string | null>(null);
-  const contenedorQr = contenedores.find((c) => c.codigo === qrAbierto && c.activo) ?? null;
 
   async function ejecutar(accion: () => Promise<unknown>) {
     setOcupado(true);
@@ -92,22 +91,22 @@ export default function ContenedoresSeccion() {
         />
       ) : null}
 
-      {contenedorQr ? (
-        <VistaQr
-          contenedor={contenedorQr}
-          nombrePlanta={miPlanta?.nombre ?? ""}
-          alCerrar={() => setQrAbierto(null)}
-        />
-      ) : null}
-
-      {puntos.map((p) => (
-        <View key={p.punto} className="mb-6">
-          <Text className="text-gray-800 font-semibold text-base mb-3">📍 {p.punto}</Text>
-          <View className="flex-row flex-wrap -mx-2">
-            {p.contenedores.map((c) => (
-              <View key={c.codigo} className="w-1/3 px-2 mb-4">
-                <Tarjeta>
-                  <View className="flex-row items-center mb-4">
+      {/* Un punto limpio por columna, lado a lado: así se ve la planta de una
+          mirada, como se recorre, sin dejar media pantalla vacía. */}
+      <View className="flex-row flex-wrap items-start -mx-3">
+        {puntos.map((p) => (
+          <View key={p.punto} className="px-3 mb-6" style={{ width: 400 }}>
+            <View className="flex-row items-center justify-between mb-3">
+              <Text className="text-gray-800 font-semibold text-base">📍 {p.punto}</Text>
+              <Text className="text-gray-400 text-xs">
+                {p.contenedores.length} contenedor{p.contenedores.length === 1 ? "" : "es"}
+              </Text>
+            </View>
+            {p.contenedores.map((c) => {
+              const verQr = qrAbierto === c.codigo;
+              return (
+                <Tarjeta key={c.codigo} className={`mb-3 ${verQr ? "border-2 border-green-600" : ""}`}>
+                  <View className="flex-row items-center">
                     <View className="w-10 h-10 bg-green-100 rounded-full items-center justify-center mr-3">
                       <Text className="text-lg">{emojiDe(c.material)}</Text>
                     </View>
@@ -116,36 +115,59 @@ export default function ContenedoresSeccion() {
                       <Text className="text-gray-500 text-xs mt-0.5 tracking-widest">{c.codigo}</Text>
                     </View>
                   </View>
-                  <Boton
-                    titulo="Ver e imprimir QR"
-                    icono="🖨️"
-                    variante="secundario"
-                    onPress={() => setQrAbierto(c.codigo)}
-                    className="py-2 mb-2"
-                  />
-                  <View className="flex-row">
-                    <Boton
-                      titulo="Cambiar código"
-                      variante="secundario"
-                      deshabilitado={ocupado}
-                      onPress={() => cambiarCodigo(c)}
-                      className="flex-1 py-2 mr-2"
+
+                  <View className="flex-row items-center border-t border-gray-100 mt-4 pt-3">
+                    <Accion
+                      texto={verQr ? "Ocultar QR" : "🖨️ Ver QR"}
+                      color="text-green-700"
+                      alPresionar={() => setQrAbierto(verQr ? null : c.codigo)}
                     />
-                    <Boton
-                      titulo="Desactivar"
-                      variante="peligro"
+                    <Accion
+                      texto="Cambiar código"
+                      color="text-gray-600"
                       deshabilitado={ocupado}
-                      onPress={() => desactivar(c)}
-                      className="flex-1 py-2"
+                      alPresionar={() => cambiarCodigo(c)}
+                    />
+                    <Accion
+                      texto="Desactivar"
+                      color="text-red-600"
+                      deshabilitado={ocupado}
+                      alPresionar={() => desactivar(c)}
                     />
                   </View>
+
+                  {verQr ? <VistaQr contenedor={c} nombrePlanta={miPlanta?.nombre ?? ""} /> : null}
                 </Tarjeta>
-              </View>
-            ))}
+              );
+            })}
           </View>
-        </View>
-      ))}
+        ))}
+      </View>
     </View>
+  );
+}
+
+/** Acción de una tarjeta de contenedor: un texto tocable, para no recargarla de botones. */
+function Accion({
+  texto,
+  color,
+  deshabilitado = false,
+  alPresionar,
+}: {
+  texto: string;
+  color: string;
+  deshabilitado?: boolean;
+  alPresionar: () => void;
+}) {
+  return (
+    <TouchableOpacity
+      onPress={alPresionar}
+      disabled={deshabilitado}
+      accessibilityRole="button"
+      className={`mr-5 py-1 ${deshabilitado ? "opacity-50" : ""}`}
+    >
+      <Text className={`text-sm font-semibold ${color}`}>{texto}</Text>
+    </TouchableOpacity>
   );
 }
 
@@ -233,19 +255,11 @@ function FormularioContenedor({
 }
 
 /**
- * El QR de un contenedor con su código, material y punto limpio. «Imprimir»
- * abre la etiqueta en una ventana aparte (ver lib/etiquetaQr.ts) para no
- * imprimir el panel entero.
+ * El QR de un contenedor, desplegado dentro de su tarjeta. «Imprimir» abre
+ * la etiqueta en una ventana aparte (ver lib/etiquetaQr.ts) para no imprimir
+ * el panel entero.
  */
-function VistaQr({
-  contenedor,
-  nombrePlanta,
-  alCerrar,
-}: {
-  contenedor: Contenedor;
-  nombrePlanta: string;
-  alCerrar: () => void;
-}) {
+function VistaQr({ contenedor, nombrePlanta }: { contenedor: Contenedor; nombrePlanta: string }) {
   function imprimir() {
     const ventana = window.open("", "_blank", "width=480,height=640");
     if (!ventana) {
@@ -259,25 +273,16 @@ function VistaQr({
   }
 
   return (
-    <Tarjeta className="mb-6 max-w-[640px] flex-row items-center">
-      <CodigoQR texto={contenidoQr(contenedor.plantaId, contenedor.codigo)} tamano={200} />
-      <View className="flex-1 ml-6">
-        <Text className="text-gray-900 font-bold text-3xl tracking-widest">{contenedor.codigo}</Text>
-        <Text className="text-gray-800 font-semibold mt-2">{nombreContenedor(contenedor)}</Text>
-        <Text className="text-gray-500 text-sm mt-0.5">
-          {contenedor.punto} · {nombrePlanta}
-        </Text>
-        <Text className="text-gray-400 text-xs mt-3 mb-4 leading-4">
-          Imprímelo y pégalo en el contenedor. El código va debajo del QR para escribirlo si la
-          cámara no lo lee.
-        </Text>
-        <View className="flex-row">
-          {Platform.OS === "web" ? (
-            <Boton titulo="Imprimir" icono="🖨️" onPress={imprimir} className="py-3 px-5 mr-2" />
-          ) : null}
-          <Boton titulo="Cerrar" variante="secundario" onPress={alCerrar} className="py-3 px-5" />
-        </View>
-      </View>
-    </Tarjeta>
+    <View className="items-center bg-gray-50 rounded-xl mt-3 p-4">
+      <CodigoQR texto={contenidoQr(contenedor.plantaId, contenedor.codigo)} tamano={180} />
+      <Text className="text-gray-900 font-bold text-2xl tracking-widest mt-3">{contenedor.codigo}</Text>
+      <Text className="text-gray-500 text-xs text-center mt-1 mb-3">
+        Imprímelo y pégalo en el contenedor. El código va debajo del QR para escribirlo si la
+        cámara no lo lee.
+      </Text>
+      {Platform.OS === "web" ? (
+        <Boton titulo="Imprimir etiqueta" icono="🖨️" onPress={imprimir} className="py-2 px-5" />
+      ) : null}
+    </View>
   );
 }
