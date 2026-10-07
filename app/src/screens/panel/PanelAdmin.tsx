@@ -3,6 +3,7 @@ import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native
 import { useEcoTrack } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
+import IncentivoSeccion from "./IncentivoSeccion";
 import ReporteMensual from "../../components/ReporteMensual";
 import { Aviso, Tarjeta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
@@ -144,6 +145,8 @@ function ContenidoSeccion({ seccion }: { seccion: SeccionPanel }) {
       return <ContenedoresSeccion />;
     case "personas":
       return <PersonasSeccion />;
+    case "incentivo":
+      return <IncentivoSeccion />;
     // Mientras no exista su sección (#35), el reporte se descarga con el mismo
     // componente que tenía la app.
     case "retiros":
