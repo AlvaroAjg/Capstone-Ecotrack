@@ -36,7 +36,7 @@ export default function RetirosSeccion() {
 }
 
 function FormularioRetiro() {
-  const { porRetirar, registrarRetiro } = useEcoTrack();
+  const { porRetirar, incidencias, registrarRetiro } = useEcoTrack();
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [fecha, setFecha] = useState(textoFecha(Date.now()));
   const [quienRetira, setQuienRetira] = useState("");
@@ -119,6 +119,16 @@ function FormularioRetiro() {
                   <Text className="text-gray-500 text-xs mt-0.5">
                     {c.contenedor} · validado {tiempoRelativo(c.esperandoDesde)}
                   </Text>
+                  {/* Advertencia de seguridad para quien retira, como la que veía el
+                      gestor: el validador encontró algo que no corresponde. */}
+                  {incidencias
+                    .filter((i) => !i.atendida && i.contenedor === c.contenedor)
+                    .map((i) => (
+                      <Text key={i.id} className="text-red-700 text-xs font-semibold mt-1">
+                        ⚠️ Tiene {i.contaminante.toLowerCase()} (reportado {tiempoRelativo(i.reportadoEn)}):
+                        avisa a quien lo retire para que lo haga con cuidado.
+                      </Text>
+                    ))}
                 </View>
                 <Text className="w-32 text-right text-gray-700 text-sm">
                   {c.depositos} depósito{c.depositos === 1 ? "" : "s"}
