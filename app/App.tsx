@@ -4,7 +4,7 @@ import { Platform, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
-import { BarraInferior, PantallaCargando } from "./src/components/ui";
+import { BarraInferior, PantallaCargando, usePantallaCompleta } from "./src/components/ui";
 import BannerAvisos from "./src/components/BannerAvisos";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
@@ -148,6 +148,9 @@ function PilaApp({ rol }: { rol: Rol }) {
 /** Login y registro, para usuarios sin sesión. */
 function PilaAuth() {
   const [pantalla, setPantalla] = useState<"login" | "register">("login");
+  // Antes de entrar no se sabe el rol: en el computador se ve como una página
+  // web normal, y al iniciar sesión cada rol vuelve a su formato.
+  usePantallaCompleta();
 
   if (pantalla === "register") {
     return <RegisterScreen alVolver={() => setPantalla("login")} />;

@@ -134,7 +134,8 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
             </Text>
           </View>
 
-          <View className="bg-white rounded-3xl p-6 shadow-lg">
+          {/* En el computador la pantalla es ancha: la tarjeta conserva el ancho de un teléfono. */}
+          <View className="w-full max-w-[420px] self-center bg-white rounded-3xl p-6 shadow-lg">
             <Text className="text-gray-800 text-lg font-bold mb-1">Iniciar sesión</Text>
             <Text className="text-gray-500 text-xs mb-5">
               Tu rol queda definido por tu cuenta, no por esta pantalla.

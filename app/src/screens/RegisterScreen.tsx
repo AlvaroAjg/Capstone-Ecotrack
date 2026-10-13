@@ -83,56 +83,59 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
             <Text className="text-green-700 text-2xl">←</Text>
           </TouchableOpacity>
 
-          <Text className="text-3xl font-bold text-green-700 mb-1">Crear cuenta</Text>
-          <Text className="text-base text-gray-500 mb-6">Paso 1 de 2 · datos personales</Text>
+          {/* En el computador la pantalla es ancha: el formulario conserva el ancho de un teléfono. */}
+          <View className="w-full max-w-[420px] self-center">
+            <Text className="text-3xl font-bold text-green-700 mb-1">Crear cuenta</Text>
+            <Text className="text-base text-gray-500 mb-6">Paso 1 de 2 · datos personales</Text>
 
-          {errorGeneral ? (
-            <View className="mb-4">
-              <Aviso texto={errorGeneral} />
-            </View>
-          ) : null}
+            {errorGeneral ? (
+              <View className="mb-4">
+                <Aviso texto={errorGeneral} />
+              </View>
+            ) : null}
 
-          <Campo
-            etiqueta="Nombre completo"
-            placeholder="Nombre y apellido"
-            value={nombre}
-            onChangeText={setNombre}
-            onFocus={limpiar("nombre")}
-            error={errores.nombre}
-          />
-          <Campo
-            etiqueta="Correo electrónico"
-            placeholder="tucorreo@ejemplo.com"
-            value={email}
-            onChangeText={setEmail}
-            onFocus={limpiar("email")}
-            error={errores.email}
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-          />
-          <Campo
-            etiqueta="Contraseña"
-            placeholder="Mínimo 6 caracteres"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            onFocus={limpiar("password")}
-            error={errores.password}
-          />
+            <Campo
+              etiqueta="Nombre completo"
+              placeholder="Nombre y apellido"
+              value={nombre}
+              onChangeText={setNombre}
+              onFocus={limpiar("nombre")}
+              error={errores.nombre}
+            />
+            <Campo
+              etiqueta="Correo electrónico"
+              placeholder="tucorreo@ejemplo.com"
+              value={email}
+              onChangeText={setEmail}
+              onFocus={limpiar("email")}
+              error={errores.email}
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+            />
+            <Campo
+              etiqueta="Contraseña"
+              placeholder="Mínimo 6 caracteres"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              onFocus={limpiar("password")}
+              error={errores.password}
+            />
 
-          <Boton
-            titulo={cargando ? "Creando cuenta..." : "Continuar"}
-            cargando={cargando}
-            onPress={handleRegistrar}
-            className="mt-3 mb-4"
-          />
+            <Boton
+              titulo={cargando ? "Creando cuenta..." : "Continuar"}
+              cargando={cargando}
+              onPress={handleRegistrar}
+              className="mt-3 mb-4"
+            />
 
-          <TouchableOpacity onPress={alVolver} accessibilityRole="button">
-            <Text className="text-center text-green-700">
-              ¿Ya tienes cuenta? Inicia sesión
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity onPress={alVolver} accessibilityRole="button">
+              <Text className="text-center text-green-700">
+                ¿Ya tienes cuenta? Inicia sesión
+              </Text>
+            </TouchableOpacity>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>

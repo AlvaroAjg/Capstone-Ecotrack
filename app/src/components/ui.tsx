@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useEffect } from "react";
 import {
   ActivityIndicator,
+  Platform,
   ScrollView,
   Text,
   TextInput,
@@ -9,6 +10,20 @@ import {
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import type { EstadoRegistro } from "../lib/tipos";
+
+/**
+ * En el computador, public/index.html encoge la app al ancho de un teléfono.
+ * Las pantallas que necesitan todo el ancho (el login, el registro y el panel
+ * del administrador) quitan ese límite mientras están abiertas, y al salir vuelve.
+ * En un celular el límite nunca aplica, así que ahí no cambia nada.
+ */
+export function usePantallaCompleta() {
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    document.body.classList.add("pantalla-completa");
+    return () => document.body.classList.remove("pantalla-completa");
+  }, []);
+}
 
 export function Encabezado({
   tono = "verde",

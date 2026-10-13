@@ -71,8 +71,9 @@
           margin: 0 auto;
           box-shadow: 0 0 0 1px #374151, 0 20px 60px rgba(0, 0, 0, 0.5);
         }
-        /* El panel del administrador sí usa todo el ancho (ver PanelAdmin). */
-        body.panel-escritorio #root {
+        /* El login, el registro y el panel del administrador sí usan todo el ancho
+           (ver usePantallaCompleta en src/components/ui.tsx). */
+        body.pantalla-completa #root {
           max-width: none;
           margin: 0;
           box-shadow: none;
