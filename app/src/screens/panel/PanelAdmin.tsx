@@ -1,12 +1,12 @@
-import React, { useEffect, useState } from "react";
-import { Platform, ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useState } from "react";
+import { ScrollView, Text, TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
 import IncentivoSeccion from "./IncentivoSeccion";
 import RondasSeccion from "./RondasSeccion";
 import RetirosSeccion from "./RetirosSeccion";
-import { Aviso } from "../../components/ui";
+import { Aviso, usePantallaCompleta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
 
@@ -44,14 +44,8 @@ export default function PanelAdmin() {
   const actual = SECCIONES.find((s) => s.id === seccion)!;
   const nombre = usuario?.nombre ?? "Administrador";
 
-  // En el computador, public/index.html encoge la app al ancho de un teléfono.
-  // El panel necesita la pantalla completa: mientras está abierto, se quita
-  // ese límite, y al salir (cerrar sesión) vuelve.
-  useEffect(() => {
-    if (Platform.OS !== "web") return;
-    document.body.classList.add("panel-escritorio");
-    return () => document.body.classList.remove("panel-escritorio");
-  }, []);
+  // El panel necesita la pantalla completa del computador, no el ancho de un teléfono.
+  usePantallaCompleta();
 
   return (
     <View className="flex-1 flex-row bg-gray-50">
