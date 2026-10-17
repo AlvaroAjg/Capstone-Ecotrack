@@ -1,0 +1,70 @@
+@startuml RecyTrack_03a_Secuencia_Registrar_Deposito
+!include seq_estilo.iuml
+title RecyTrack — Vista Lógica: Diagrama de Secuencia\nCU-02 Registrar depósito en el punto limpio
+
+actor "Colaborador" as C
+box "App RecyTrack (PWA en el celular)" #FBFCFB
+  boundary ":ScanQRScreen" as UI
+  control ":EstadoRecyTrack" as EST
+  control ":qr" as QR
+  control ":ServicioContenedores" as SC
+  control ":ServicioRegistros" as SR
+end box
+box "Firebase (servidor)" #FBFCFB
+  database ":Cloud Firestore\n(reglas de seguridad)" as FS
+end box
+
+C -> UI : escanearQR()
+activate UI
+UI -> QR : interpretarQr(texto, plantaId)
+activate QR
+QR --> UI : LecturaQr {codigo}
+deactivate QR
+
+alt QR inválido o de otra planta
+  UI --> C : mostrar error\n"Código no válido"
+else QR válido
+  UI -> SC : obtenerContenedor(codigo)
+  activate SC
+  SC -> FS : get contenedores/{codigo}
+  activate FS
+  FS --> SC : contenedor
+  deactivate FS
+  SC --> UI : Contenedor {punto, material, activo}
+  deactivate SC
+
+  opt contenedor mixto
+    C -> UI : elegirMaterial(material)
+  end
+  C -> UI : elegirTalla(talla)
+  C -> UI : confirmar()
+  UI -> EST : crearRegistro(material, talla, codigo)
+  activate EST
+  EST -> SR : crearRegistro(usuario, material, talla, codigo)
+  activate SR
+  SR -> SR : kgDeclarado = KG_POR_TALLA[material][talla]
+  SR -> FS : get participaciones/{mes}_{uid}
+  FS --> SR : existe / no existe
+  SR -> FS : commit(writeBatch)\nregistros/{id} + resumenes/{planta}_{mes}\n[+ participaciones/{mes}_{uid} si es el 1er depósito]
+  activate FS
+  FS -> FS : evaluar reglas: comprobar rol colaborador, planta y área del perfil,\ncontenedor activo de la planta y del material,\nkilos = tabla, fecha ±10 min, estado "pendiente",\nsuma de +1 al área en el resumen
+
+  alt todas las reglas se cumplen
+    FS -> FS : escribir lote (atómico)
+    FS --> SR : ok
+    SR --> EST : registroId
+    EST --> UI : registroId
+    UI --> C : "Depósito registrado ≈ X kg (estimado)"
+    note over FS : onSnapshot notifica en tiempo real\nal validador de la planta:\n"depósito por validar"
+  else alguna regla falla
+    FS --> SR : permission-denied
+    deactivate FS
+    SR --> EST : error
+    deactivate SR
+    EST --> UI : error
+    deactivate EST
+    UI --> C : "No se pudo registrar"
+  end
+end
+deactivate UI
+@enduml

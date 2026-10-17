@@ -1,0 +1,220 @@
+@startuml RecyTrack_02_Diagrama_de_Clases
+!include estilo.iuml
+skinparam linetype polyline
+skinparam nodesep 70
+skinparam ranksep 85
+skinparam class {
+  BackgroundColor #F7F9F7
+  BorderColor #3F5E48
+  HeaderBackgroundColor #E2EDE5
+  AttributeFontSize 11
+}
+skinparam class<<agregado>> {
+  BackgroundColor #FFF9E8
+  HeaderBackgroundColor #F6E7B8
+}
+skinparam class<<calculado>> {
+  BackgroundColor #FFF9E8
+  HeaderBackgroundColor #F6E7B8
+}
+skinparam class<<datatype>> {
+  BackgroundColor #FFF9E8
+  HeaderBackgroundColor #F6E7B8
+}
+hide empty members
+title RecyTrack — Vista Lógica: Diagrama de Clases del dominio
+
+' ================= Fila 1: organización de la planta
+together {
+  class Campana {
+    - nombre : String
+    - metaParticipacion : Integer {1..100}
+    - incentivo : String
+    - terminaEn : Long
+    - actualizadaEn : Long
+  }
+  class Planta {
+    - id : String
+    - nombre : String
+    - empresa : String
+  }
+  class ResumenMes <<agregado>> {
+    - mes : String {AAAA-MM}
+    - ultimoRegistro : String
+  }
+  class ConteoArea <<datatype>> {
+    - depositos : Integer
+    - participantes : Integer
+  }
+}
+
+class CodigoRol <<confidencial>> {
+  - plantaId : String
+  - administrador : String
+}
+
+' ================= Fila 2: personas
+together {
+  class Area {
+    - id : String
+    - nombre : String
+    - codigo : String
+    - dotacion : Integer
+  }
+  class Usuario {
+    - id : String {uid de Firebase Auth}
+    - nombre : String
+    - email : String
+    - rol : Rol
+    - avisosVistosHasta : Long
+    + unirseAArea(area : Area)
+    + promoverAAdministrador(codigo : String)
+  }
+  class Participacion <<agregado>> {
+    - mes : String
+  }
+  class CertificadoMensual <<calculado>> {
+    - mes : String
+    - codigo : String
+    - kgTotal : Double
+    - kgPorMaterial : Map<Material, Double>
+  }
+}
+
+' ================= Filas 3 y 4: cadena de verificación
+together {
+  class Contenedor {
+    - codigo : String {aleatorio}
+    - punto : String
+    - material : Material [0..1]
+    - activo : Boolean
+    - creadoEn : Long
+    + nombre() : String
+  }
+  class Registro {
+    - id : String
+    - material : Material
+    - talla : Talla
+    - kgDeclarado : Double
+    - kgConfirmado : Double [0..1]
+    - estado : EstadoRegistro
+    - creadoEn : Long
+    - validadoEn : Long [0..1]
+    - certificadoEn : Long [0..1]
+    - codigo : String [0..1]
+    + kgEfectivo() : Double
+  }
+}
+together {
+  class Incidencia {
+    - id : String
+    - contaminante : Contaminante
+    - reportadoEn : Long
+    - atendida : Boolean
+    - atendidaEn : Long [0..1]
+  }
+  class Retiro {
+    - id : String
+    - fecha : Long
+    - quienRetira : String
+    - guia : String [0..1]
+    - pesoKg : Double [0..1]
+    - depositos : Integer
+    - kgEstimado : Double
+    - registradoEn : Long
+    + esVerificado() : Boolean
+  }
+}
+
+' ================= Fila 5: enumeraciones
+together {
+  enum Rol <<enumeration>> {
+    colaborador
+    validador
+    administrador
+  }
+  enum EstadoRegistro <<enumeration>> {
+    pendiente
+    validado
+    certificado
+    rechazado
+  }
+  enum Material <<enumeration>> {
+    PapelCarton
+    Plastico
+    Vidrio
+    Metal
+  }
+  enum Talla <<enumeration>> {
+    S
+    M
+    L
+    XL
+  }
+  enum Contaminante <<enumeration>> {
+    Vidrio
+    Plastico
+    PapelCarton
+    Metal
+    Organico
+    BasuraComun
+  }
+}
+
+' ---------- Organización (fila 1, horizontal)
+CodigoRol "0..1" -down- "1" Planta : protege el rol\nde administrador >
+Campana "0..1" -right- "1" Planta : incentivo vigente de >
+Planta "1" -right- "0..*" ResumenMes : lleva >
+ResumenMes "1" *-right- "0..*" ConteoArea : areas[areaId]
+
+' ---------- Planta hacia abajo
+Planta "1" *-down- "1..*" Area : se organiza en >
+Planta "1" -down- "0..*" Usuario : trabaja en <
+Planta "1" *-down- "0..*" Contenedor : dispone >
+
+' ---------- Personas (fila 2, horizontal)
+Area "0..1" -right- "0..*" Usuario : pertenece a <
+Usuario "1" -right- "0..*" Participacion : marca 1er depósito del mes >
+Usuario "1" -right- "0..*" CertificadoMensual : recibe >
+
+' ---------- Cadena de verificación
+Contenedor "1" -right- "0..*" Registro : recibe >
+Area "1" -down- "0..*" Registro : suma a <
+Usuario "1" -down- "0..*" Registro : registra >
+Usuario "0..1" -down- "0..*" Registro : valida >
+Registro "0..*" -down- "0..1" Retiro : certifica <
+Contenedor "1..*" -down- "0..*" Retiro : retira <
+Contenedor "1" -down- "0..*" Incidencia : reportada en <
+Incidencia "0..*" -right- "0..1" Retiro : atiende <
+Usuario "1" -down- "0..*" Retiro : registra >
+
+' ---------- Enumeraciones bajo la cadena (solo para ubicarlas)
+Incidencia -[hidden]down- Rol
+Retiro -[hidden]down- Material
+Rol -[hidden]right- EstadoRegistro
+EstadoRegistro -[hidden]right- Material
+Material -[hidden]right- Talla
+Talla -[hidden]right- Contaminante
+
+note as NEstados
+  <b>Máquina de estados de Registro</b> (impuesta por firestore.rules)
+  pendiente → validado | rechazado  (validador)
+  validado → certificado  (administrador, al registrar el retiro)
+  ----
+  kgDeclarado = KG_POR_TALLA[material][talla]
+  kgConfirmado = kgDeclarado al validar
+  Registro no guarda el nombre de la persona.
+end note
+Contaminante -[hidden]right- NEstados
+
+note bottom of CertificadoMensual
+  Se calcula en el cliente con los
+  Registro "certificado" del mes
+  del colaborador; no se almacena.
+end note
+
+legend bottom right
+  Verde: entidades persistidas en Cloud Firestore
+  Amarillo: agregados y objetos calculados
+endlegend
+@enduml

@@ -1,0 +1,46 @@
+@startuml RecyTrack_01b_Casos_de_Uso_Colaborador
+!include uc_estilo.iuml
+title RecyTrack — Casos de uso del Colaborador (CU-01, CU-02, CU-03)
+
+actor "Colaborador" as C
+actor "Proveedor de identidad\n(Google / Microsoft)" as PI
+
+rectangle "Sistema RecyTrack" {
+  usecase "Registrar cuenta" as R1
+  usecase "Iniciar sesión" as R2
+  usecase "Iniciar sesión con\ncuenta externa" as R3
+  usecase "Unirse a su área\ncon el código del área" as R4
+  usecase "Registrar depósito" as R5
+  usecase "Escanear QR\ndel contenedor" as R6
+  usecase "Declarar material\ny talla de bolsa (S–XL)" as R8
+  usecase "Ingresar el código\nimpreso bajo el QR" as R7
+  usecase "Consultar historial\nde reciclados" as R9
+  usecase "Descargar certificado\nmensual (PDF)" as R10
+  usecase "Consultar ranking\nde áreas" as R11
+  usecase "Consultar misión semanal,\nEcoPuntos e incentivo" as R12
+  usecase "Consultar avisos" as R13
+  usecase "Gestionar Mi cuenta" as R14
+}
+
+C -- R1
+C -- R2
+C -- R4
+C -- R5
+C -- R9
+C -- R11
+C -- R12
+C -- R13
+C -- R14
+
+R2 <.. R3 : <<extend>>
+R3 -- PI
+R5 ..> R6 : <<include>>
+R5 ..> R8 : <<include>>
+R6 <.. R7 : <<extend>>\n[la cámara\nno lee el QR]
+R9 <.. R10 : <<extend>>\n[mes con depósitos\ncertificados]
+
+note bottom of R5
+  Precondición: el colaborador pertenece a un área.
+  Los kilos no se escriben: se estiman con la talla.
+end note
+@enduml

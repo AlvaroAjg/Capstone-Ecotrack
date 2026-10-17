@@ -1,0 +1,30 @@
+@startuml RecyTrack_01c_Casos_de_Uso_Validador
+!include uc_estilo.iuml
+title RecyTrack — Casos de uso del Validador (CU-04)
+
+actor "Validador\n(titular o suplente)" as V
+
+rectangle "Sistema RecyTrack" {
+  usecase "Iniciar sesión" as V0
+  usecase "Revisar validaciones\npendientes por contenedor" as V1
+  usecase "Validar contenedor\n(Conforme)" as V2
+  usecase "Validar con observación\n(Con observación)" as V3
+  usecase "Rechazar depósitos\n(Sin material)" as V5
+  usecase "Reportar contaminación" as V4
+  usecase "Consultar avisos" as V6
+}
+
+V -- V0
+V -- V1
+V -- V6
+V1 <.. V2 : <<extend>>\n[lo declarado está\nen el contenedor]
+V1 <.. V3 : <<extend>>\n[hay material que\nno corresponde]
+V1 <.. V5 : <<extend>>\n[no está lo\ndeclarado]
+V3 ..> V4 : <<include>>
+
+note bottom of V1
+  Una vez al día. Se valida la tanda completa
+  del contenedor, no bolsa por bolsa,
+  en una escritura atómica.
+end note
+@enduml

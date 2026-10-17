@@ -1,0 +1,70 @@
+@startuml RecyTrack_03b_Secuencia_Registrar_Retiro
+!include seq_estilo.iuml
+title RecyTrack — Vista Lógica: Diagrama de Secuencia\nCU-06 Registrar retiro y certificar depósitos
+
+actor "Administrador\nde planta" as A
+box "App RecyTrack (panel web en el computador)" #FBFCFB
+  boundary ":RetirosSeccion" as UI
+  control ":EstadoRecyTrack" as EST
+  control ":derivados" as DER
+  control ":ServicioRetiros" as SRT
+end box
+box "Firebase (servidor)" #FBFCFB
+  database ":Cloud Firestore\n(reglas de seguridad)" as FS
+end box
+
+A -> UI : abrir "Retiros y reporte"
+activate UI
+UI -> EST : porRetirar, incidencias
+activate EST
+EST -> DER : contenedoresPorRetirar(registros, contenedores)
+activate DER
+DER --> EST : ContenedorPorRetirar[]\n(depósitos validados por contenedor)
+deactivate DER
+EST --> UI : contenedores por retirar + incidencias abiertas
+deactivate EST
+UI --> A : lista de contenedores con kg estimados\ny advertencias de contaminación
+
+A -> UI : seleccionar contenedores
+A -> UI : ingresar fecha, quién retira,\nN° de guía [opcional], peso [opcional]
+A -> UI : registrarRetiro()
+UI --> A : confirmar("¿Registrar el retiro?")
+A -> UI : aceptar
+UI -> EST : registrarRetiro(datos, elegidos)
+activate EST
+EST -> SRT : registrarRetiro(plantaId, adminUid, datos,\nporRetirar, incidencias, codigosUsados)
+activate SRT
+SRT -> SRT : codigo = codigoLibre(codigosUsados)
+
+group writeBatch (atómico)
+  SRT -> SRT : set retiros/{codigo}
+  loop por cada depósito validado de los contenedores elegidos
+    SRT -> SRT : update registros/{id}\nestado = certificado, codigo, retiroId
+  end
+  loop por cada incidencia abierta de esos contenedores
+    SRT -> SRT : update incidencias/{id}\natendida = true, retiroId
+  end
+end
+
+SRT -> FS : commit(lote)
+activate FS
+FS -> FS : evaluar reglas: esAdminDe(planta)\nestado previo = validado\nretiro existe al terminar el lote, es de la planta\ny contiene el contenedor del depósito
+alt reglas cumplidas
+  FS -> FS : escribir lote (atómico)
+  FS --> SRT : ok
+  SRT --> EST : codigoRetiro
+  EST --> UI : codigoRetiro
+  UI --> A : "Retiro registrado: N depósitos certificados"
+  FS -->> EST : onSnapshot(registros, retiros, incidencias)
+  note over FS : Cada colaborador ve su depósito "certificado"\ny puede descargar su certificado mensual.
+else regla rechazada
+  FS --> SRT : permission-denied
+  deactivate FS
+  SRT --> EST : error
+  deactivate SRT
+  EST --> UI : error
+  deactivate EST
+  UI --> A : "No se pudo registrar el retiro"\n(no se certificó nada)
+end
+deactivate UI
+@enduml

@@ -1,0 +1,51 @@
+@startuml RecyTrack_04_Comunicacion_Validar_Contenedor
+!include estilo.iuml
+allowmixing
+skinparam linetype polyline
+skinparam nodesep 90
+skinparam ranksep 110
+skinparam object {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+skinparam actor {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+hide empty members
+title RecyTrack — Vista Lógica: Diagrama de Comunicación\nCU-04 Validar contenedor "Con observación" (ronda diaria)
+
+actor "Validador" as V
+object "__:ValidadorScreen__" as VS
+object "__:ValidacionContenedores__" as VC
+object "__:EstadoRecyTrack__" as EST
+object "__:ServicioRegistros__" as SR
+object "__:ServicioIncidencias__" as SI
+object "__:CloudFirestore__" as FS <<reglas de seguridad>>
+
+V -right- VS : "1: abrirValidaciones() →\n2: elegirConObservacion(contenedor, contaminante) →"
+VS -right- VC : "1.1: mostrar(pendientes por contenedor) →\n2.1: confirmar() →"
+VC -down- EST : "2.2: reportarYValidar(datos, registros) ↓"
+EST -left- SR : "← 2.2.1: validarRegistros(registros, uid, ademas)"
+SR -down- SI : "2.2.1.1: agregarReporte(lote, datos) ↓"
+SR -left- FS : "← 2.2.1.2: commit(lote)"
+EST -up- VS : "↖ 3: actualizarPendientes()\n[onSnapshot: el contenedor\ndeja de estar pendiente]"
+
+note bottom of FS
+  2.2.1.2 se evalúa en el servidor:
+  - quien valida es validador o administrador de la planta
+  - estado previo = pendiente
+  - kgConfirmado = kgDeclarado
+  - la incidencia no lleva datos personales
+  El lote es atómico: o se validan todos los
+  depósitos del contenedor y se crea la incidencia,
+  o no se escribe nada.
+end note
+
+note bottom of SI
+  La incidencia no culpa a nadie:
+  advierte al administrador antes
+  del retiro y se cuenta en el
+  reporte mensual.
+end note
+@enduml

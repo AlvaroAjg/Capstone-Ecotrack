@@ -1,0 +1,100 @@
+@startuml RecyTrack_06_Diagrama_de_Paquetes
+!include estilo.iuml
+skinparam packageStyle folder
+skinparam linetype polyline
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam package {
+  BackgroundColor #F7F9F7
+}
+skinparam package<<library>> {
+  BackgroundColor #FFF9E8
+}
+skinparam artifact {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+title RecyTrack — Vista de Desarrollo: Diagrama de Paquetes\n(repositorio AlvaroAjg/Capstone-Ecotrack)
+
+' Se declaran primero los paquetes que dependen de otros (arriba)
+' y al final los más independientes (abajo).
+package "app" {
+  artifact "App.tsx\n(navegación por rol)" as APPTSX
+  package "src" {
+    package "screens (incluye panel/)" {
+    }
+    package "components" {
+    }
+    package "state" {
+    }
+    package "services" {
+    }
+    package "lib" {
+    }
+  }
+  package "pruebas" {
+  }
+}
+
+package "jsqr" <<library>> {
+}
+package "expo · react-native · react-native-web" <<library>> {
+}
+package "pdf-lib · qrcode-generator" <<library>> {
+}
+package "firebase (auth · firestore)" <<library>> {
+}
+
+package "Raíz del repositorio" {
+  package "scripts" {
+  }
+  package "pruebas-reglas" {
+  }
+  package "hosting" {
+  }
+  artifact "firestore.rules" as RULES
+}
+
+' ---------- Jerarquía de src: cada flecha baja de nivel
+APPTSX .down.> "screens (incluye panel/)" : <<import>>
+"screens (incluye panel/)" .down.> "components" : <<import>>
+"screens (incluye panel/)" .down.> "state" : <<import>>
+"screens (incluye panel/)" .down.> "services" : <<import>>
+"screens (incluye panel/)" .down.> "lib" : <<import>>
+"components" .down.> "lib" : <<import>>
+"state" .down.> "services" : <<import>>
+"state" .down.> "lib" : <<import>>
+"services" .down.> "lib" : <<import>>
+"pruebas" .up.> "lib" : <<test>>
+
+' ---------- Librerías externas
+"components" .down.> "jsqr" : <<use>>
+"src" .down.> "expo · react-native · react-native-web" : <<use>>
+"lib" .down.> "pdf-lib · qrcode-generator" : <<use>>
+"services" .down.> "firebase (auth · firestore)" : <<use>>
+
+' ---------- Raíz del repositorio (columna aparte)
+"scripts" .down.> "hosting" : <<build>>\nexport web
+"pruebas-reglas" .down.> RULES : <<test>>\nemulador
+
+' ---------- Ubicación
+"Raíz del repositorio" -[hidden]right- "app"
+"components" -[hidden]right- "state"
+"scripts" -[hidden]right- "pruebas-reglas"
+"jsqr" -[hidden]right- "pdf-lib · qrcode-generator"
+"pdf-lib · qrcode-generator" -[hidden]right- "expo · react-native · react-native-web"
+
+note as NExc
+  <b>Dependencias puntuales no dibujadas</b>
+  (para no cruzar líneas):
+  components/BannerAvisos y ValidacionContenedores
+  usan state y services; lib/useDescargaCertificado
+  usa state; lib/firebase.ts inicializa el SDK de firebase.
+end note
+"firebase (auth · firestore)" -[hidden]up- NExc
+note bottom of RULES
+  Se despliega a Cloud Firestore.
+  kgPorTalla debe coincidir con
+  KG_POR_TALLA de lib/tipos.ts.
+end note
+@enduml

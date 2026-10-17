@@ -1,0 +1,67 @@
+@startuml RecyTrack_07a_Actividad_Registrar_Deposito
+!include act_estilo.iuml
+title RecyTrack — Vista de Procesos: Diagrama de Actividad (1 de 2)\nRegistrar un depósito en el punto limpio
+
+|#F4F8F5|Colaborador|
+start
+:Llevar los reciclables
+al punto limpio;
+:Escanear el QR
+del contenedor;
+
+|#FFFFFF|Sistema RecyTrack|
+:Interpretar el QR y
+buscar el contenedor;
+if (¿Contenedor válido, activo
+y de su planta?) then (sí)
+else (no)
+  :Mostrar "código no válido";
+  |Colaborador|
+  :Escribir el código impreso
+  bajo el QR;
+  |Sistema RecyTrack|
+  :Buscar el contenedor
+  por código;
+endif
+
+|Colaborador|
+:Vaciar el material suelto
+(se guarda la bolsa);
+if (¿Contenedor mixto?) then (sí)
+  :Elegir el material;
+else (no)
+endif
+:Elegir la talla de bolsa
+(S, M, L o XL);
+:Confirmar el depósito;
+
+|Sistema RecyTrack|
+:Estimar los kilos con
+KG_POR_TALLA;
+fork
+  :Crear el registro
+  "pendiente";
+fork again
+  :Sumar +1 al área en
+  el resumen del mes;
+fork again
+  :Marcar participación
+  (solo 1er depósito del mes);
+end fork
+:Evaluar firestore.rules
+sobre el lote completo;
+if (¿Cumple las reglas?) then (sí)
+  :Escribir el lote
+  (atómico);
+  :Avisar al validador:
+  "depósito por validar"; <<output>>
+else (no)
+  :Descartar el lote
+  (no se escribe nada);
+endif
+|Colaborador|
+:Ver el resultado:
+"≈ X kg estimados"
+o "No se pudo registrar";
+stop
+@enduml

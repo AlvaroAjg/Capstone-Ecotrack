@@ -1,0 +1,16 @@
+!include estilo.iuml
+skinparam activity {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+  DiamondBackgroundColor #FFFFFF
+  DiamondBorderColor #3F5E48
+  FontSize 13
+}
+skinparam swimlane {
+  BorderColor #8FA394
+  TitleFontStyle bold
+  TitleFontSize 14
+  Width 330
+}
+skinparam ActivityBarColor #3F5E48
+skinparam wrapWidth 260

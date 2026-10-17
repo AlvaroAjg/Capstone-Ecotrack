@@ -1,0 +1,163 @@
+@startuml RecyTrack_05_Diagrama_de_Componentes
+!include estilo.iuml
+skinparam componentStyle uml2
+skinparam linetype polyline
+skinparam nodesep 60
+skinparam ranksep 60
+skinparam component {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+skinparam interface {
+  BackgroundColor #FFFFFF
+  BorderColor #3F5E48
+}
+skinparam database {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+skinparam rectangle {
+  BorderColor #5E7A66
+  FontStyle bold
+}
+title RecyTrack — Vista de Desarrollo: Diagrama de Componentes (UML 2.5)
+
+rectangle "1. Capa de presentación" as L1 #FBFCFB {
+  rectangle "Pantallas por rol" as PANT #FFFFFF {
+    component VCOL [
+      **VistaColaborador**
+      --
+      Login · Register · UnirseArea
+      Home · ScanQR · Deposito
+      Reciclados · Ranking · Avisos · Perfil
+    ]
+    component VVAL [
+      **VistaValidador**
+      --
+      ValidadorScreen
+      ValidacionContenedores
+    ]
+    component VADM [
+      **PanelAdministrador**
+      --
+      Resumen · Contenedores
+      Personas y áreas · Rondas
+      Incentivo · Retiros y reporte
+    ]
+  }
+  component UI [
+    **ComponentesUI**
+    --
+    EscanerQR (jsQR) · CodigoQR
+    BannerAvisos · ReporteMensual
+  ]
+}
+
+rectangle "2. Capa de lógica (cliente)" as L2 #FBFCFB {
+  component PDF [
+    **GeneradorPDF**
+    --
+    certificado y reporte
+    (pdf-lib)
+  ]
+  component EST [
+    **EstadoRecyTrack**
+    --
+    state/EcoTrack.tsx
+    useEcoTrack()
+  ]
+  component LIB [
+    **LogicaPura**
+    --
+    derivados · rondas · retiros
+    incentivo · misiones · avisos
+  ]
+  interface IDocumentosPDF as IPDF
+  interface IEstado as IEST
+}
+
+rectangle "3. Capa de acceso a datos" as L3 #FBFCFB {
+  component SVC [
+    **ServiciosDatos**
+    --
+    auth · areas · personas · contenedores
+    registros · retiros · incidencias
+    campanas · resumenes · plantas
+  ]
+  component TIP [
+    **ModeloDominio** «library»
+    --
+    lib/tipos.ts · KG_POR_TALLA
+  ]
+  interface IRepositorio as IREP
+  interface ITiposDominio as ITIP
+}
+
+rectangle "4. Firebase (plan Spark)" as L4 #FBFCFB {
+  component AUTH [
+    **Firebase Authentication**
+  ]
+  component FSC [
+    **Cloud Firestore**
+    --
+    ReglasSeguridad (firestore.rules)
+    11 colecciones
+  ]
+  interface IAutenticacion as IAUTH
+  interface "IAccesoDatos (SDK)" as IFS
+}
+
+rectangle "5. Proveedores externos" as L5 #FBFCFB {
+  component GID [
+    **Google Identity**
+  ]
+  component MEI [
+    **Microsoft Entra ID**
+  ]
+}
+
+' ----- Interfaces provistas (lollipop)
+IPDF -down- PDF
+IEST -down- EST
+IREP -down- SVC
+ITIP -right- TIP
+IAUTH -down- AUTH
+IFS -down- FSC
+
+' ----- Orden horizontal dentro de cada capa
+UI -[hidden]right- PANT
+VCOL -[hidden]right- VVAL
+VVAL -[hidden]right- VADM
+PDF -[hidden]right- EST
+AUTH -[hidden]right- FSC
+GID -[hidden]right- MEI
+
+' ----- Columnas: apila las capas una bajo otra
+UI -[hidden]down- IPDF
+VADM -[hidden]down- LIB
+PDF -[hidden]down- SVC
+LIB -[hidden]down- TIP
+SVC -[hidden]down- IAUTH
+TIP -[hidden]down- IFS
+AUTH -[hidden]down- GID
+
+' ----- Dependencias (siempre hacia abajo o dentro de la misma capa)
+PANT .left.> UI : <<use>>
+PANT .down.> IEST : <<use>>
+PANT .down.> IPDF : <<use>>
+EST .left.> LIB : <<use>>
+EST .down.> IREP : <<use>>
+SVC .right.> ITIP : <<use>>
+LIB .down.> ITIP : <<use>>
+SVC .down.> IAUTH : <<use>>
+SVC .down.> IFS : <<use>>
+AUTH .down.> GID : <<OAuth 2.0>>
+AUTH .down.> MEI : <<OAuth 2.0>>
+
+note bottom of FSC
+  ReglasSeguridad se evalúa en el servidor
+  en cada lectura y escritura: es la única
+  lógica confiable (roles, cadena de
+  verificación, kilos por tabla).
+end note
+@enduml

@@ -1,0 +1,33 @@
+@startuml RecyTrack_01a_Casos_de_Uso_General
+!include uc_estilo.iuml
+title RecyTrack — Vista de Escenarios (+1)\nDiagrama de casos de uso general
+
+actor "Usuario\nautenticado" as U
+actor "Colaborador" as C
+actor "Validador" as V
+actor "Administrador\nde planta" as A
+actor "Proveedor de identidad\n(Google / Microsoft)" as PI
+
+U <|-- C
+U <|-- V
+U <|-- A
+
+rectangle "Sistema RecyTrack" {
+  usecase "CU-01 Acceder al sistema" as G1
+  usecase "CU-02 Registrar depósito\nen el punto limpio" as G2
+  usecase "CU-03 Consultar avance, ranking\ny certificado mensual" as G3
+  usecase "CU-04 Realizar ronda\ndiaria de validación" as G4
+  usecase "CU-05 Administrar la planta\n(contenedores, áreas, personas,\nincentivo)" as G5
+  usecase "CU-06 Registrar retiro\ny certificar depósitos" as G6
+  usecase "CU-07 Generar reporte\nmensual de la planta" as G7
+}
+
+U ---- G1
+C -- G2
+C -- G3
+V -- G4
+A -- G5
+A -- G6
+A -- G7
+G1 -- PI
+@enduml

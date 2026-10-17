@@ -1,0 +1,19 @@
+!include estilo.iuml
+skinparam sequence {
+  ParticipantBackgroundColor #E2EDE5
+  ParticipantBorderColor #3F5E48
+  ActorBackgroundColor #E2EDE5
+  ActorBorderColor #3F5E48
+  LifeLineBorderColor #8FA394
+  LifeLineBackgroundColor #CFE3D4
+  GroupBorderColor #5E7A66
+  GroupBackgroundColor #F2F6F3
+  BoxBorderColor #8FA394
+  MessageAlign center
+}
+skinparam BoundaryBackgroundColor #E2EDE5
+skinparam ControlBackgroundColor #E2EDE5
+skinparam EntityBackgroundColor #E2EDE5
+skinparam DatabaseBackgroundColor #E2EDE5
+skinparam responseMessageBelowArrow true
+autonumber "<b>0."

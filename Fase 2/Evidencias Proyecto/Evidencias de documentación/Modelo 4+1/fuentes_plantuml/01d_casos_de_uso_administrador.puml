@@ -1,0 +1,48 @@
+@startuml RecyTrack_01d_Casos_de_Uso_Administrador
+!include uc_estilo.iuml
+title RecyTrack — Casos de uso del Administrador de planta (CU-05, CU-06, CU-07)
+
+actor "Administrador\nde planta" as A
+
+rectangle "Panel web del administrador (RecyTrack)" {
+  usecase "Promoverse a administrador\ncon el código de la planta" as A1
+  usecase "Consultar resumen del mes" as A2
+  usecase "Gestionar contenedores\npor punto limpio" as A3
+  usecase "Imprimir QR\ndel contenedor" as A4
+  usecase "Cambiar código\ndel contenedor" as A5
+  usecase "Gestionar áreas\n(código y dotación)" as A6
+  usecase "Cambiar persona de área" as A7
+  usecase "Nombrar validador\ny suplente" as A8
+  usecase "Definir incentivo\n(meta de participación)" as A9
+  usecase "Consultar rondas del mes" as A10
+  usecase "Registrar retiro" as A11
+  usecase "Certificar depósitos\nvalidados" as A12
+  usecase "Revisar incidencias\nde contaminación" as A13
+  usecase "Descargar reporte\nmensual (PDF)" as A14
+}
+
+A -- A1
+A -- A2
+A -- A3
+A -- A6
+A -- A7
+A -- A8
+A -- A9
+A -- A10
+A -- A11
+A -- A14
+
+A3 <.. A4 : <<extend>>
+A3 <.. A5 : <<extend>>\n[el código\nse filtró]
+A11 ..> A12 : <<include>>
+A11 ..> A13 : <<include>>
+
+note bottom of A11
+  Quien retira físicamente el
+  material no usa la app.
+  Datos: fecha, quién retira,
+  N° de guía, contenedores y
+  peso opcional (con peso, la
+  masa figura como verificada).
+end note
+@enduml

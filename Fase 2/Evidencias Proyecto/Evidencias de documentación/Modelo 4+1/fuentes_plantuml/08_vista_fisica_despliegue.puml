@@ -1,0 +1,90 @@
+@startuml RecyTrack_08_Diagrama_de_Despliegue
+!include estilo.iuml
+skinparam linetype polyline
+skinparam nodesep 55
+skinparam ranksep 70
+skinparam node {
+  BackgroundColor #F7F9F7
+  BorderColor #3F5E48
+  FontStyle bold
+}
+skinparam artifact {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+skinparam cloud {
+  BackgroundColor #FBFCFB
+  BorderColor #5E7A66
+}
+skinparam database {
+  BackgroundColor #E2EDE5
+  BorderColor #3F5E48
+}
+left to right direction
+title RecyTrack — Vista Física: Diagrama de Despliegue
+
+node "Punto limpio\n(planta de Viñedos Familia Chadwick)" as PL <<device>> {
+  artifact "Etiqueta QR del contenedor\nECOTRACK:{plantaId}:{codigo}" as QRART
+}
+
+node "Celular del colaborador" as CEL <<device>> {
+  node "Navegador móvil\n(Chrome / Safari)" as NAVM <<executionEnvironment>> {
+    artifact "RecyTrack PWA\n(vista Colaborador)" as PWA1
+  }
+}
+
+node "Celular del validador" as CELV <<device>> {
+  node "Navegador móvil\n(Chrome / Safari)" as NAVV <<executionEnvironment>> {
+    artifact "RecyTrack PWA\n(vista Validador)" as PWA2
+  }
+}
+
+node "Computador del administrador" as PC <<device>> {
+  node "Navegador de escritorio" as NAVD <<executionEnvironment>> {
+    artifact "RecyTrack web\n(Panel del administrador)" as WEB
+  }
+  node "Impresora" as IMP <<device>>
+}
+
+cloud "Google Cloud — Proyecto Firebase ecotrack-capstone-3f12d (plan Spark)" as GCP {
+  node "Firebase Hosting (CDN)" as HOST <<executionEnvironment>> {
+    artifact "index.html" as A1
+    artifact "bundle JS (expo export --platform web)" as A2
+    artifact "manifest.json · íconos" as A3
+    artifact "/__/auth/ (manejador de inicio de sesión)" as A4
+  }
+  node "Firebase Authentication" as AUTH <<executionEnvironment>>
+  node "Cloud Firestore\n(southamerica-east1)" as FSN <<executionEnvironment>> {
+    artifact "firestore.rules" as RULES
+    database "Base de datos documental\n(11 colecciones)" as DB
+  }
+}
+
+node "Servidor de identidad de Google" as GID <<external>>
+node "Microsoft Entra ID" as MEI <<external>>
+
+node "Computador de desarrollo" as DEV <<device>> {
+  artifact "Repositorio Capstone-Ecotrack\n(GitHub)" as REPO
+  node "Firebase CLI · emulador de Firestore" as CLI <<executionEnvironment>>
+}
+
+PL -- CEL : <<cámara>>\nlee el QR
+PL -- CELV : <<inspección visual>>\nronda diaria
+PL -- IMP : <<impresión>>\netiqueta QR
+
+NAVM -- GCP : <<HTTPS>>\nHosting · Auth · Firestore\n(WebChannel, tiempo real)
+NAVV -- GCP : <<HTTPS>>
+NAVD -- GCP : <<HTTPS>>
+
+AUTH -- GID : <<OAuth 2.0 / OIDC>>
+AUTH -- MEI : <<OAuth 2.0 / OIDC>>
+
+DEV -- GCP : <<deploy>>\nfirebase deploy\n(hosting · firestore:rules)
+
+note right of FSN
+  Toda petición del navegador se evalúa contra
+  firestore.rules en el servidor antes de leer
+  o escribir. Sin Cloud Functions ni servidores
+  propios: costo de infraestructura cero.
+end note
+@enduml

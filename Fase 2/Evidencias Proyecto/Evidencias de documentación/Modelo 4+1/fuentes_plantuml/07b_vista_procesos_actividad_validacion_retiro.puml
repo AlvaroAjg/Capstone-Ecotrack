@@ -1,0 +1,78 @@
+@startuml RecyTrack_07b_Actividad_Validacion_y_Retiro
+!include act_estilo.iuml
+title RecyTrack — Vista de Procesos: Diagrama de Actividad (2 de 2)\nRonda de validación, retiro y certificación
+
+|#F4F8F5|Validador|
+start
+:Hora de la ronda diaria; <<input>>
+:Abrir las validaciones
+pendientes por contenedor;
+repeat :Revisar un contenedor;
+  if (¿Está lo declarado?) then (no)
+    :Rechazar los depósitos
+    (Sin material);
+  else (sí)
+    if (¿Hay material que
+    no corresponde?) then (sí)
+      :Indicar el contaminante
+      (Con observación);
+    else (no)
+      :Marcar Conforme;
+    endif
+  endif
+  |#FFFFFF|Sistema RecyTrack|
+  :Validar rol y estado
+  "pendiente" (reglas);
+  :Escribir el lote del
+  contenedor (atómico);
+  note right
+    Conforme → "validado"
+    Con observación → "validado"
+    + incidencia
+    Sin material → "rechazado"
+  end note
+  |Validador|
+repeat while (¿Quedan contenedores pendientes?) is (sí) not (no)
+:Terminar la ronda;
+
+|#F4F8F5|Administrador de planta|
+:El material sale de
+la planta; <<input>>
+:Abrir "Retiros y reporte"
+en el panel web;
+:Revisar advertencias
+de contaminación;
+:Elegir los contenedores
+retirados;
+:Ingresar fecha, quién retira,
+N° de guía y peso (opcionales);
+:Confirmar el retiro;
+
+|Sistema RecyTrack|
+fork
+  :Crear el retiro;
+fork again
+  :Certificar los depósitos
+  validados (código y retiro);
+fork again
+  :Dar por atendidas
+  las incidencias;
+end fork
+if (¿Cumple las reglas?) then (sí)
+  :Escribir el lote
+  (atómico);
+  :Avisar a cada colaborador:
+  "depósito certificado"; <<output>>
+  :Habilitar el certificado
+  mensual (PDF);
+else (no)
+  :Descartar el lote
+  (no se certifica nada);
+endif
+|Administrador de planta|
+:Ver el resultado
+del retiro;
+:Descargar el reporte
+mensual (PDF);
+stop
+@enduml
