@@ -4,7 +4,7 @@
 import { describe, test } from "node:test";
 import { assertFails, assertSucceeds } from "@firebase/rules-unit-testing";
 import { collection, deleteDoc, doc, getDoc, getDocs, query, setDoc, updateDoc, where } from "firebase/firestore";
-import { anonimo, como, usarEntorno } from "./comun.mjs";
+import { anonimo, como, comoCon, usarEntorno } from "./comun.mjs";
 
 usarEntorno();
 
@@ -189,6 +189,70 @@ describe("usuarios: promoción a administrador", () => {
 
   test("la validadora no se promueve sola", async () => {
     await assertFails(promover("vale"));
+  });
+});
+
+// ------------------------------------------------------- correo confirmado
+
+describe("usuarios: correo confirmado", () => {
+  const conContrasena = (uid, confirmado) => comoCon(uid, "password", confirmado);
+  const nueva = (cambios = {}) => ({
+    nombre: "Nueva",
+    email: "nueva@test.cl",
+    rol: "colaborador",
+    plantaId: null,
+    areaId: null,
+    areaNombre: null,
+    avisosVistosHasta: 0,
+    creadoEn: Date.now(),
+    ...cambios,
+  });
+  const promocion = {
+    rol: "administrador",
+    plantaId: "planta-a",
+    areaId: null,
+    areaNombre: null,
+    codigoRolUsado: "ADM-A",
+  };
+
+  test("se registra sin confirmar: el enlace llega después del registro", async () => {
+    await assertSucceeds(setDoc(doc(conContrasena("nueva", false), "usuarios/nueva"), nueva()));
+  });
+
+  test("sin confirmar no nace unida a un área", async () => {
+    await assertFails(
+      setDoc(doc(conContrasena("nueva", false), "usuarios/nueva"), nueva(unirse("embotellado", "Embotellado")))
+    );
+  });
+
+  test("sin confirmar no se une a un área", async () => {
+    await assertFails(
+      updateDoc(doc(conContrasena("beto", false), "usuarios/beto"), unirse("fermentacion", "Fermentación"))
+    );
+  });
+
+  test("con el correo confirmado sí se une", async () => {
+    await assertSucceeds(
+      updateDoc(doc(conContrasena("beto", true), "usuarios/beto"), unirse("fermentacion", "Fermentación"))
+    );
+  });
+
+  test("sin confirmar no se promueve a administrador, ni con el código", async () => {
+    await assertFails(updateDoc(doc(conContrasena("beto", false), "usuarios/beto"), promocion));
+  });
+
+  test("con el correo confirmado sí se promueve", async () => {
+    await assertSucceeds(updateDoc(doc(conContrasena("beto", true), "usuarios/beto"), promocion));
+  });
+
+  test("con Google o Microsoft no se pide: el proveedor ya comprobó el correo", async () => {
+    await assertSucceeds(
+      updateDoc(doc(comoCon("beto", "microsoft.com", false), "usuarios/beto"), unirse("fermentacion", "Fermentación"))
+    );
+  });
+
+  test("a quien ya está en un área no se le bloquea nada", async () => {
+    await assertSucceeds(updateDoc(doc(conContrasena("ana", false), "usuarios/ana"), { nombre: "Ana María" }));
   });
 });
 

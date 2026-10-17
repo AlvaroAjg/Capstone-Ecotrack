@@ -7,6 +7,8 @@ import {
   OAuthProvider,
   onAuthStateChanged,
   reauthenticateWithCredential,
+  reload,
+  sendEmailVerification,
   signInWithEmailAndPassword,
   signInWithPopup,
   signInWithRedirect,
@@ -74,7 +76,50 @@ export async function registrarCuenta(params: {
     creadoEn: Date.now(),
   });
 
+  // Si el envío falla, la cuenta ya está creada: la pantalla de verificación
+  // permite pedir el correo de nuevo.
+  await enviarVerificacionCorreo().catch(() => undefined);
+
   return credencial.user.uid;
+}
+
+/**
+ * Envía el enlace para confirmar el correo. Quien se registra con contraseña
+ * debe abrirlo antes de unirse a un área: así se sabe que el correo es suyo y
+ * no uno inventado. En la web, el enlace vuelve a esta misma página.
+ */
+export async function enviarVerificacionCorreo(): Promise<void> {
+  const usuario = auth.currentUser;
+  if (!usuario) throw new Error("No hay una sesión activa.");
+  auth.languageCode = "es";
+  await sendEmailVerification(
+    usuario,
+    Platform.OS === "web" ? { url: window.location.origin } : undefined
+  );
+}
+
+/**
+ * true si la cuenta entró con correo y contraseña y todavía no confirma su
+ * correo. Las de Google y Microsoft no: esos proveedores ya comprobaron que el
+ * correo es de la persona.
+ */
+export function debeVerificarCorreo(usuario: User | null): boolean {
+  return !!usuario && !usuario.emailVerified && proveedorExterno(usuario) === null;
+}
+
+/**
+ * Vuelve a preguntarle a Firebase si el correo ya se confirmó: el enlace se
+ * abre en otra pestaña o en otro equipo, y la sesión no se entera sola. Si ya
+ * se confirmó, renueva el token, porque las reglas de Firestore leen
+ * email_verified del token y el anterior todavía dice que no.
+ */
+export async function comprobarCorreoVerificado(): Promise<boolean> {
+  const usuario = auth.currentUser;
+  if (!usuario) return false;
+  await reload(usuario);
+  if (!usuario.emailVerified) return false;
+  await usuario.getIdToken(true);
+  return true;
 }
 
 /**
@@ -299,7 +344,9 @@ const MENSAJES: Record<string, string> = {
   "auth/email-already-in-use": "Ese correo ya tiene una cuenta en RecyTrack.",
   "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
   "auth/network-request-failed": "Sin conexión. Revisa tu internet e intenta de nuevo.",
-  "auth/too-many-requests": "Demasiados intentos fallidos. Espera un momento.",
+  "auth/too-many-requests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
+  "auth/unauthorized-continue-uri":
+    "Este sitio no está autorizado para enviar el correo de verificación. Agrégalo en Firebase → Authentication → Settings → Authorized domains.",
   "auth/operation-not-allowed":
     "Ese método de inicio de sesión no está habilitado en la consola de Firebase.",
   "auth/popup-closed-by-user": "Cerraste la ventana de inicio de sesión antes de terminar.",

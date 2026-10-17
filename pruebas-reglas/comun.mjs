@@ -157,6 +157,19 @@ export function como(uid) {
   return entorno.authenticatedContext(uid).firestore();
 }
 
+/**
+ * Firestore visto por un usuario que entró con un proveedor en particular
+ * ("password" es correo y contraseña), con el correo confirmado o no.
+ */
+export function comoCon(uid, proveedor, correoConfirmado) {
+  return entorno
+    .authenticatedContext(uid, {
+      email_verified: correoConfirmado,
+      firebase: { sign_in_provider: proveedor, identities: {} },
+    })
+    .firestore();
+}
+
 /** Firestore visto por alguien sin sesión. */
 export function anonimo() {
   return entorno.unauthenticatedContext().firestore();

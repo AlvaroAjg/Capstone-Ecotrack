@@ -9,6 +9,7 @@ import BannerAvisos from "./src/components/BannerAvisos";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import UnirseAreaScreen from "./src/screens/UnirseAreaScreen";
+import VerificarCorreoScreen from "./src/screens/VerificarCorreoScreen";
 import HomeScreen from "./src/screens/HomeScreen";
 import ValidadorScreen from "./src/screens/ValidadorScreen";
 import ScanQRScreen from "./src/screens/ScanQRScreen";
@@ -175,7 +176,7 @@ function CargandoSesion() {
 const ANCHO_ESCRITORIO = 1024;
 
 function Raiz() {
-  const { cargandoSesion, usuario } = useEcoTrack();
+  const { cargandoSesion, usuario, correoPorVerificar } = useEcoTrack();
   const { width } = useWindowDimensions();
   const esPantallaDeEscritorio = Platform.OS === "web" && width >= ANCHO_ESCRITORIO;
 
@@ -191,7 +192,9 @@ function Raiz() {
   // pertenecen a un área; el administrador, que ve la planta completa, no.
   const sinArea = usuario.rol !== "administrador" && !usuario.areaId;
   if (!usuario.plantaId || sinArea) {
-    return <UnirseAreaScreen />;
+    // Antes de unirse, quien se registró con contraseña confirma su correo.
+    // Solo se pide aquí: las cuentas que ya están en un área no se bloquean.
+    return correoPorVerificar ? <VerificarCorreoScreen /> : <UnirseAreaScreen />;
   }
 
   if (usuario.rol === "administrador") {
