@@ -159,6 +159,16 @@ function PilaAuth() {
 }
 
 /**
+ * Mientras se carga la sesión todavía no se sabe el rol. Va a pantalla completa
+ * como el login: si no, entre el login y el panel del administrador se alcanza a
+ * ver por un momento la app encogida al ancho de un teléfono.
+ */
+function CargandoSesion() {
+  usePantallaCompleta();
+  return <PantallaCargando mensaje="Conectando con RecyTrack..." />;
+}
+
+/**
  * Ancho desde el que el panel del administrador cabe con su menú lateral. Bajo
  * eso, o en la app nativa, el administrador no tiene una vista de escritorio.
  */
@@ -170,7 +180,7 @@ function Raiz() {
   const esPantallaDeEscritorio = Platform.OS === "web" && width >= ANCHO_ESCRITORIO;
 
   if (cargandoSesion) {
-    return <PantallaCargando mensaje="Conectando con RecyTrack..." />;
+    return <CargandoSesion />;
   }
 
   if (!usuario) {
