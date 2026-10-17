@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   ActivityIndicator,
   Platform,
@@ -314,23 +314,79 @@ export function Boton({
   );
 }
 
+/**
+ * El ojo de los campos de contraseña, dibujado con vistas para no depender de
+ * una librería de íconos. Tachado cuando la contraseña está a la vista.
+ */
+function Ojo({ tachado }: { tachado: boolean }) {
+  return (
+    <View style={{ width: 24, height: 24, alignItems: "center", justifyContent: "center" }}>
+      <View
+        style={{
+          width: 22,
+          height: 14,
+          borderRadius: 11,
+          borderWidth: 2,
+          borderColor: "#6B7280",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: "#6B7280" }} />
+      </View>
+      {tachado ? (
+        <View
+          style={{
+            position: "absolute",
+            width: 24,
+            height: 2,
+            borderRadius: 1,
+            backgroundColor: "#6B7280",
+            transform: [{ rotate: "-45deg" }],
+          }}
+        />
+      ) : null}
+    </View>
+  );
+}
+
 export function Campo({
   etiqueta,
   error,
   className = "",
+  secureTextEntry,
   ...props
 }: React.ComponentProps<typeof TextInput> & { etiqueta: string; error?: string }) {
+  // Las contraseñas llevan un ojo para mostrarlas: así se revisa lo escrito
+  // antes de enviarlo, sobre todo en el teléfono, donde es fácil equivocarse.
+  const [visible, setVisible] = useState(false);
+  const esContrasena = !!secureTextEntry;
+
   return (
     <View className="mb-3">
       <Text className="text-gray-500 text-xs mb-1 ml-1">{etiqueta}</Text>
-      <TextInput
-        placeholderTextColor="#B0B0B0"
-        accessibilityLabel={etiqueta}
-        className={`border rounded-xl px-4 py-3 bg-gray-50 ${
-          error ? "border-red-400" : "border-gray-200"
-        } ${className}`}
-        {...props}
-      />
+      <View className="justify-center">
+        <TextInput
+          placeholderTextColor="#B0B0B0"
+          accessibilityLabel={etiqueta}
+          secureTextEntry={esContrasena && !visible}
+          className={`border rounded-xl px-4 py-3 bg-gray-50 ${esContrasena ? "pr-14" : ""} ${
+            error ? "border-red-400" : "border-gray-200"
+          } ${className}`}
+          {...props}
+        />
+        {esContrasena ? (
+          <TouchableOpacity
+            onPress={() => setVisible((v) => !v)}
+            accessibilityRole="button"
+            accessibilityLabel={visible ? "Ocultar contraseña" : "Mostrar contraseña"}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            className="absolute right-3 p-1"
+          >
+            <Ojo tachado={visible} />
+          </TouchableOpacity>
+        ) : null}
+      </View>
       {error ? <Text className="text-red-500 text-xs mt-1 ml-1">{error}</Text> : null}
     </View>
   );
