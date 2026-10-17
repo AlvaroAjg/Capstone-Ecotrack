@@ -47,6 +47,16 @@ service cloud.firestore {
         && miPlanta() == plantaId;
     }
 
+    /**
+     * Quien entró con correo y contraseña ya abrió el enlace que le llegó al
+     * correo: así nadie entra a una planta con un correo inventado o ajeno.
+     * Google y Microsoft ya comprobaron que el correo es de la persona.
+     */
+    function correoConfirmado() {
+      return request.auth.token.firebase.sign_in_provider != 'password'
+        || request.auth.token.email_verified == true;
+    }
+
     /** Quien lee pertenece a la planta `plantaId`, con cualquier rol. */
     function dePlanta(plantaId) {
       return autenticado() && plantaId != null && miPlanta() == plantaId;
@@ -151,6 +161,8 @@ service cloud.firestore {
       // colaborador, sin área o ya unido a un área real. Nadie nace validador
       // ni administrador: al validador lo nombra el administrador, y para ser
       // administrador hay que presentar el código de la planta (más abajo).
+      // Sin área se crea antes de confirmar el correo (el enlace llega después
+      // del registro); con área, solo con el correo ya confirmado.
       allow create: if autenticado()
                     && request.auth.uid == uid
                     && request.resource.data.rol == 'colaborador'
@@ -159,9 +171,10 @@ service cloud.firestore {
                       (request.resource.data.get('plantaId', null) == null
                        && request.resource.data.get('areaId', null) == null)
                       ||
-                      areaDePlanta(request.resource.data.areaId,
-                                   request.resource.data.areaNombre,
-                                   request.resource.data.plantaId)
+                      (correoConfirmado()
+                       && areaDePlanta(request.resource.data.areaId,
+                                       request.resource.data.areaNombre,
+                                       request.resource.data.plantaId))
                     );
 
       allow update: if autenticado() && (
@@ -173,9 +186,10 @@ service cloud.firestore {
             // Un colaborador se une a un área con su código, pero solo si
             // todavía no tiene una. Cambiarse de área lo hace el administrador:
             // si cada quien pudiera, se pasaría al área que va perdiendo para
-            // inflarle la participación.
+            // inflarle la participación. Exige el correo confirmado.
             (
-              resource.data.rol == 'colaborador'
+              correoConfirmado()
+              && resource.data.rol == 'colaborador'
               && resource.data.get('areaId', null) == null
               && soloCambia(['plantaId', 'areaId', 'areaNombre'])
               && areaDePlanta(request.resource.data.areaId,
@@ -185,8 +199,10 @@ service cloud.firestore {
             ||
             // Promoción a administrador de una planta: solo con su código. El
             // administrador no compite (no deposita), así que queda sin área.
+            // También exige el correo confirmado.
             (
-              resource.data.rol == 'colaborador'
+              correoConfirmado()
+              && resource.data.rol == 'colaborador'
               && request.resource.data.rol == 'administrador'
               && soloCambia(['rol', 'plantaId', 'areaId', 'areaNombre', 'codigoRolUsado'])
               && request.resource.data.get('areaId', null) == null
