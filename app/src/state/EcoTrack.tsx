@@ -75,6 +75,8 @@ interface EcoTrackValor {
   usuario: Usuario | null;
   miPlanta: Planta | null;
   errorDatos: string | null;
+  /** Entró con contraseña y todavía no abre el enlace que le llegó al correo. */
+  correoPorVerificar: boolean;
 
   // Datos en vivo desde Firestore
   /** Todas las plantas: para elegir una al promoverse a administrador. */
@@ -126,6 +128,10 @@ interface EcoTrackValor {
   iniciarSesion: (email: string, password: string) => Promise<void>;
   iniciarSesionConProveedor: (proveedor: servicioAuth.ProveedorExterno) => Promise<void>;
   registrarCuenta: (datos: { nombre: string; email: string; password: string }) => Promise<void>;
+  /** Vuelve a enviar el enlace para confirmar el correo. */
+  reenviarVerificacion: () => Promise<void>;
+  /** true si el correo ya se confirmó: desde ahí deja de pedirse. */
+  comprobarVerificacion: () => Promise<boolean>;
   /** El área de un código, para mostrar su nombre antes de unirse. */
   buscarArea: (codigo: string) => Promise<Area | null>;
   unirseAArea: (area: Area) => Promise<void>;
@@ -157,6 +163,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
   const [cargandoSesion, setCargandoSesion] = useState(true);
   const [uid, setUid] = useState<string | null>(null);
   const [usuario, setUsuario] = useState<Usuario | null>(null);
+  const [correoPorVerificar, setCorreoPorVerificar] = useState(false);
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [plantas, setPlantas] = useState<Planta[]>([]);
   const [areas, setAreas] = useState<Area[]>([]);
@@ -183,6 +190,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     return servicioAuth.escucharSesion((u) => {
       usuarioAuthRef.current = u;
       setUid(u?.uid ?? null);
+      setCorreoPorVerificar(servicioAuth.debeVerificarCorreo(u));
       if (!u) {
         setUsuario(null);
         setCargandoSesion(false);
@@ -331,6 +339,14 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     },
     []
   );
+
+  const reenviarVerificacion = useCallback(() => servicioAuth.enviarVerificacionCorreo(), []);
+
+  const comprobarVerificacion = useCallback(async () => {
+    const verificado = await servicioAuth.comprobarCorreoVerificado();
+    if (verificado) setCorreoPorVerificar(false);
+    return verificado;
+  }, []);
 
   const buscarArea = useCallback(
     (codigo: string) => servicioAreas.buscarAreaPorCodigo(codigo),
@@ -527,6 +543,7 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     usuario,
     miPlanta,
     errorDatos,
+    correoPorVerificar,
     plantas,
     areas,
     registros,
@@ -551,6 +568,8 @@ export function EcoTrackProvider({ children }: { children: React.ReactNode }) {
     iniciarSesion,
     iniciarSesionConProveedor,
     registrarCuenta,
+    reenviarVerificacion,
+    comprobarVerificacion,
     buscarArea,
     unirseAArea,
     promoverAAdministrador,
