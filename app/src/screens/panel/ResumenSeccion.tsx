@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Text, View } from "react-native";
+import { View } from "react-native";
 import { useEcoTrack, type Campana, type FilaRanking } from "../../state/EcoTrack";
 import { diaYMes, formatKg } from "../../lib/formato";
 import { etiquetaMes, mesDe } from "../../lib/certificadoMensual";
@@ -7,35 +7,28 @@ import { mesesReportables, reporteDePlanta } from "../../lib/reportePlanta";
 import { descargarReporte, reportePdfDisponible } from "../../lib/reportePdf";
 import { avanceAreas } from "../../lib/incentivo";
 import { avisar, textoDeError } from "../../lib/dialogos";
-import type { Material } from "../../lib/tipos";
 import {
   indicadoresDelMes,
   kilosPorMaterial,
   rondaDeHoy,
   validadosPorSemana,
-  type EstadoRonda,
   type FilaRonda,
   type KilosMaterial,
   type Semana,
 } from "../../lib/resumenPanel";
-import { Boton, Chip } from "../../components/ui";
-
-/** Los mismos nombres que usa el validador (ver ValidacionContenedores). */
-const ASPECTO_RONDA: Record<EstadoRonda, { texto: string; fondo: string; color: string }> = {
-  conforme: { texto: "Conforme", fondo: "bg-green-100", color: "text-green-800" },
-  observacion: { texto: "Con observación", fondo: "bg-amber-100", color: "text-amber-800" },
-  sinMaterial: { texto: "Sin material", fondo: "bg-red-100", color: "text-red-800" },
-  pendiente: { texto: "Pendiente", fondo: "bg-gray-100", color: "text-gray-600" },
-  vacio: { texto: "Sin depósitos", fondo: "bg-gray-50", color: "text-gray-400" },
-};
-
-/** Un color por material, que se distingan también por claridad y no solo por tono. */
-const COLOR_MATERIAL: Record<Material, string> = {
-  "Plástico": "#ca8a04",
-  "Papel/cartón": "#2563eb",
-  "Vidrio": "#15803d",
-  "Metal": "#4b5563",
-};
+import {
+  Bloque,
+  BotonPanel,
+  ESTADO_RONDA,
+  EncabezadoBloque,
+  EncabezadoSeccion,
+  Icono,
+  Insignia,
+  Pildoras,
+  Texto,
+  Titulo,
+  colorMaterial,
+} from "./estilo";
 
 function hora(t: number): string {
   return new Date(t).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
@@ -48,10 +41,17 @@ function mesCorto(mes: string): string {
 }
 
 /**
- * Resumen de la planta en el mes elegido: indicadores, ranking de áreas,
- * depósitos por semana y por material, la campaña y, si es el mes en curso,
- * la ronda de hoy. Se calcula con lo que el estado ya escucha en vivo (ver
- * lib/resumenPanel.ts y lib/reportePlanta.ts).
+ * Hasta cuántas personas se dibujan como puntos en las hileras de
+ * participación. Un área más grande se muestra como barra: tantos puntos ya no
+ * caben en la fila.
+ */
+const MAXIMO_PUNTOS = 60;
+
+/**
+ * Resumen de la planta en el mes elegido: indicadores, participación de cada
+ * área, depósitos por semana y por material, la campaña y, si es el mes en
+ * curso, la ronda de hoy. Se calcula con lo que el estado ya escucha en vivo
+ * (ver lib/resumenPanel.ts y lib/reportePlanta.ts).
  */
 export default function ResumenSeccion() {
   const { miPlanta, areas, registros, incidencias, retiros, contenedores, ranking, campana } =
@@ -103,14 +103,8 @@ export default function ResumenSeccion() {
     }
   }
 
-  const participantes = `${reporte?.participantes ?? 0} de ${reporte?.dotacion ?? 0} personas`;
+  const nombreMes = etiquetaMes(mes).split(" ")[0];
   const indicadores = [
-    {
-      etiqueta: "Participación",
-      valor: `${reporte?.participacion ?? 0}%`,
-      detalle: `${participantes} reciclaron ${enCurso ? "este mes" : "ese mes"}`,
-      color: "text-green-700",
-    },
     {
       etiqueta: "Depósitos validados",
       valor: `${ind.validados}`,
@@ -119,19 +113,19 @@ export default function ResumenSeccion() {
         : ind.porValidar > 0
           ? `${ind.porValidar} esperan la ronda`
           : "Ninguno espera la ronda",
-      color: "text-gray-900",
+      alerta: false,
     },
     {
       etiqueta: "Kilos estimados",
       valor: formatKg(ind.kgEstimados),
       detalle: "Validados, según la talla de bolsa declarada",
-      color: "text-gray-900",
+      alerta: false,
     },
     {
       etiqueta: "Rondas hechas",
-      valor: `${ind.rondas}/${ind.diasHabiles}`,
+      valor: `${ind.rondas} de ${ind.diasHabiles}`,
       detalle: `Días con ronda, de ${ind.diasHabiles} días hábiles${enCurso ? " hasta hoy" : ""}`,
-      color: ind.diasHabiles > 0 && ind.rondas >= ind.diasHabiles ? "text-green-700" : "text-gray-900",
+      alerta: false,
     },
     {
       etiqueta: "Con observación",
@@ -140,61 +134,73 @@ export default function ResumenSeccion() {
         ind.lotesRevisados > 0
           ? `De ${ind.lotesRevisados} lotes revisados · ${ind.sinMaterial} sin material`
           : "Todavía no hay lotes revisados",
-      color: ind.conObservacion > 0 ? "text-amber-700" : "text-gray-900",
+      alerta: ind.conObservacion > 0,
     },
   ];
 
   return (
     <View>
-      <View className="flex-row items-center justify-between mb-5">
-        <View className="flex-row flex-wrap items-center flex-1 pr-4">
-          {meses.map((m) => (
-            <Chip key={m} texto={mesCorto(m)} activo={m === mes} alPresionar={() => setMes(m)} />
-          ))}
-        </View>
-        {reportePdfDisponible && reporte ? (
-          <Boton
-            titulo={generando ? "Generando..." : "Reporte del mes (PDF)"}
-            icono="📄"
-            cargando={generando}
-            onPress={descargar}
-            className="py-3 px-5"
-          />
-        ) : null}
-      </View>
+      <EncabezadoSeccion
+        titulo={`Resumen de ${nombreMes}`}
+        detalle={enCurso ? "Mes en curso, con los datos de hoy." : `Mes cerrado: ${etiquetaMes(mes)}.`}
+        acciones={
+          reportePdfDisponible && reporte ? (
+            <BotonPanel
+              titulo={generando ? "Generando..." : "Descargar reporte del mes"}
+              icono="descargar"
+              cargando={generando}
+              onPress={descargar}
+            />
+          ) : null
+        }
+      />
 
-      <View className="flex-row -mx-2 mb-5">
+      {meses.length > 1 ? (
+        <View className="mb-4">
+          <Pildoras opciones={meses.map((m) => ({ valor: m, etiqueta: mesCorto(m) }))} valor={mes} alCambiar={setMes} />
+        </View>
+      ) : null}
+
+      <Bloque className="flex-row items-stretch px-2 mb-6">
+        <View className="flex-[1.5] flex-row items-center px-6">
+          <Titulo className="text-oliva text-[60px] leading-[62px]">{reporte?.participacion ?? 0}%</Titulo>
+          <View className="flex-1 ml-4">
+            <Texto className="text-tinta text-[15px] font-bold">Participación de la planta</Texto>
+            <Texto className="text-tinta-suave text-[13px] mt-1 leading-[18px]">
+              {reporte?.participantes ?? 0} de {reporte?.dotacion ?? 0} personas reciclaron al menos una vez{" "}
+              {enCurso ? "este mes" : "ese mes"}
+            </Texto>
+          </View>
+        </View>
         {indicadores.map((k) => (
-          <View key={k.etiqueta} className="flex-1 px-2">
-            <View className="bg-white border border-gray-100 rounded-2xl shadow-sm px-5 py-4 h-full">
-              <Text className="text-gray-600 text-sm font-medium">{k.etiqueta}</Text>
-              <Text className={`text-3xl font-bold mt-1 ${k.color}`}>{k.valor}</Text>
-              <Text className="text-gray-500 text-xs mt-1 leading-4">{k.detalle}</Text>
-            </View>
+          <View key={k.etiqueta} className="flex-1 justify-center px-5 border-l border-piedra-borde">
+            <Titulo className={`text-[32px] leading-[36px] ${k.alerta ? "text-ambar-oscuro" : "text-tinta"}`}>
+              {k.valor}
+            </Titulo>
+            <Texto className="text-tinta-media text-[13px] font-semibold mt-0.5">{k.etiqueta}</Texto>
+            <Texto className="text-tinta-suave text-xs mt-0.5">{k.detalle}</Texto>
           </View>
         ))}
-      </View>
+      </Bloque>
 
-      {/* La analítica va a la izquierda y la ronda de hoy a la derecha: la
-          ronda crece con los contenedores de la planta, y así no deja un
-          hueco bajo el ranking. */}
-      <View className="flex-row items-start">
-        <View className="flex-1 min-w-0">
-          <RankingAreas ranking={rankingMes} />
-          <View className="flex-row items-stretch mt-5">
-            <View className="flex-1 min-w-0 mr-5">
-              <GraficoSemanas semanas={semanas} />
-            </View>
-            <View className="flex-1 min-w-0">
-              <PorMaterial materiales={materiales} />
-            </View>
-          </View>
+      <View className="flex-row items-start mb-6">
+        <View className="flex-1 min-w-0 mr-7">
+          <HilerasParticipacion ranking={rankingMes} enCurso={enCurso} />
+        </View>
+        <View className="w-[360px]">
+          <GraficoSemanas semanas={semanas} />
           <View className="mt-5">
-            <TarjetaCampana campana={campana} ranking={ranking} />
+            <PorMaterial materiales={materiales} />
           </View>
         </View>
+      </View>
+
+      <View className="flex-row items-start">
+        <View className="flex-1 min-w-0">
+          <TarjetaCampana campana={campana} ranking={ranking} />
+        </View>
         {enCurso ? (
-          <View className="w-[380px] ml-5">
+          <View className="w-[360px] ml-7">
             <RondaDeHoy filas={ronda} />
           </View>
         ) : null}
@@ -203,33 +209,94 @@ export default function ResumenSeccion() {
   );
 }
 
+/**
+ * Una hilera por área: un punto por persona de su dotación, lleno si recicló
+ * en el mes. Se lee de un vistazo cuánta gente falta en cada área, que es lo
+ * que mide la campaña.
+ */
+function HilerasParticipacion({ ranking, enCurso }: { ranking: FilaRanking[]; enCurso: boolean }) {
+  return (
+    <Bloque>
+      <EncabezadoBloque
+        titulo="Participación por área"
+        detalle={`Cada punto es una persona del área. Lleno: recicló ${enCurso ? "este" : "ese"} mes.`}
+        derecha={
+          <View className="flex-row items-center">
+            <View className="w-[9px] h-[9px] rounded-full bg-oliva mr-1.5" />
+            <Texto className="text-tinta-media text-xs mr-3.5">Recicló</Texto>
+            <View className="w-[9px] h-[9px] rounded-full border-[1.5px] border-piedra-punto mr-1.5" />
+            <Texto className="text-tinta-media text-xs">Aún no</Texto>
+          </View>
+        }
+      />
+      {ranking.length === 0 ? (
+        <Texto className="text-tinta-suave text-sm">Todavía no hay áreas en la planta.</Texto>
+      ) : (
+        ranking.map((a, i) => (
+          <View key={a.areaId} className="flex-row items-center min-h-[46px] py-1.5 border-t border-piedra-linea">
+            <Titulo className={`w-[26px] text-[18px] ${i < 3 ? "text-oliva" : "text-[#8B8589]"}`}>{i + 1}</Titulo>
+            <View className="w-[180px] pr-3">
+              <Texto className="text-tinta text-sm font-semibold" numberOfLines={1}>
+                {a.nombre}
+              </Texto>
+              <Texto className="text-tinta-suave text-[11px]">
+                {a.participantes} de {a.dotacion} personas
+              </Texto>
+            </View>
+            <View className="flex-1 min-w-0">
+              {a.dotacion <= MAXIMO_PUNTOS ? (
+                <View className="flex-row flex-wrap items-center">
+                  {Array.from({ length: a.dotacion }, (_, k) => (
+                    <View
+                      key={k}
+                      className={`w-[9px] h-[9px] rounded-full m-[1.5px] ${
+                        k < a.participantes ? "bg-oliva" : "border-[1.5px] border-piedra-punto"
+                      }`}
+                    />
+                  ))}
+                </View>
+              ) : (
+                <View className="h-2.5 bg-piedra-linea rounded-full overflow-hidden">
+                  <View className="h-2.5 bg-oliva rounded-full" style={{ width: `${a.participacion}%` }} />
+                </View>
+              )}
+            </View>
+            <Titulo className="w-[60px] text-right text-tinta text-[21px]">{a.participacion}%</Titulo>
+          </View>
+        ))
+      )}
+    </Bloque>
+  );
+}
+
 /** Barras de los depósitos validados en cada semana del mes. */
 function GraficoSemanas({ semanas }: { semanas: Semana[] }) {
   const maximo = Math.max(1, ...semanas.map((s) => s.validados));
   return (
-    <Tablero titulo="Depósitos validados por semana">
-      <View className="flex-row items-end justify-around h-40 border-b border-gray-200">
+    <Bloque>
+      <Texto className="text-tinta text-[15px] font-bold mb-3">Depósitos validados por semana</Texto>
+      <View className="flex-row items-end h-[120px] border-b border-piedra-borde">
         {semanas.map((s) => (
-          <View key={s.etiqueta} className="items-center" style={{ width: 52 }}>
-            <Text className="text-gray-800 text-xs font-bold mb-1">{s.futura ? "" : s.validados}</Text>
+          <View key={s.etiqueta} className="flex-1 items-center mx-1.5">
+            <Titulo className="text-tinta text-base mb-1">{s.futura ? "" : s.validados}</Titulo>
             <View
-              className={`w-9 rounded-t-lg ${s.enCurso ? "bg-green-300" : "bg-green-700"}`}
-              style={{ height: s.futura ? 0 : Math.max(2, Math.round((s.validados / maximo) * 120)) }}
+              className={`w-full rounded-t-lg ${s.enCurso ? "bg-oliva-medio" : "bg-oliva"}`}
+              style={{ height: s.futura ? 0 : Math.max(2, Math.round((s.validados / maximo) * 86)) }}
             />
           </View>
         ))}
       </View>
-      <View className="flex-row justify-around mt-2">
+      <View className="flex-row mt-2">
         {semanas.map((s) => (
-          <View key={s.etiqueta} className="items-center" style={{ width: 52 }}>
-            <Text className={`text-[11px] text-center ${s.futura ? "text-gray-300" : "text-gray-600"}`}>
+          <View key={s.etiqueta} className="flex-1 items-center mx-1.5">
+            <Texto className={`text-[11px] text-center ${s.futura ? "text-piedra-punto" : "text-tinta-media"}`}>
               {s.etiqueta}
-            </Text>
-            {s.enCurso ? <Text className="text-gray-400 text-[10px]">en curso</Text> : null}
+            </Texto>
+            {s.enCurso ? <Texto className="text-tinta-suave text-[11px]">en curso</Texto> : null}
           </View>
         ))}
       </View>
-    </Tablero>
+    </Bloque>
   );
 }
 
@@ -237,37 +304,41 @@ function GraficoSemanas({ semanas }: { semanas: Semana[] }) {
 function PorMaterial({ materiales }: { materiales: KilosMaterial[] }) {
   const total = materiales.reduce((t, m) => t + m.kg, 0);
   return (
-    <Tablero titulo="Por material" etiqueta={`${formatKg(total)} · estimado`}>
+    <Bloque>
+      <View className="flex-row items-baseline justify-between mb-3">
+        <Texto className="text-tinta text-[15px] font-bold">Por material</Texto>
+        <Texto className="text-tinta-suave text-xs">{formatKg(total)} estimados</Texto>
+      </View>
       {materiales.length === 0 ? (
-        <Text className="text-gray-500 text-sm">Todavía no hay depósitos validados en el mes.</Text>
+        <Texto className="text-tinta-suave text-sm">Todavía no hay depósitos validados en el mes.</Texto>
       ) : (
-        materiales.map((m) => (
-          <View key={m.material} className="mb-3">
-            <View className="flex-row justify-between mb-1">
-              <View className="flex-row items-center">
-                <View
-                  className="w-2.5 h-2.5 rounded-sm mr-2"
-                  style={{ backgroundColor: COLOR_MATERIAL[m.material] }}
-                />
-                <Text className="text-gray-800 text-sm font-medium">{m.material}</Text>
-              </View>
-              <Text className="text-gray-700 text-sm">
-                <Text className="font-bold">{formatKg(m.kg)}</Text> · {m.porcentaje}%
-              </Text>
-            </View>
-            <View className="h-2 bg-gray-200 rounded-full overflow-hidden">
+        <>
+          <View className="flex-row h-[18px] rounded-md overflow-hidden mb-3" aria-hidden>
+            {materiales.map((m, i) => (
               <View
-                className="h-2 rounded-full"
-                style={{ width: `${m.porcentaje}%`, backgroundColor: COLOR_MATERIAL[m.material] }}
+                key={m.material}
+                style={{
+                  width: `${m.porcentaje}%`,
+                  backgroundColor: colorMaterial(m.material),
+                  marginLeft: i > 0 ? 2 : 0,
+                }}
               />
-            </View>
+            ))}
           </View>
-        ))
+          <View className="flex-row flex-wrap">
+            {materiales.map((m) => (
+              <View key={m.material} className="w-1/2 flex-row items-center mb-2 pr-2">
+                <View className="w-2.5 h-2.5 rounded-[3px] mr-2" style={{ backgroundColor: colorMaterial(m.material) }} />
+                <Texto className="text-tinta-media text-[13px] flex-1" numberOfLines={1}>
+                  {m.material} <Texto className="text-tinta font-bold">{formatKg(m.kg)}</Texto> · {m.porcentaje}%
+                </Texto>
+              </View>
+            ))}
+          </View>
+        </>
       )}
-      <Text className="text-gray-400 text-xs mt-1">
-        Kilos estimados = talla declarada × factor del material.
-      </Text>
-    </Tablero>
+      <Texto className="text-tinta-suave text-xs mt-1">Kilos estimados = talla declarada × factor del material.</Texto>
+    </Bloque>
   );
 }
 
@@ -275,107 +346,65 @@ function PorMaterial({ materiales }: { materiales: KilosMaterial[] }) {
 function TarjetaCampana({ campana, ranking }: { campana: Campana | null; ranking: FilaRanking[] }) {
   if (!campana || campana.terminaEn < Date.now()) {
     return (
-      <Tablero titulo="Campaña activa">
-        <Text className="text-gray-500 text-sm">
-          No hay una campaña vigente. Créala en la sección Incentivo para que los colaboradores la vean.
-        </Text>
-      </Tablero>
+      <View className="bg-ambar-claro rounded-[20px] px-6 py-5">
+        <Texto className="text-ambar-oscuro text-xs font-semibold">Campaña activa</Texto>
+        <Texto className="text-ambar-profundo text-sm mt-1">
+          No hay una campaña vigente. Créala en Campañas para que los colaboradores la vean.
+        </Texto>
+      </View>
     );
   }
   const avance = avanceAreas(campana.metaParticipacion, ranking);
   const cumplen = avance.filter((a) => a.cumple).length;
   return (
-    <Tablero titulo="Campaña activa" etiqueta={`Termina el ${diaYMes(campana.terminaEn)}`}>
-      <Text className="text-gray-900 font-semibold mb-2">{campana.nombre}</Text>
-      <View className="flex-row justify-between mb-1">
-        <Text className="text-gray-600 text-sm">Meta: {campana.metaParticipacion}% por área</Text>
-        <Text className="text-green-700 text-sm font-bold">
+    <View className="bg-ambar-claro rounded-[20px] px-6 py-5">
+      <View className="flex-row items-baseline justify-between">
+        <Texto className="text-ambar-oscuro text-xs font-semibold">
+          Campaña activa · termina el {diaYMes(campana.terminaEn)}
+        </Texto>
+        <Titulo className="text-[20px]">
           {cumplen} de {avance.length} áreas
-        </Text>
+        </Titulo>
       </View>
-      <View className="h-2 bg-gray-200 rounded-full overflow-hidden mb-3">
+      <Titulo className="text-[24px] leading-[28px] mt-1">{campana.nombre}</Titulo>
+      <View className="h-2 bg-ambar-medio rounded-full overflow-hidden mt-3">
         <View
-          className="h-2 bg-green-700 rounded-full"
+          className="h-2 bg-ambar rounded-full"
           style={{ width: `${avance.length > 0 ? Math.round((cumplen / avance.length) * 100) : 0}%` }}
         />
       </View>
-      <View className="bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
-        <Text className="text-amber-900 text-sm">🏆 {campana.incentivo}</Text>
+      <View className="flex-row items-center mt-3">
+        <Icono nombre="regalo" tamano={18} color="#A8732F" />
+        <Texto className="text-ambar-profundo text-sm ml-2 flex-1">
+          {campana.incentivo} · meta {campana.metaParticipacion}% por área
+        </Texto>
       </View>
-    </Tablero>
-  );
-}
-
-function Tablero({
-  titulo,
-  etiqueta,
-  children,
-}: {
-  titulo: string;
-  etiqueta?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <View className="bg-white border border-gray-100 rounded-2xl shadow-sm px-6 py-5">
-      <View className="flex-row items-center justify-between mb-4">
-        <Text className="text-gray-800 text-base font-semibold">{titulo}</Text>
-        {etiqueta ? (
-          <View className="bg-gray-200 rounded-full px-3 py-1">
-            <Text className="text-gray-600 text-xs font-medium">{etiqueta}</Text>
-          </View>
-        ) : null}
-      </View>
-      {children}
     </View>
   );
 }
 
-function RankingAreas({ ranking }: { ranking: FilaRanking[] }) {
-  return (
-    <Tablero titulo="Ranking de áreas" etiqueta="% de personas del área que reciclaron este mes">
-      {ranking.length === 0 ? (
-        <Text className="text-gray-500 text-sm">Todavía no hay áreas en la planta.</Text>
-      ) : (
-        ranking.map((a, i) => (
-          <View key={a.areaId} className="flex-row items-center h-9">
-            <Text
-              className={`w-6 text-right text-sm font-bold mr-3 ${i < 3 ? "text-green-700" : "text-gray-500"}`}
-            >
-              {i + 1}
-            </Text>
-            <Text className="w-48 text-gray-800 text-sm font-medium mr-3" numberOfLines={1}>
-              {a.nombre}
-            </Text>
-            <View className="flex-1 h-2.5 bg-gray-200 rounded-full overflow-hidden">
-              <View className="h-2.5 bg-green-700 rounded-full" style={{ width: `${a.participacion}%` }} />
-            </View>
-            <Text className="w-12 text-right text-gray-900 text-sm font-bold">{a.participacion}%</Text>
-            <Text className="w-28 text-right text-gray-500 text-xs">
-              {a.participantes} de {a.dotacion} personas
-            </Text>
-          </View>
-        ))
-      )}
-    </Tablero>
-  );
-}
-
-export function RondaDeHoy({ filas }: { filas: FilaRonda[] }) {
+/** La ronda de hoy, un contenedor por fila. */
+function RondaDeHoy({ filas }: { filas: FilaRonda[] }) {
   const porRevisar = filas.filter((f) => f.estado !== "vacio");
   const revisados = porRevisar.filter((f) => f.estado !== "pendiente").length;
 
   return (
-    <Tablero
-      titulo="Ronda de hoy"
-      etiqueta={porRevisar.length > 0 ? `${revisados} de ${porRevisar.length} revisados` : undefined}
-    >
+    <Bloque>
+      <View className="flex-row items-baseline justify-between mb-2">
+        <Titulo className="text-[22px]">Ronda de hoy</Titulo>
+        {porRevisar.length > 0 ? (
+          <Texto className="text-tinta-suave text-xs">
+            {revisados} de {porRevisar.length} revisados
+          </Texto>
+        ) : null}
+      </View>
       {filas.length === 0 ? (
-        <Text className="text-gray-500 text-sm">La planta todavía no tiene contenedores.</Text>
+        <Texto className="text-tinta-suave text-sm">La planta todavía no tiene contenedores.</Texto>
       ) : (
         // Los contenedores sin nada que revisar van en una sola línea al final:
         // con muchos contenedores, listarlos todos tapaba lo importante.
         porRevisar.map((f) => {
-          const aspecto = ASPECTO_RONDA[f.estado];
+          const estado = ESTADO_RONDA[f.estado];
           const detalle =
             f.revisadoEn !== null
               ? `${f.revisados} depósito${f.revisados === 1 ? "" : "s"} · ${hora(f.revisadoEn)}`
@@ -383,26 +412,24 @@ export function RondaDeHoy({ filas }: { filas: FilaRonda[] }) {
                 ? `${f.pendientes} por validar`
                 : "Nada que revisar";
           return (
-            <View key={f.codigo} className="flex-row items-center justify-between py-3 border-t border-gray-100">
+            <View key={f.codigo} className="flex-row items-center justify-between py-2.5 border-t border-piedra-linea">
               <View className="flex-1 min-w-0 pr-2">
-                <Text className="text-gray-800 text-sm font-medium" numberOfLines={1}>
+                <Texto className="text-tinta text-sm font-semibold" numberOfLines={1}>
                   {f.punto || "Sin punto"} · {f.nombre}
-                </Text>
-                <Text className="text-gray-500 text-xs mt-0.5">{detalle}</Text>
+                </Texto>
+                <Texto className="text-tinta-suave text-xs mt-0.5">{detalle}</Texto>
               </View>
-              <View className={`rounded-full px-2.5 py-1 ${aspecto.fondo}`}>
-                <Text className={`text-xs font-semibold ${aspecto.color}`}>{aspecto.texto}</Text>
-              </View>
+              <Insignia texto={estado.texto} tono={estado.tono} />
             </View>
           );
         })
       )}
       {filas.length > porRevisar.length ? (
-        <Text className="text-gray-400 text-xs pt-3 border-t border-gray-100">
+        <Texto className="text-tinta-suave text-xs pt-3 border-t border-piedra-linea">
           {filas.length - porRevisar.length} contenedor{filas.length - porRevisar.length === 1 ? "" : "es"} sin
           depósitos que revisar hoy.
-        </Text>
+        </Texto>
       ) : null}
-    </Tablero>
+    </Bloque>
   );
 }
