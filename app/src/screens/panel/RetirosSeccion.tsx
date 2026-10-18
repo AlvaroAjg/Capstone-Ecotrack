@@ -1,13 +1,25 @@
 import React, { useMemo, useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import { nombreContenedor } from "../../lib/tipos";
 import { retirosDelMes, validarRetiro } from "../../lib/retiros";
 import { textoFecha } from "../../lib/incentivo";
 import { fechaCorta, formatKg, tiempoRelativo } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
-import ReporteMensual from "../../components/ReporteMensual";
-import { Boton, Campo, Tarjeta } from "../../components/ui";
+import ReporteMensual from "./ReporteMensual";
+import {
+  Bloque,
+  BotonPanel,
+  CampoPanel,
+  EncabezadoBloque,
+  EncabezadoSeccion,
+  Icono,
+  Insignia,
+  Texto,
+} from "./estilo";
+
+/** Desde este ancho, el reporte va al lado de los retiros; bajo él, debajo. */
+const ANCHO_DOS_COLUMNAS = 1280;
 
 /**
  * Retiros: el administrador confirma que se fue el material de unos
@@ -17,22 +29,30 @@ import { Boton, Campo, Tarjeta } from "../../components/ui";
  */
 export default function RetirosSeccion() {
   const { miPlanta, areas, registros, incidencias, retiros } = useEcoTrack();
+  const dosColumnas = useWindowDimensions().width >= ANCHO_DOS_COLUMNAS;
   return (
-    <View className="max-w-[1100px]">
-      <FormularioRetiro />
-      <HistorialRetiros />
-      {miPlanta ? (
-        <View className="max-w-[720px]">
-          <Text className="text-gray-800 text-base font-semibold mb-3">Reporte mensual</Text>
-          <ReporteMensual
-            planta={miPlanta}
-            areas={areas}
-            registros={registros}
-            incidencias={incidencias}
-            retiros={retiros}
-          />
+    <View>
+      <EncabezadoSeccion
+        titulo="Retiros y reportes"
+        detalle="Quién retiró, cuándo y con qué guía. Desde aquí sale el reporte mensual de la planta."
+      />
+      <View className={dosColumnas ? "flex-row items-start" : ""}>
+        <View className={dosColumnas ? "flex-1 min-w-0 mr-7" : "mb-6"}>
+          <FormularioRetiro />
+          <HistorialRetiros />
         </View>
-      ) : null}
+        {miPlanta ? (
+          <View className={dosColumnas ? "w-[380px]" : "max-w-[480px]"}>
+            <ReporteMensual
+              planta={miPlanta}
+              areas={areas}
+              registros={registros}
+              incidencias={incidencias}
+              retiros={retiros}
+            />
+          </View>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -82,16 +102,16 @@ function FormularioRetiro() {
   }
 
   return (
-    <Tarjeta className="mb-6">
-      <Text className="text-gray-800 text-base font-semibold mb-1">Registrar retiro</Text>
-      <Text className="text-gray-500 text-xs mb-4">
-        Marca los contenedores que se vaciaron. Solo aparecen los que tienen depósitos validados.
-      </Text>
+    <Bloque className="mb-6">
+      <EncabezadoBloque
+        titulo="Registrar retiro"
+        detalle="Marca los contenedores que se vaciaron. Solo aparecen los que tienen depósitos validados."
+      />
 
       {porRetirar.length === 0 ? (
-        <Text className="text-gray-500 text-sm mb-4">
+        <Texto className="text-tinta-suave text-sm mb-4">
           No hay contenedores esperando retiro: aparecen cuando el validador deja conforme su tanda.
-        </Text>
+        </Texto>
       ) : (
         <View className="mb-4">
           {porRetirar.map((c) => {
@@ -103,41 +123,44 @@ function FormularioRetiro() {
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: marcado }}
                 className={`flex-row items-center border rounded-xl px-4 py-3 mb-2 ${
-                  marcado ? "border-green-600 bg-green-50" : "border-gray-200 bg-white"
+                  marcado ? "border-oliva bg-oliva-claro" : "border-piedra-borde bg-white"
                 }`}
               >
                 <View
-                  className={`w-5 h-5 rounded border mr-3 items-center justify-center ${
-                    marcado ? "bg-green-700 border-green-700" : "border-gray-400"
+                  className={`w-5 h-5 rounded-[5px] border-[1.5px] mr-3 items-center justify-center ${
+                    marcado ? "bg-oliva border-oliva" : "border-piedra-control bg-white"
                   }`}
                 >
-                  {marcado ? <Text className="text-white text-xs font-bold">✓</Text> : null}
+                  {marcado ? <Icono nombre="check" tamano={13} color="#FFFFFF" grosor={3} /> : null}
                 </View>
                 <View className="flex-1 min-w-0">
-                  <Text className="text-gray-800 text-sm font-medium">
+                  <Texto className="text-tinta text-sm font-semibold">
                     {c.punto ? `${c.punto} · ` : ""}
                     {nombreContenedor(c)}
-                  </Text>
-                  <Text className="text-gray-500 text-xs mt-0.5">
+                  </Texto>
+                  <Texto className="text-tinta-suave text-xs mt-0.5">
                     {c.contenedor} · validado {tiempoRelativo(c.esperandoDesde)}
-                  </Text>
+                  </Texto>
                   {/* Advertencia de seguridad para quien retira, como la que veía el
                       gestor: el validador encontró algo que no corresponde. */}
                   {incidencias
                     .filter((i) => !i.atendida && i.contenedor === c.contenedor)
                     .map((i) => (
-                      <Text key={i.id} className="text-red-700 text-xs font-semibold mt-1">
-                        ⚠️ Tiene {i.contaminante.toLowerCase()} (reportado {tiempoRelativo(i.reportadoEn)}):
-                        avisa a quien lo retire para que lo haga con cuidado.
-                      </Text>
+                      <View key={i.id} className="flex-row items-start mt-1.5">
+                        <View className="mt-px mr-1.5">
+                          <Icono nombre="alerta" tamano={13} color="#7A4E17" grosor={2.2} />
+                        </View>
+                        <Texto className="text-ambar-oscuro text-xs font-semibold flex-1">
+                          Tiene {i.contaminante.toLowerCase()} (reportado {tiempoRelativo(i.reportadoEn)}): avisa a
+                          quien lo retire para que lo haga con cuidado.
+                        </Texto>
+                      </View>
                     ))}
                 </View>
-                <Text className="w-32 text-right text-gray-700 text-sm">
+                <Texto className="w-28 text-right text-tinta-media text-[13px]">
                   {c.depositos} depósito{c.depositos === 1 ? "" : "s"}
-                </Text>
-                <Text className="w-28 text-right text-gray-900 text-sm font-semibold">
-                  {formatKg(c.kgEstimado)}
-                </Text>
+                </Texto>
+                <Texto className="w-24 text-right text-tinta text-sm font-bold">{formatKg(c.kgEstimado)}</Texto>
               </TouchableOpacity>
             );
           })}
@@ -145,51 +168,58 @@ function FormularioRetiro() {
       )}
 
       <View className="flex-row">
-        <View className="w-40 mr-3">
-          <Campo etiqueta="Fecha del retiro" placeholder="06-10-2026" value={fecha} onChangeText={setFecha} />
-        </View>
-        <View className="flex-1 mr-3">
-          <Campo
-            etiqueta="Quién retira"
-            placeholder="Empresa o persona"
-            value={quienRetira}
-            onChangeText={setQuienRetira}
-            maxLength={80}
-          />
-        </View>
-        <View className="w-44 mr-3">
-          <Campo etiqueta="N° de guía (opcional)" value={guia} onChangeText={setGuia} maxLength={40} />
-        </View>
-        <View className="w-44">
-          <Campo
-            etiqueta="Peso informado, kg (opcional)"
-            keyboardType="decimal-pad"
-            value={peso}
-            onChangeText={setPeso}
-          />
-        </View>
+        <CampoPanel
+          etiqueta="Fecha del retiro"
+          placeholder="06-10-2026"
+          value={fecha}
+          onChangeText={setFecha}
+          className="w-36 mr-3"
+        />
+        <CampoPanel
+          etiqueta="Quién retira"
+          placeholder="Empresa o persona"
+          value={quienRetira}
+          onChangeText={setQuienRetira}
+          maxLength={80}
+          className="flex-1 mr-3"
+        />
+        <CampoPanel
+          etiqueta="N° de guía (opcional)"
+          value={guia}
+          onChangeText={setGuia}
+          maxLength={40}
+          className="w-40 mr-3"
+        />
+        <CampoPanel
+          etiqueta="Peso, kg (opcional)"
+          keyboardType="decimal-pad"
+          value={peso}
+          onChangeText={setPeso}
+          className="w-36"
+        />
       </View>
-      <Text className="text-gray-400 text-xs mb-3">
+      <Texto className="text-tinta-suave text-xs -mt-1 mb-4">
         Si quien retira informa el peso, el retiro queda como verificado; si no, como estimado según la
         talla de cada depósito.
-      </Text>
+      </Texto>
 
       <View className="flex-row items-center">
-        <Boton
+        <BotonPanel
           titulo="Registrar retiro"
+          icono="camion"
           cargando={guardando}
           deshabilitado={seleccion.length === 0}
           onPress={registrar}
-          className="py-3 px-6 mr-4"
+          className="mr-4"
         />
         {seleccion.length > 0 ? (
-          <Text className="text-gray-600 text-sm">
+          <Texto className="text-tinta-media text-[13px]">
             {seleccion.length} contenedor{seleccion.length === 1 ? "" : "es"} · {depositos} depósito
             {depositos === 1 ? "" : "s"} · {formatKg(kg)} estimados
-          </Text>
+          </Texto>
         ) : null}
       </View>
-    </Tarjeta>
+    </Bloque>
   );
 }
 
@@ -197,57 +227,62 @@ function FormularioRetiro() {
 function HistorialRetiros() {
   const { retiros, contenedores } = useEcoTrack();
   const delMes = useMemo(() => retirosDelMes(retiros), [retiros]);
+  const kgMes = delMes.reduce((t, r) => t + (r.pesoKg ?? r.kgEstimado), 0);
   const nombreDe = (codigo: string) => {
     const c = contenedores.find((x) => x.codigo === codigo);
     return c ? `${c.punto} · ${nombreContenedor(c)}` : codigo;
   };
 
   return (
-    <Tarjeta className="mb-6">
-      <Text className="text-gray-800 text-base font-semibold mb-3">Retiros del mes</Text>
+    <Bloque>
+      <EncabezadoBloque
+        titulo="Retiros del mes"
+        derecha={
+          delMes.length > 0 ? (
+            <Texto className="text-tinta-suave text-xs">
+              {delMes.length} retiro{delMes.length === 1 ? "" : "s"}, {formatKg(kgMes)} en total
+            </Texto>
+          ) : null
+        }
+      />
       {delMes.length === 0 ? (
-        <Text className="text-gray-500 text-sm">Todavía no hay retiros registrados este mes.</Text>
+        <Texto className="text-tinta-suave text-sm">Todavía no hay retiros registrados este mes.</Texto>
       ) : (
         <>
-          <View className="flex-row border-b border-gray-200 pb-2">
-            <Text className="w-28 text-gray-500 text-xs font-semibold">Fecha</Text>
-            <Text className="w-44 text-gray-500 text-xs font-semibold">Quién retiró</Text>
-            <Text className="w-28 text-gray-500 text-xs font-semibold">Guía</Text>
-            <Text className="flex-1 text-gray-500 text-xs font-semibold">Contenedores</Text>
-            <Text className="w-28 text-gray-500 text-xs font-semibold text-right">Peso</Text>
-            <Text className="w-28 text-gray-500 text-xs font-semibold text-right">Tipo</Text>
+          <View className="flex-row border-b-[1.5px] border-vino pb-2">
+            <Texto className="w-28 text-tinta-media text-[13px] font-semibold">Fecha</Texto>
+            <Texto className="w-40 text-tinta-media text-[13px] font-semibold">Retiró</Texto>
+            <Texto className="w-24 text-tinta-media text-[13px] font-semibold">Guía</Texto>
+            <Texto className="flex-1 text-tinta-media text-[13px] font-semibold">Contenedores</Texto>
+            <Texto className="w-32 text-tinta-media text-[13px] font-semibold text-right">Peso</Texto>
           </View>
           {delMes.map((r) => (
-            <View key={r.id} className="flex-row items-center py-3 border-b border-gray-100">
+            <View key={r.id} className="flex-row items-center py-3 border-b border-piedra-linea">
               <View className="w-28">
-                <Text className="text-gray-800 text-sm">{fechaCorta(r.fecha)}</Text>
-                <Text className="text-gray-400 text-xs">{r.id}</Text>
+                <Texto className="text-tinta text-[13px]">{fechaCorta(r.fecha)}</Texto>
+                <Texto className="text-tinta-suave text-[11px]">{r.id}</Texto>
               </View>
-              <Text className="w-44 text-gray-800 text-sm" numberOfLines={1}>
+              <Texto className="w-40 text-tinta text-[13px] pr-2" numberOfLines={1}>
                 {r.quienRetira}
-              </Text>
-              <Text className="w-28 text-gray-600 text-sm">{r.guia ?? "—"}</Text>
-              <Text className="flex-1 text-gray-600 text-xs pr-2">
+              </Texto>
+              <Texto className="w-24 text-tinta-media text-[13px]">{r.guia ?? "—"}</Texto>
+              <Texto className="flex-1 text-tinta-media text-xs pr-2">
                 {r.contenedores.map(nombreDe).join(", ")} · {r.depositos} depósitos
-              </Text>
-              <Text className="w-28 text-right text-gray-900 text-sm font-semibold">
-                {formatKg(r.pesoKg ?? r.kgEstimado)}
-              </Text>
-              <View className="w-28 items-end">
-                <View className={`rounded-full px-2.5 py-1 ${r.verificado ? "bg-green-100" : "bg-gray-100"}`}>
-                  <Text className={`text-xs font-semibold ${r.verificado ? "text-green-800" : "text-gray-600"}`}>
-                    {r.verificado ? "Verificado" : "Estimado"}
-                  </Text>
+              </Texto>
+              <View className="w-32 items-end">
+                <Texto className="text-tinta text-sm font-bold">{formatKg(r.pesoKg ?? r.kgEstimado)}</Texto>
+                <View className="mt-1">
+                  <Insignia texto={r.verificado ? "Verificado" : "Estimado"} tono={r.verificado ? "oliva" : "gris"} />
                 </View>
               </View>
             </View>
           ))}
-          <Text className="text-gray-400 text-xs mt-3">
+          <Texto className="text-tinta-suave text-xs mt-3">
             Verificado: con el peso que informó quien retiró. Estimado: sin peso, se muestran los kilos
             estimados por la talla de cada depósito.
-          </Text>
+          </Texto>
         </>
       )}
-    </Tarjeta>
+    </Bloque>
   );
 }
