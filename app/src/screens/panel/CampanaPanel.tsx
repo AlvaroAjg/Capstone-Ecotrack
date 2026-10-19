@@ -1,11 +1,12 @@
 import React, { useState } from "react";
-import { Text, TouchableOpacity, View } from "react-native";
+import { TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import { esNuevo } from "../../lib/avisos";
 import { tiempoRelativo } from "../../lib/formato";
+import { Icono, Texto } from "./estilo";
 
 /**
- * Campana del encabezado del panel. Abre una lista con los avisos del
+ * Campana de la barra del panel. Abre una lista con los avisos del
  * administrador: los contenedores listos para retiro y las advertencias de
  * los que vienen contaminados (ver lib/avisos.ts). Al abrirla se marcan como
  * vistos.
@@ -26,27 +27,30 @@ export default function CampanaPanel() {
   }
 
   return (
-    <View className="relative z-10">
+    <View className="relative">
       <TouchableOpacity
         onPress={alternar}
         accessibilityRole="button"
         accessibilityLabel={avisosNuevos > 0 ? `Avisos, ${avisosNuevos} nuevos` : "Avisos"}
         accessibilityState={{ expanded: abierta }}
-        className="w-11 h-11 bg-white border border-gray-300 rounded-xl items-center justify-center"
+        className="w-[42px] h-[42px] rounded-full bg-vino-medio items-center justify-center"
       >
-        <Text className="text-lg">🔔</Text>
+        <Icono nombre="campana" tamano={19} color="#F6EFF3" />
         {avisosNuevos > 0 ? (
-          <View className="absolute -top-1.5 -right-1.5 min-w-[20px] h-5 px-1 bg-red-600 rounded-full items-center justify-center">
-            <Text className="text-white text-[11px] font-bold">{avisosNuevos > 9 ? "9+" : avisosNuevos}</Text>
+          <View className="absolute -top-[3px] -right-[3px] min-w-[18px] h-[18px] px-1 rounded-full bg-ambar-vivo items-center justify-center">
+            <Texto className="text-vino text-[11px] font-bold">{avisosNuevos > 9 ? "9+" : avisosNuevos}</Texto>
           </View>
         ) : null}
       </TouchableOpacity>
 
       {abierta ? (
-        <View className="absolute right-0 top-14 w-[380px] bg-white border border-gray-200 rounded-2xl shadow-lg py-2">
-          <Text className="text-gray-800 font-semibold px-4 py-2">Avisos</Text>
+        <View
+          className="absolute right-0 top-[52px] w-[380px] bg-white rounded-2xl border border-piedra-borde py-2"
+          style={{ shadowColor: "#2B1424", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 8 } }}
+        >
+          <Texto className="text-tinta text-[15px] font-bold px-4 py-2">Avisos</Texto>
           {avisos.length === 0 ? (
-            <Text className="text-gray-500 text-sm px-4 pb-3">No hay contenedores esperando retiro.</Text>
+            <Texto className="text-tinta-suave text-sm px-4 pb-3">No hay contenedores esperando retiro.</Texto>
           ) : (
             avisos.map((a) => {
               const nuevo = esNuevo(a, vistosAlAbrir);
@@ -54,15 +58,19 @@ export default function CampanaPanel() {
               return (
                 <View
                   key={a.id}
-                  className={`px-4 py-3 border-t border-gray-100 ${nuevo ? "bg-green-50" : ""}`}
+                  className={`flex-row px-4 py-3 border-t border-piedra-linea ${nuevo ? "bg-oliva-claro" : ""}`}
                 >
-                  <Text className={`text-sm font-medium ${alerta ? "text-red-700" : "text-gray-800"}`}>
-                    {alerta ? "⚠️ " : `${a.emoji} `}
-                    {a.titulo}
-                  </Text>
-                  <Text className="text-gray-500 text-xs mt-0.5">
-                    {a.detalle} · {tiempoRelativo(a.fecha)}
-                  </Text>
+                  <View className="mt-0.5 mr-2.5">
+                    <Icono nombre={alerta ? "alerta" : "camion"} tamano={16} color={alerta ? "#7A4E17" : "#3F6B2E"} />
+                  </View>
+                  <View className="flex-1 min-w-0">
+                    <Texto className={`text-sm font-semibold ${alerta ? "text-ambar-oscuro" : "text-tinta"}`}>
+                      {a.titulo}
+                    </Texto>
+                    <Texto className="text-tinta-suave text-xs mt-0.5">
+                      {a.detalle} · {tiempoRelativo(a.fecha)}
+                    </Texto>
+                  </View>
                 </View>
               );
             })

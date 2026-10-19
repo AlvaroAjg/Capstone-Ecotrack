@@ -1,14 +1,17 @@
-import React, { useState } from "react";
-import { ScrollView, Text, TouchableOpacity, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
 import IncentivoSeccion from "./IncentivoSeccion";
 import RondasSeccion from "./RondasSeccion";
 import RetirosSeccion from "./RetirosSeccion";
-import { Aviso, usePantallaCompleta } from "../../components/ui";
+import { usePantallaCompleta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
+import { rondaDeHoy } from "../../lib/resumenPanel";
+import { avanceAreas } from "../../lib/incentivo";
+import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales } from "./estilo";
 
 export type SeccionPanel =
   | "resumen"
@@ -18,114 +21,289 @@ export type SeccionPanel =
   | "incentivo"
   | "retiros";
 
-const SECCIONES: { id: SeccionPanel; etiqueta: string; icono: string }[] = [
-  { id: "resumen", etiqueta: "Resumen", icono: "📊" },
-  { id: "contenedores", etiqueta: "Contenedores", icono: "📍" },
-  { id: "personas", etiqueta: "Personas y áreas", icono: "👥" },
-  { id: "rondas", etiqueta: "Rondas", icono: "📋" },
-  { id: "incentivo", etiqueta: "Incentivo", icono: "🏆" },
-  { id: "retiros", etiqueta: "Retiros y reporte", icono: "🚛" },
+const SECCIONES: { id: SeccionPanel; etiqueta: string }[] = [
+  { id: "resumen", etiqueta: "Resumen" },
+  { id: "contenedores", etiqueta: "Puntos limpios" },
+  { id: "personas", etiqueta: "Personas y áreas" },
+  { id: "rondas", etiqueta: "Rondas" },
+  { id: "incentivo", etiqueta: "Campañas" },
+  { id: "retiros", etiqueta: "Retiros y reportes" },
 ];
 
-/** "martes 6 de octubre", para el encabezado. */
-function hoyLargo(): string {
-  return new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric", month: "long" });
-}
+/**
+ * Bajo este ancho la barra superior se compacta (sin el nombre de la planta
+ * junto al logo) para que las secciones quepan en una línea. El panel se
+ * muestra desde 1024 px (ver App.tsx).
+ */
+const ANCHO_AMPLIO = 1280;
 
 /**
- * Panel web del administrador: menú lateral con las secciones y la elegida a
- * la derecha. Solo se muestra en el navegador del computador (ver App.tsx):
- * el administrador trabaja con tablas y formularios que no caben en un
- * teléfono.
+ * Panel web del administrador: una barra superior con las secciones, una
+ * franja con lo de hoy (la ronda, la campaña y los avisos) y la sección
+ * elegida debajo. Solo se muestra en el navegador del computador (ver
+ * App.tsx): el administrador trabaja con tablas y formularios que no caben en
+ * un teléfono.
  */
 export default function PanelAdmin() {
-  const { usuario, miPlanta, errorDatos, cerrarSesion } = useEcoTrack();
+  const { errorDatos } = useEcoTrack();
   const [seccion, setSeccion] = useState<SeccionPanel>("resumen");
-  const actual = SECCIONES.find((s) => s.id === seccion)!;
-  const nombre = usuario?.nombre ?? "Administrador";
+  const { width } = useWindowDimensions();
+  const amplio = width >= ANCHO_AMPLIO;
 
   // El panel necesita la pantalla completa del computador, no el ancho de un teléfono.
   usePantallaCompleta();
 
   return (
-    <View className="flex-1 flex-row bg-gray-50">
-      <View className="w-[248px] bg-gray-900 px-4 pt-7 pb-6">
-        <View className="flex-row items-center px-2 mb-7">
-          <View className="w-10 h-10 rounded-xl bg-green-700 items-center justify-center mr-3">
-            <Text className="text-xl">♻️</Text>
-          </View>
-          <View className="flex-1 min-w-0">
-            <Text className="text-white text-lg font-bold">RecyTrack</Text>
-            <Text className="text-gray-400 text-xs" numberOfLines={1}>
-              {miPlanta?.nombre ?? "Sin planta"}
-            </Text>
-          </View>
-        </View>
-
-        <Text className="text-gray-400 text-[11px] font-semibold uppercase tracking-widest px-3 mb-2">
-          Panel de administrador
-        </Text>
-        {SECCIONES.map((s) => {
-          const activa = s.id === seccion;
-          return (
-            <TouchableOpacity
-              key={s.id}
-              onPress={() => setSeccion(s.id)}
-              accessibilityRole="button"
-              accessibilityState={{ selected: activa }}
-              className={`flex-row items-center h-11 px-3 rounded-xl mb-1 ${activa ? "bg-green-700" : ""}`}
-            >
-              <Text className="mr-3">{s.icono}</Text>
-              <Text className={`text-sm ${activa ? "text-white font-semibold" : "text-gray-300 font-medium"}`}>
-                {s.etiqueta}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-
-        <View className="mt-auto bg-gray-800 rounded-2xl p-3">
-          <View className="flex-row items-center">
-            <View className="w-10 h-10 rounded-full bg-gray-700 items-center justify-center mr-3">
-              <Text className="text-white font-bold">{(nombre.trim().charAt(0) || "?").toUpperCase()}</Text>
-            </View>
-            <View className="flex-1 min-w-0">
-              <Text className="text-white text-sm font-semibold" numberOfLines={1}>
-                {nombre}
-              </Text>
-              <Text className="text-gray-400 text-xs">Administrador</Text>
-            </View>
-          </View>
-          <TouchableOpacity
-            onPress={() => cerrarSesion()}
-            accessibilityRole="button"
-            className="mt-3 border border-gray-600 rounded-lg py-2 items-center"
-          >
-            <Text className="text-gray-300 text-xs font-medium">Cerrar sesión</Text>
-          </TouchableOpacity>
-        </View>
+    <View className="flex-1 bg-piedra">
+      {/* z-20: los menús de la barra (avisos y cuenta) se despliegan sobre la franja y la sección. */}
+      <View className="z-20">
+        <BarraSuperior seccion={seccion} alCambiar={setSeccion} amplio={amplio} />
       </View>
+      <FranjaDeHoy alAbrir={setSeccion} padding={amplio ? 40 : 24} />
 
-      <ScrollView className="flex-1" contentContainerStyle={{ paddingHorizontal: 40, paddingVertical: 32 }}>
-        {/* z-10 en la fila y no solo en la campana: si no, la lista de avisos
-            queda debajo de lo que viene después en la página. */}
-        <View className="flex-row items-end justify-between mb-6 z-10">
-          <View>
-            <Text className="text-gray-500 text-sm">
-              {miPlanta?.nombre ?? ""} · {hoyLargo()}
-            </Text>
-            <Text className="text-gray-900 text-3xl font-bold mt-1">{actual.etiqueta}</Text>
-          </View>
-          <CampanaPanel />
-        </View>
-
+      {/* Con key por sección, cada una se abre desde arriba y no donde quedó la anterior. */}
+      <ScrollView
+        key={seccion}
+        className="flex-1"
+        contentContainerStyle={{ paddingHorizontal: amplio ? 40 : 24, paddingTop: 28, paddingBottom: 40 }}
+      >
         {errorDatos ? (
-          <View className="mb-6">
-            <Aviso texto={errorDatos} />
+          <View className="bg-rojizo-claro rounded-xl px-4 py-3 mb-6">
+            <Texto className="text-rojizo-oscuro text-sm">{errorDatos}</Texto>
           </View>
         ) : null}
 
         <ContenidoSeccion seccion={seccion} />
       </ScrollView>
+    </View>
+  );
+}
+
+function BarraSuperior({
+  seccion,
+  alCambiar,
+  amplio,
+}: {
+  seccion: SeccionPanel;
+  alCambiar: (s: SeccionPanel) => void;
+  amplio: boolean;
+}) {
+  const { miPlanta, registros, incidencias, contenedores } = useEcoTrack();
+  // Contenedores que esperan la ronda de hoy: se marcan en la pestaña Rondas.
+  const pendientesRonda = useMemo(
+    () => rondaDeHoy(registros, incidencias, contenedores).filter((f) => f.estado === "pendiente").length,
+    [registros, incidencias, contenedores]
+  );
+
+  return (
+    <View
+      role="navigation"
+      accessibilityLabel="Secciones del panel"
+      className="h-[76px] bg-vino flex-row items-center"
+      style={{ paddingHorizontal: amplio ? 40 : 24 }}
+    >
+      <TouchableOpacity
+        onPress={() => alCambiar("resumen")}
+        accessibilityRole="link"
+        accessibilityLabel="RecyTrack, ir al resumen"
+        className="flex-row items-center mr-6"
+      >
+        <Logo tamano={36} />
+        <View className="ml-3">
+          <Titulo className="text-vino-texto text-[22px] leading-[24px]">RecyTrack</Titulo>
+          {amplio ? (
+            <Texto className="text-vino-suave text-[11px] mt-0.5" numberOfLines={1}>
+              {miPlanta?.nombre ?? "Sin planta"}
+            </Texto>
+          ) : null}
+        </View>
+      </TouchableOpacity>
+
+      <View className="flex-1 flex-row items-center justify-center">
+        {SECCIONES.map((s) => {
+          const activa = s.id === seccion;
+          const insignia = s.id === "rondas" && !activa && pendientesRonda > 0 ? pendientesRonda : 0;
+          return (
+            <TouchableOpacity
+              key={s.id}
+              onPress={() => alCambiar(s.id)}
+              accessibilityRole="button"
+              accessibilityState={{ selected: activa }}
+              className={`h-10 flex-row items-center rounded-full mx-0.5 ${activa ? "bg-piedra" : ""}`}
+              style={{ paddingHorizontal: amplio ? 14 : 10 }}
+            >
+              <Texto
+                numberOfLines={1}
+                className={`text-sm ${activa ? "text-vino font-bold" : "text-vino-nav font-medium"}`}
+              >
+                {s.etiqueta}
+              </Texto>
+              {insignia > 0 ? (
+                <View className="ml-2 min-w-[20px] h-5 px-1.5 rounded-full bg-ambar-vivo items-center justify-center">
+                  <Texto className="text-vino text-[11px] font-bold">{insignia}</Texto>
+                </View>
+              ) : null}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      <View className="flex-row items-center ml-6">
+        <CampanaPanel />
+        <MenuCuenta />
+      </View>
+    </View>
+  );
+}
+
+/** El círculo con las iniciales del administrador: abre su nombre y Cerrar sesión. */
+function MenuCuenta() {
+  const { usuario, miPlanta, cerrarSesion } = useEcoTrack();
+  const [abierto, setAbierto] = useState(false);
+  const nombre = usuario?.nombre || "Administrador";
+
+  return (
+    <View className="relative ml-2.5">
+      <TouchableOpacity
+        onPress={() => setAbierto((v) => !v)}
+        accessibilityRole="button"
+        accessibilityLabel={`Mi cuenta, ${nombre}`}
+        accessibilityState={{ expanded: abierto }}
+        className="w-[42px] h-[42px] rounded-full bg-ambar-vivo items-center justify-center"
+      >
+        <Texto className="text-vino text-sm font-bold">{iniciales(nombre)}</Texto>
+      </TouchableOpacity>
+
+      {abierto ? (
+        <View
+          className="absolute right-0 top-[52px] w-[280px] bg-white rounded-2xl border border-piedra-borde py-2"
+          style={{ shadowColor: "#2B1424", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 8 } }}
+        >
+          <View className="px-4 py-2">
+            <Texto className="text-tinta text-[15px] font-bold" numberOfLines={1}>
+              {nombre}
+            </Texto>
+            <Texto className="text-tinta-suave text-xs mt-0.5" numberOfLines={1}>
+              Administrador · {miPlanta?.nombre ?? "Sin planta"}
+            </Texto>
+          </View>
+          <TouchableOpacity
+            onPress={() => cerrarSesion()}
+            accessibilityRole="button"
+            className="flex-row items-center px-4 py-3 border-t border-piedra-linea mt-1"
+          >
+            <Icono nombre="salir" tamano={18} color="#4D474B" />
+            <Texto className="text-tinta-media text-sm font-semibold ml-2.5">Cerrar sesión</Texto>
+          </TouchableOpacity>
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** "jueves 24", para la franja de hoy. */
+function hoyCorto(): string {
+  return new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric" });
+}
+
+/**
+ * Lo de hoy en la planta, en una franja bajo la barra: cómo va la ronda del
+ * validador, la campaña y los avisos más recientes. Tocar la ronda o la
+ * campaña abre su sección.
+ */
+function FranjaDeHoy({ alAbrir, padding }: { alAbrir: (s: SeccionPanel) => void; padding: number }) {
+  const { registros, incidencias, contenedores, campana, ranking, avisos } = useEcoTrack();
+  const ronda = useMemo(
+    () => rondaDeHoy(registros, incidencias, contenedores).filter((f) => f.estado !== "vacio"),
+    [registros, incidencias, contenedores]
+  );
+  const revisados = ronda.filter((f) => f.estado !== "pendiente").length;
+  const vigente = campana !== null && campana.terminaEn >= Date.now();
+  const avance = vigente ? avanceAreas(campana.metaParticipacion, ranking) : [];
+  const cumplen = avance.filter((a) => a.cumple).length;
+
+  return (
+    <View
+      accessibilityLabel="Hoy en la planta"
+      className="h-[84px] bg-white border-b border-piedra-borde flex-row items-stretch"
+      style={{ paddingHorizontal: padding }}
+    >
+      <View className="justify-center pr-7">
+        <Titulo className="text-[20px] leading-[22px]">Hoy,</Titulo>
+        <Titulo className="text-[20px] leading-[22px]">{hoyCorto()}</Titulo>
+      </View>
+
+      <TouchableOpacity
+        onPress={() => alAbrir("rondas")}
+        accessibilityRole="button"
+        className="flex-[1.5] justify-center px-7 border-l border-piedra-borde min-w-0"
+      >
+        <Texto className="text-tinta-media text-[13px]" numberOfLines={1}>
+          <Texto className="text-tinta font-bold">Ronda de hoy: </Texto>
+          {ronda.length === 0
+            ? "ningún contenedor tiene depósitos que revisar"
+            : `${revisados} de ${ronda.length} contenedor${ronda.length === 1 ? "" : "es"} revisados`}
+        </Texto>
+        {ronda.length > 0 ? (
+          <View className="flex-row mt-1.5 overflow-hidden">
+            {ronda.slice(0, 4).map((f) => {
+              const estado = ESTADO_RONDA[f.estado];
+              return (
+                <View key={f.codigo} className="mr-1.5">
+                  <Insignia texto={f.punto || f.nombre} tono={estado.tono} icono={estado.icono} />
+                </View>
+              );
+            })}
+            {ronda.length > 4 ? (
+              <Texto className="text-tinta-suave text-xs self-center">+{ronda.length - 4}</Texto>
+            ) : null}
+          </View>
+        ) : null}
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        onPress={() => alAbrir("incentivo")}
+        accessibilityRole="button"
+        className="flex-1 justify-center px-7 border-l border-piedra-borde min-w-0"
+      >
+        {vigente ? (
+          <>
+            <Texto className="text-tinta-media text-[13px]" numberOfLines={1}>
+              <Texto className="text-tinta font-bold">{campana.nombre}: </Texto>
+              {cumplen} de {avance.length} áreas en la meta
+            </Texto>
+            <View className="h-2 bg-ambar-medio rounded-full overflow-hidden mt-2">
+              <View
+                className="h-2 bg-ambar rounded-full"
+                style={{ width: `${avance.length > 0 ? Math.round((cumplen / avance.length) * 100) : 0}%` }}
+              />
+            </View>
+          </>
+        ) : (
+          <>
+            <Texto className="text-tinta text-[13px] font-bold">Sin campaña vigente</Texto>
+            <Texto className="text-tinta-suave text-xs mt-1">Créala en Campañas para que la vean todos.</Texto>
+          </>
+        )}
+      </TouchableOpacity>
+
+      <View className="flex-1 justify-center pl-7 border-l border-piedra-borde min-w-0">
+        {avisos.length === 0 ? (
+          <Texto className="text-tinta-suave text-[13px]">Ningún contenedor espera retiro.</Texto>
+        ) : (
+          avisos.slice(0, 2).map((a, i) => (
+            <View key={a.id} className={`flex-row items-center ${i > 0 ? "mt-1" : ""}`}>
+              <View className={`w-2 h-2 rounded-full mr-2 ${a.tono === "alerta" ? "bg-ambar" : "bg-oliva"}`} />
+              <Texto
+                className={`text-[13px] flex-1 ${i === 0 ? "text-tinta font-semibold" : "text-tinta-media"}`}
+                numberOfLines={1}
+              >
+                {a.titulo}
+              </Texto>
+            </View>
+          ))
+        )}
+      </View>
     </View>
   );
 }
