@@ -16,8 +16,10 @@ Capstone de Duoc UC (equipo: Álvaro Jaña, Matías Bustamante y Vicente Torres)
 
 ## Proyecto
 
+El piloto es la planta de Viñedos Familia Chadwick, dividida en áreas, con tres roles: **colaborador**, **validador** y **administrador**. La cadena: el colaborador escanea el QR del contenedor y declara material y talla → el validador hace la ronda diaria por contenedor (conforme, con observación o sin material) → el administrador registra el retiro desde el panel web, lo que certifica los depósitos validados → certificado mensual por colaborador y reporte mensual de la planta. Quien retira el material no es usuario. El modelo de condominio de la Fase 1 (torres, departamentos, gestor) ya no existe.
+
 - `app/`: la app (Expo + React Native + react-native-web, TypeScript, NativeWind, Firebase). Se publica como PWA.
-  - `src/screens/`: pantallas por rol (residente, administrador, gestor).
+  - `src/screens/`: pantallas del colaborador y del validador; el panel web del administrador está en `src/screens/panel/`.
   - `src/components/`: componentes. Los compartidos están en `ui.tsx`.
   - `src/lib/`: lógica pura (derivados, reportes, certificados, formato), probada en `app/pruebas/`.
   - `src/services/`: acceso a Firestore.
@@ -45,10 +47,10 @@ Si tocaste `firestore.rules` o `pruebas-reglas/`, corre también `cd pruebas-reg
 
 Respétalos al proponer o implementar cambios:
 
-- **App del residente mínima.** No agregues pestañas, listas largas ni pantallas extra para el residente sin que el issue o la persona lo pida.
+- **App del colaborador mínima.** No agregues pestañas, listas largas ni pantallas extra para el colaborador sin que el issue o la persona lo pida.
 - **Metas semanales, no diarias.** La gente no tiene reciclables todos los días.
-- **El administrador valida por contenedor (la tanda completa), no bolsa por bolsa.** Cualquier control nuevo se diseña a nivel de contenedor o lote.
-- **Privacidad.** El gestor no ve nombres de residentes ni departamentos. En reportes y rankings, los departamentos aparecen solo por su número.
+- **El validador valida por contenedor (la tanda completa), no bolsa por bolsa.** Cualquier control nuevo se diseña a nivel de contenedor o lote, y el retiro también es por contenedor.
+- **Privacidad.** Entre compañeros solo se ven totales por área: nadie ve lo que registró otra persona. Los nombres solo los ve el administrador; el validador valida contenedores sin saber de quién es cada depósito.
 - **No se debilitan las reglas de Firestore** para que algo funcione en la app. Si una regla bloquea algo legítimo, explícalo y pregunta.
 - Nunca subas contraseñas, códigos de rol, correos reales ni archivos `.env`.
 
