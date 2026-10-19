@@ -110,7 +110,7 @@ Una vez aprobado, el autor o quien aprobó lo fusiona con `gh pr merge 7 --merge
 ## Commits
 
 - **Un commit por idea.** Si trabajas un issue, normalmente es uno por casilla. Evita los commits de "cambios varios".
-- **Mensaje en español, corto y en infinitivo**, como el resto del historial: `Agregar historial de retiros del gestor`, `Mostrar el detalle de cada depósito`.
+- **Mensaje en español, corto y en infinitivo**, como el resto del historial: `Mostrar el historial de retiros del mes`, `Mostrar el detalle de cada depósito`.
 - **Sin `Co-Authored-By`** ni pies del tipo "Generated with…". Revisa el último mensaje con `git log -1 --format=%B` antes de subir.
 - **Usa el correo de tu cuenta de GitHub** (`git config --global user.email`). Si no coincide, GitHub no te asocia los commits.
 
@@ -145,7 +145,7 @@ npm test
 ## Lo que nunca se sube
 
 - Contraseñas, códigos de rol, correos reales ni archivos `.env`.
-- Capturas con datos personales de residentes.
+- Capturas con datos personales de colaboradores.
 - `node_modules/`, `dist/`, `hosting/` ni logs (ya están en `.gitignore`).
 
 ## Si trabajas con Claude Code
