@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Linking, TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
 import {
   filasPersonas,
+  enlacesCorreo,
   generarCodigoArea,
+  mensajeInvitacion,
   paginar,
   personasPorArea,
   validadoresDeRonda,
@@ -43,6 +45,7 @@ const POR_PAGINA = 10;
 export default function PersonasSeccion() {
   const { usuario, areas } = useEcoTrack();
   const [personas, setPersonas] = useState<Usuario[]>([]);
+  const [invitando, setInvitando] = useState(false);
   const dosColumnas = useWindowDimensions().width >= ANCHO_DOS_COLUMNAS;
 
   useEffect(() => {
@@ -59,7 +62,11 @@ export default function PersonasSeccion() {
         detalle={`${personas.length} persona${personas.length === 1 ? "" : "s"} en ${areas.length} área${
           areas.length === 1 ? "" : "s"
         }. Se suman cuando se unen a su área con el código.`}
+        acciones={
+          <BotonPanel titulo="Invitar colaborador" icono="mas" onPress={() => setInvitando(!invitando)} />
+        }
       />
+      {invitando ? <Invitacion areas={areas} alCerrar={() => setInvitando(false)} /> : null}
       <View className={dosColumnas ? "flex-row items-start" : ""}>
         <View className={dosColumnas ? "flex-1 min-w-0 mr-7" : "mb-6"}>
           <TablaPersonas personas={personas} areas={areas} />
@@ -70,6 +77,97 @@ export default function PersonasSeccion() {
         </View>
       </View>
     </View>
+  );
+}
+
+/**
+ * Invitar a alguien es pasarle el enlace de la app y el código de su área: se
+ * une con él en el paso 2 del registro. La app no manda correos (no hay
+ * servidor), así que arma el mensaje y el administrador lo envía desde su
+ * correo o WhatsApp, o lo copia.
+ */
+function Invitacion({ areas, alCerrar }: { areas: Area[]; alCerrar: () => void }) {
+  const [areaId, setAreaId] = useState<string | null>(areas[0]?.id ?? null);
+  const [copiado, setCopiado] = useState(false);
+  const area = areas.find((a) => a.id === areaId) ?? areas[0];
+
+  if (!area) {
+    return (
+      <Bloque className="mb-6">
+        <View className="flex-row items-center justify-between">
+          <Texto className="flex-1 text-tinta-media text-sm pr-4">
+            Primero crea un área: cada persona se une a la suya con el código del área.
+          </Texto>
+          <BotonPanel titulo="Cerrar" variante="secundario" compacto onPress={alCerrar} />
+        </View>
+      </Bloque>
+    );
+  }
+
+  // El panel corre en el navegador: el enlace es la misma dirección donde está publicado.
+  const mensaje = mensajeInvitacion(area, window.location.origin);
+  const correo = enlacesCorreo("Invitación a RecyTrack", mensaje);
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(mensaje);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      avisar("No se pudo copiar el mensaje", "Selecciónalo y cópialo a mano.");
+    }
+  }
+
+  return (
+    <Bloque className="mb-6">
+      <View className="flex-row items-center justify-between mb-1">
+        <Titulo className="text-[22px]">Invitar colaborador</Titulo>
+        <Enlace texto="Cerrar" tono="tinta" alPresionar={alCerrar} />
+      </View>
+      <Texto className="text-tinta-suave text-[13px] mb-4 leading-[19px]">
+        Elige su área y envíale este mensaje. Crea su cuenta con el enlace, escribe el código de su área y
+        aparece en la tabla apenas se une.
+      </Texto>
+      <View className="flex-row items-end">
+        <Desplegable
+          etiqueta="Área"
+          className="w-[220px] mr-4"
+          opciones={areas.map((a) => ({ valor: a.id as string | null, etiqueta: a.nombre }))}
+          valor={area.id}
+          alCambiar={setAreaId}
+        />
+        <View className="flex-1 min-w-0 bg-piedra rounded-xl px-4 py-3">
+          <Texto selectable className="text-tinta text-sm leading-5">
+            {mensaje}
+          </Texto>
+        </View>
+      </View>
+      <View className="flex-row flex-wrap mt-4">
+        <BotonPanel titulo={copiado ? "Copiado" : "Copiar mensaje"} icono="copiar" onPress={copiar} className="mr-2" />
+        <BotonPanel
+          titulo="Enviar por correo"
+          icono="correo"
+          variante="secundario"
+          // En la misma página, como hace el navegador con un enlace mailto: una
+          // pestaña nueva (lo que haría Linking.openURL) queda en blanco o se bloquea.
+          onPress={() => {
+            window.location.href = correo.mailto;
+          }}
+          className="mr-2"
+        />
+        <BotonPanel
+          titulo="Enviar por WhatsApp"
+          variante="secundario"
+          onPress={() => Linking.openURL(`https://wa.me/?text=${encodeURIComponent(mensaje)}`)}
+        />
+      </View>
+      <View className="flex-row items-center mt-2">
+        <Texto className="text-tinta-suave text-[13px] mr-2">¿No se abre tu correo? Escríbelo en</Texto>
+        <Enlace texto="Outlook" alPresionar={() => Linking.openURL(correo.outlook)} className="mr-2" />
+        <Texto className="text-tinta-suave text-[13px] mr-2">o</Texto>
+        <Enlace texto="Gmail" alPresionar={() => Linking.openURL(correo.gmail)} />
+      </View>
+    </Bloque>
   );
 }
 

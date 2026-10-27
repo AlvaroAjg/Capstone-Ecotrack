@@ -3,7 +3,7 @@
 // (sin React ni Firestore) para poder probarlas.
 
 import { mesDe } from "./certificadoMensual";
-import { nombreContenedor, type Contenedor, type Registro, type Usuario } from "./tipos";
+import { nombreContenedor, type Area, type Contenedor, type Registro, type Usuario } from "./tipos";
 
 export interface PuntoLimpio {
   punto: string;
@@ -56,6 +56,34 @@ export function generarCodigoArea(
     if (!usados.has(codigo)) return codigo;
   }
   throw new Error("No se pudo generar un código de área. Intenta de nuevo.");
+}
+
+/**
+ * El mensaje con que el administrador invita a alguien a su área: el enlace
+ * de la app y el código que la persona escribe en el paso 2 del registro. Lo
+ * envía el administrador desde su correo o WhatsApp: la app no manda correos.
+ */
+export function mensajeInvitacion(area: Pick<Area, "nombre" | "codigo">, enlace: string): string {
+  return (
+    `Hola, te invito a RecyTrack, el reciclaje de la planta. Entra a ${enlace} y crea tu cuenta. ` +
+    `Cuando te pida el código de tu área, escribe ${area.codigo} (${area.nombre}).`
+  );
+}
+
+/**
+ * Enlaces para escribir un correo ya redactado. `mailto` abre la app de correo
+ * del computador, pero en Windows muchas veces no hay una configurada y no
+ * pasa nada: por eso también van los de Outlook y Gmail en la web, que abren
+ * la ventana de redactar con la cuenta en que ya se inició sesión.
+ */
+export function enlacesCorreo(asunto: string, cuerpo: string): { mailto: string; outlook: string; gmail: string } {
+  const su = encodeURIComponent(asunto);
+  const body = encodeURIComponent(cuerpo);
+  return {
+    mailto: `mailto:?subject=${su}&body=${body}`,
+    outlook: `https://outlook.office.com/mail/deeplink/compose?subject=${su}&body=${body}`,
+    gmail: `https://mail.google.com/mail/?view=cm&fs=1&su=${su}&body=${body}`,
+  };
 }
 
 /** Cuántas personas registradas tiene cada área (colaboradores y validadores). */

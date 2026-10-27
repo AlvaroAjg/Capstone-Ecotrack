@@ -2,12 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   agruparPorPunto,
   filasPersonas,
+  enlacesCorreo,
   generarCodigoArea,
+  mensajeInvitacion,
   paginar,
   personasPorArea,
   validadoresDeRonda,
 } from "../src/lib/gestionPlanta";
-import { contenedor, fecha, registro, usuario } from "./fabrica";
+import { EMBOTELLADO, contenedor, fecha, registro, usuario } from "./fabrica";
 
 describe("agruparPorPunto", () => {
   test("agrupa los activos por punto limpio, el mixto primero", () => {
@@ -37,6 +39,23 @@ describe("generarCodigoArea", () => {
     const valores = [0, 0, 0.5];
     const azar = () => valores.shift() ?? 0.9;
     expect(generarCodigoArea("Bodega", ["BOD-1000"], azar)).toBe("BOD-5500");
+  });
+});
+
+describe("mensajeInvitacion", () => {
+  test("lleva el enlace de la app y el código del área con su nombre", () => {
+    const mensaje = mensajeInvitacion(EMBOTELLADO, "https://recytrack.web.app");
+    expect(mensaje).toContain("https://recytrack.web.app");
+    expect(mensaje).toContain("EMB-4821 (Embotellado)");
+  });
+});
+
+describe("enlacesCorreo", () => {
+  test("lleva el asunto y el cuerpo codificados en los tres enlaces", () => {
+    const enlaces = enlacesCorreo("Invitación", "Hola & bienvenida");
+    expect(enlaces.mailto).toBe("mailto:?subject=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
+    expect(enlaces.outlook).toContain("subject=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
+    expect(enlaces.gmail).toContain("su=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
   });
 });
 

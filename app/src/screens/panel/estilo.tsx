@@ -355,6 +355,8 @@ const TRAZOS = {
   salir: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   cerrar: "M18 6 6 18M6 6l12 12",
   abajo: "M6 9l6 6 6-6",
+  copiar: "M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1",
+  correo: "M3 5h18v14H3zM3 7l9 6 9-6",
   arriba: "M18 15l-6-6-6 6",
   editar: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
   qr: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4z",
