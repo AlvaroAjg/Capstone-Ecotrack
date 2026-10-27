@@ -290,6 +290,7 @@ export function iniciales(nombre: string): string {
 /** Trazos de 24×24, del mismo estilo que los del diseño. */
 const TRAZOS = {
   calendario: "M3 5h18v16H3zM16 3v4M8 3v4M3 10h18",
+  abajo: "M6 9l6 6 6-6",
   descargar: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   mas: "M12 5v14M5 12h14",
   campana: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
