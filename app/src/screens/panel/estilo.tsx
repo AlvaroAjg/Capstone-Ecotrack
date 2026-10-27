@@ -79,13 +79,15 @@ export function EncabezadoSeccion({
   );
 }
 
-type VarianteBoton = "primario" | "secundario" | "suave" | "peligro";
+type VarianteBoton = "primario" | "secundario" | "suave" | "peligro" | "claro";
 
 const ESTILO_BOTON: Record<VarianteBoton, { caja: string; texto: string; icono: string }> = {
   primario: { caja: "bg-oliva", texto: "text-white", icono: "#FFFFFF" },
   secundario: { caja: "bg-white border border-piedra-control", texto: "text-tinta", icono: "#221C20" },
   suave: { caja: "bg-oliva-claro", texto: "text-oliva-oscuro", icono: "#2C4D20" },
   peligro: { caja: "bg-white border border-rojizo-claro", texto: "text-rojizo-oscuro", icono: "#8A2A22" },
+  // Sobre las tarjetas vino.
+  claro: { caja: "bg-piedra", texto: "text-vino", icono: "#2B1424" },
 };
 
 export function BotonPanel({
@@ -225,7 +227,8 @@ export function Enlace({
 }: {
   texto: string;
   alPresionar: () => void;
-  tono?: "oliva" | "tinta" | "rojo" | "azul";
+  /** "claro" es para las tarjetas vino. */
+  tono?: "oliva" | "tinta" | "rojo" | "azul" | "claro";
   deshabilitado?: boolean;
   className?: string;
 }) {
@@ -234,6 +237,7 @@ export function Enlace({
     tinta: "text-tinta-media",
     rojo: "text-rojizo-oscuro",
     azul: "text-azulado-oscuro",
+    claro: "text-oliva-hoja",
   }[tono];
   return (
     <TouchableOpacity

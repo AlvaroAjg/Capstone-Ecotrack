@@ -154,6 +154,12 @@ export interface Usuario {
   /** null hasta que se une a un área con su código. */
   areaId: string | null;
   areaNombre: string | null;
+  /**
+   * Solo un validador puede serlo: el que hace la ronda los días en que el
+   * titular no está. Valida igual que el titular; la marca solo sirve para
+   * que el panel muestre quién es cada uno.
+   */
+  suplente: boolean;
   /** Hasta cuándo vio sus avisos: los posteriores se marcan como nuevos. */
   avisosVistosHasta: number;
 }

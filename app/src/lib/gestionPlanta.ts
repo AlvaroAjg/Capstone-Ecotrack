@@ -99,3 +99,32 @@ export function filasPersonas(
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
     .map((persona) => ({ persona, ultimoDeposito: ultimo.get(persona.id) ?? null }));
 }
+
+export interface ValidadoresDeRonda {
+  titular: Usuario | null;
+  suplente: Usuario | null;
+  /**
+   * Validadores que no son ni el titular ni el suplente: los que quedaron de
+   * antes de distinguirlos. Se muestran para que nadie valide sin que el
+   * administrador lo vea.
+   */
+  otros: Usuario[];
+}
+
+/**
+ * Quién hace la ronda: el titular es el validador sin la marca de suplente y
+ * el suplente, el que la tiene. Si hay más de uno de cada tipo, el primero
+ * por nombre ocupa el puesto y el resto queda en `otros`.
+ */
+export function validadoresDeRonda(personas: Usuario[]): ValidadoresDeRonda {
+  const validadores = personas
+    .filter((p) => p.rol === "validador")
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  const titular = validadores.find((p) => !p.suplente) ?? null;
+  const suplente = validadores.find((p) => p.suplente) ?? null;
+  return {
+    titular,
+    suplente,
+    otros: validadores.filter((p) => p !== titular && p !== suplente),
+  };
+}

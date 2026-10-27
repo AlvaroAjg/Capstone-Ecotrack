@@ -4,6 +4,7 @@ import {
   filasPersonas,
   generarCodigoArea,
   personasPorArea,
+  validadoresDeRonda,
 } from "../src/lib/gestionPlanta";
 import { contenedor, fecha, registro, usuario } from "./fabrica";
 
@@ -80,5 +81,32 @@ describe("filasPersonas", () => {
   test("filtra por área", () => {
     const filas = filasPersonas(PERSONAS, [], { busqueda: "", areaId: "fermentacion" });
     expect(filas.map((f) => f.persona.id)).toEqual(["bruno"]);
+  });
+});
+
+describe("validadoresDeRonda", () => {
+  test("distingue al titular del suplente", () => {
+    const v = validadoresDeRonda([
+      usuario({ id: "ana" }),
+      usuario({ id: "rosa", nombre: "Rosa", rol: "validador" }),
+      usuario({ id: "tomas", nombre: "Tomás", rol: "validador", suplente: true }),
+    ]);
+    expect(v.titular?.id).toBe("rosa");
+    expect(v.suplente?.id).toBe("tomas");
+    expect(v.otros).toEqual([]);
+  });
+
+  test("sin validadores no hay ni titular ni suplente", () => {
+    expect(validadoresDeRonda([usuario()])).toEqual({ titular: null, suplente: null, otros: [] });
+  });
+
+  test("si sobran validadores, el primero por nombre ocupa el puesto y el resto queda aparte", () => {
+    const v = validadoresDeRonda([
+      usuario({ id: "zoe", nombre: "Zoe", rol: "validador" }),
+      usuario({ id: "beto", nombre: "Beto", rol: "validador" }),
+    ]);
+    expect(v.titular?.id).toBe("beto");
+    expect(v.suplente).toBeNull();
+    expect(v.otros.map((p) => p.id)).toEqual(["zoe"]);
   });
 });

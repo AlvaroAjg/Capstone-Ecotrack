@@ -115,6 +115,7 @@ export function usuario(cambios: Partial<Usuario> = {}): Usuario {
     plantaId: "planta-1",
     areaId: "embotellado",
     areaNombre: "Embotellado",
+    suplente: false,
     avisosVistosHasta: 0,
     ...cambios,
   };

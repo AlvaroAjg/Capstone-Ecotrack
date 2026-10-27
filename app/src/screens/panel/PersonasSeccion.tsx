@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { TextInput, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
-import { filasPersonas, generarCodigoArea, personasPorArea } from "../../lib/gestionPlanta";
+import { filasPersonas, generarCodigoArea, personasPorArea, validadoresDeRonda } from "../../lib/gestionPlanta";
 import { fechaCorta } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import * as servicioAreas from "../../services/areas";
-import { cambiarArea, cambiarRol, escucharPersonas } from "../../services/personas";
+import { cambiarArea, devolverAColaborador, escucharPersonas, nombrarValidador } from "../../services/personas";
 import {
   Bloque,
   BotonPanel,
@@ -77,47 +77,191 @@ const AVATARES = [
   { fondo: "bg-azulado-claro", texto: "text-azulado-oscuro" },
 ];
 
-/** Quién valida hoy los depósitos de la planta. */
+/** Cuántas coincidencias muestra el buscador del validador. */
+const MAX_CANDIDATOS = 5;
+
+/**
+ * Quién hace la ronda: el titular y su suplente para los días en que el
+ * titular no está. "Cambiar" abre un buscador para nombrar a otra persona en
+ * cualquiera de los dos puestos o devolver a alguien a colaborador.
+ */
 function Validadores({ personas }: { personas: Usuario[] }) {
-  const validadores = personas.filter((p) => p.rol === "validador");
+  const { titular, suplente, otros } = useMemo(() => validadoresDeRonda(personas), [personas]);
+  const [cambiando, setCambiando] = useState(false);
+  const [busqueda, setBusqueda] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+
+  // El administrador no valida: no aparece entre las personas que se pueden nombrar.
+  const candidatos = useMemo(
+    () =>
+      busqueda.trim()
+        ? filasPersonas(
+            personas.filter((p) => p.rol !== "administrador"),
+            [],
+            { busqueda, areaId: null }
+          )
+            .slice(0, MAX_CANDIDATOS)
+            .map((f) => f.persona)
+        : [],
+    [personas, busqueda]
+  );
+
+  async function ejecutar(accion: () => Promise<void>, alFallar: string) {
+    setOcupado(true);
+    try {
+      await accion();
+    } catch (e) {
+      avisar(alFallar, textoDeError(e));
+    } finally {
+      setOcupado(false);
+    }
+  }
+
+  async function nombrar(persona: Usuario, puesto: "titular" | "suplente") {
+    // Quien ocupa hoy ese puesto vuelve a colaborador.
+    const anterior = puesto === "titular" ? titular : suplente;
+    const reemplaza = anterior && anterior.id !== persona.id ? ` ${anterior.nombre} vuelve a colaborador.` : "";
+    const acepta = await confirmar(
+      puesto === "titular" ? "Nombrar validador titular" : "Nombrar validador suplente",
+      (persona.rol === "colaborador"
+        ? `${persona.nombre} verá la vista de validación en vez de la de colaborador y podrá validar los depósitos de toda la planta. Sigue en ${persona.areaNombre ?? "su área"}.`
+        : `${persona.nombre} pasa a ser el validador ${puesto}.`) + reemplaza,
+      "Nombrar"
+    );
+    if (!acepta) return;
+    await ejecutar(async () => {
+      await nombrarValidador(persona, puesto, anterior);
+      setBusqueda("");
+    }, "No se pudo nombrar al validador");
+  }
+
+  async function devolver(persona: Usuario) {
+    const acepta = await confirmar(
+      "Devolver a colaborador",
+      `${persona.nombre} vuelve a la vista de colaborador y deja de validar depósitos.`,
+      "Devolver"
+    );
+    if (!acepta) return;
+    await ejecutar(() => devolverAColaborador(persona), "No se pudo cambiar el rol");
+  }
+
   return (
     <View className="bg-vino rounded-[20px] px-5 py-4 mb-5">
-      <Titulo className="text-vino-texto text-[22px]">
-        {validadores.length > 1 ? "Validadores de ronda" : "Validador de ronda"}
-      </Titulo>
-      {validadores.length === 0 ? (
-        <Texto className="text-vino-nav text-[13px] mt-2 leading-[19px]">
-          Todavía no hay validador: nadie revisa los depósitos en el punto limpio. Nómbralo en la tabla
-          de personas.
-        </Texto>
-      ) : (
-        validadores.map((v) => (
-          <View key={v.id} className="flex-row items-center mt-3">
-            <View className="w-11 h-11 rounded-full bg-oliva-hoja items-center justify-center mr-3">
-              <Texto className="text-[#1D3314] font-bold">{iniciales(v.nombre)}</Texto>
-            </View>
-            <View className="flex-1 min-w-0">
-              <Texto className="text-vino-texto text-base font-bold" numberOfLines={1}>
-                {v.nombre}
-              </Texto>
-              <Texto className="text-vino-suave text-[13px]" numberOfLines={1}>
-                {v.areaNombre ?? "Sin área"}
-              </Texto>
-            </View>
+      <View className="flex-row items-center justify-between">
+        <Titulo className="text-vino-texto text-[22px]">Validador de ronda</Titulo>
+        <BotonPanel
+          titulo={cambiando ? "Listo" : "Cambiar"}
+          variante="claro"
+          compacto
+          onPress={() => {
+            setCambiando(!cambiando);
+            setBusqueda("");
+          }}
+        />
+      </View>
+
+      {titular ? (
+        <View className="flex-row items-center mt-3">
+          <View className="w-11 h-11 rounded-full bg-oliva-hoja items-center justify-center mr-3">
+            <Texto className="text-[#1D3314] font-bold">{iniciales(titular.nombre)}</Texto>
           </View>
-        ))
+          <View className="flex-1 min-w-0">
+            <Texto className="text-vino-texto text-base font-bold" numberOfLines={1}>
+              {titular.nombre}
+            </Texto>
+            <Texto className="text-vino-suave text-[13px]" numberOfLines={1}>
+              {titular.areaNombre ?? "Sin área"}
+            </Texto>
+          </View>
+          {cambiando ? (
+            <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(titular)} />
+          ) : null}
+        </View>
+      ) : (
+        <Texto className="text-vino-nav text-[13px] mt-2 leading-[19px]">
+          Todavía no hay validador: nadie revisa los depósitos en el punto limpio. Nombra a quien ya recorre
+          la planta.
+        </Texto>
       )}
-      <Texto className="text-vino-nav text-[13px] mt-3 pt-3 border-t border-vino-linea leading-[19px]">
-        Nombra a quien ya recorre la planta. Puedes nombrar a una segunda persona como suplente para los
-        días en que el titular no está.
-      </Texto>
+
+      <View className="mt-3 pt-3 border-t border-vino-linea">
+        <View className="flex-row items-center">
+          <Texto className="flex-1 text-vino-nav text-[13px] leading-[19px]">
+            {suplente
+              ? `Suplente: ${suplente.nombre}${suplente.areaNombre ? `, de ${suplente.areaNombre}` : ""}`
+              : "Sin suplente para los días en que el titular no está."}
+          </Texto>
+          {cambiando && suplente ? (
+            <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(suplente)} />
+          ) : null}
+        </View>
+        {otros.map((p) => (
+          <View key={p.id} className="flex-row items-center mt-1">
+            <Texto className="flex-1 text-vino-nav text-[13px] leading-[19px]">
+              {`También valida: ${p.nombre}${p.areaNombre ? `, de ${p.areaNombre}` : ""}`}
+            </Texto>
+            {cambiando ? (
+              <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(p)} />
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      {cambiando ? (
+        <View className="mt-3 pt-3 border-t border-vino-linea">
+          <Texto className="text-vino-nav text-[13px] font-semibold mb-1.5">Buscar a quien nombrar</Texto>
+          <View className="flex-row items-center h-11 px-3.5 bg-vino-medio border border-vino-linea rounded-[10px]">
+            <Icono nombre="buscar" tamano={18} color="#C3AEBC" />
+            <TextInput
+              value={busqueda}
+              onChangeText={setBusqueda}
+              placeholder="Nombre o correo"
+              placeholderTextColor="#C3AEBC"
+              accessibilityLabel="Buscar a quien nombrar validador"
+              className="flex-1 ml-2 text-vino-texto text-sm h-full"
+              style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+            />
+          </View>
+          {busqueda.trim() && candidatos.length === 0 ? (
+            <Texto className="text-vino-suave text-[13px] mt-2">Nadie coincide con la búsqueda.</Texto>
+          ) : null}
+          {candidatos.map((p) => (
+            <View key={p.id} className="flex-row items-center py-2 border-b border-vino-linea">
+              <View className="flex-1 min-w-0 pr-2">
+                <Texto className="text-vino-texto text-sm font-bold" numberOfLines={1}>
+                  {p.nombre || "Sin nombre"}
+                </Texto>
+                <Texto className="text-vino-suave text-xs" numberOfLines={1}>
+                  {p.areaNombre ?? "Sin área"}
+                </Texto>
+              </View>
+              {p.id === titular?.id ? (
+                <Texto className="text-vino-suave text-[13px] mr-3">Titular</Texto>
+              ) : (
+                <Enlace
+                  texto="Titular"
+                  tono="claro"
+                  deshabilitado={ocupado}
+                  alPresionar={() => nombrar(p, "titular")}
+                  className="mr-3"
+                />
+              )}
+              {p.id === suplente?.id ? (
+                <Texto className="text-vino-suave text-[13px]">Suplente</Texto>
+              ) : (
+                <Enlace texto="Suplente" tono="claro" deshabilitado={ocupado} alPresionar={() => nombrar(p, "suplente")} />
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
     </View>
   );
 }
 
 /**
- * Las personas de la planta: buscar, filtrar por área, cambiarlas de área y
- * nombrar al validador.
+ * Las personas de la planta: buscar, filtrar por área y cambiarlas de área.
+ * Al validador se lo nombra en su tarjeta.
  */
 function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
   const { registros } = useEcoTrack();
@@ -148,22 +292,6 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
       await cambiarArea(persona, area);
       setMoviendo(null);
     }, "No se pudo cambiar de área");
-  }
-
-  async function alternarValidador(persona: Usuario) {
-    const nombrar = persona.rol === "colaborador";
-    const acepta = await confirmar(
-      nombrar ? "Nombrar validador" : "Devolver a colaborador",
-      nombrar
-        ? `${persona.nombre} verá la vista de validación en vez de la de colaborador y podrá validar los depósitos de toda la planta. Sigue en ${persona.areaNombre ?? "su área"}.`
-        : `${persona.nombre} vuelve a la vista de colaborador y deja de validar depósitos.`,
-      nombrar ? "Nombrar" : "Devolver"
-    );
-    if (!acepta) return;
-    await ejecutar(
-      () => cambiarRol(persona, nombrar ? "validador" : "colaborador"),
-      "No se pudo cambiar el rol"
-    );
   }
 
   return (
@@ -235,12 +363,6 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
               <View className="w-44 items-end">
                 {gestionable ? (
                   <>
-                    <Enlace
-                      texto={persona.rol === "validador" ? "Devolver a colaborador" : "Nombrar validador"}
-                      tono="azul"
-                      deshabilitado={ocupado}
-                      alPresionar={() => alternarValidador(persona)}
-                    />
                     <Enlace
                       texto="Cambiar de área"
                       deshabilitado={ocupado}
