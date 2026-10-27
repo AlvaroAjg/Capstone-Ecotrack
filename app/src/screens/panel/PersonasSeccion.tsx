@@ -1,8 +1,15 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { TextInput, View, useWindowDimensions } from "react-native";
+import { TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
-import { filasPersonas, generarCodigoArea, personasPorArea, validadoresDeRonda } from "../../lib/gestionPlanta";
-import { fechaCorta } from "../../lib/formato";
+import {
+  filasPersonas,
+  generarCodigoArea,
+  paginar,
+  personasPorArea,
+  validadoresDeRonda,
+  type EstadoPersona,
+} from "../../lib/gestionPlanta";
+import { diaRelativo } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import * as servicioAreas from "../../services/areas";
 import { cambiarArea, devolverAColaborador, escucharPersonas, nombrarValidador } from "../../services/personas";
@@ -10,6 +17,7 @@ import {
   Bloque,
   BotonPanel,
   CampoPanel,
+  Desplegable,
   EncabezadoSeccion,
   Enlace,
   Icono,
@@ -23,6 +31,9 @@ import {
 
 /** Desde este ancho, validadores y áreas van al lado de la tabla; bajo él, debajo. */
 const ANCHO_DOS_COLUMNAS = 1280;
+
+/** Filas por página de la tabla: la planta tiene cerca de 180 personas. */
+const POR_PAGINA = 10;
 
 /**
  * Personas y áreas de la planta. Las áreas son las que compiten en el ranking:
@@ -62,10 +73,16 @@ export default function PersonasSeccion() {
   );
 }
 
-const ETIQUETA_ROL: Record<Usuario["rol"], { texto: string; tono: Tono }> = {
-  colaborador: { texto: "Colaborador", tono: "gris" },
-  validador: { texto: "Validador", tono: "azul" },
-  administrador: { texto: "Administrador", tono: "vino" },
+/** Cómo se lee el rol bajo el nombre de cada persona. */
+function etiquetaRol(persona: Usuario): string {
+  if (persona.rol === "administrador") return "Administrador";
+  if (persona.rol === "validador") return persona.suplente ? "Validador suplente" : "Validador de ronda";
+  return "Colaborador";
+}
+
+const ESTADO: Record<EstadoPersona, { texto: string; tono: Tono }> = {
+  activa: { texto: "Activo", tono: "oliva" },
+  sinDepositos: { texto: "Sin depósitos este mes", tono: "gris" },
 };
 
 /** Colores de los círculos con iniciales, para distinguir filas de un vistazo. */
@@ -260,67 +277,75 @@ function Validadores({ personas }: { personas: Usuario[] }) {
 }
 
 /**
- * Las personas de la planta: buscar, filtrar por área y cambiarlas de área.
- * Al validador se lo nombra en su tarjeta.
+ * Las personas de la planta: buscar, filtrar por área y, al tocar una fila,
+ * ver su correo y cambiarla de área. Al validador se lo nombra en su tarjeta.
  */
 function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
   const { registros } = useEcoTrack();
   const [busqueda, setBusqueda] = useState("");
   const [areaFiltro, setAreaFiltro] = useState<string | null>(null);
-  // Persona a la que se le está eligiendo un área nueva.
-  const [moviendo, setMoviendo] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(0);
+  // Persona cuya fila está abierta para ver su correo y cambiarla de área.
+  const [abierta, setAbierta] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
   const filas = useMemo(
     () => filasPersonas(personas, registros, { busqueda, areaId: areaFiltro }),
     [personas, registros, busqueda, areaFiltro]
   );
+  const vista = paginar(filas, pagina, POR_PAGINA);
 
-  async function ejecutar(accion: () => Promise<void>, alFallar: string) {
+  async function mover(persona: Usuario, area: Area) {
     setOcupado(true);
     try {
-      await accion();
+      await cambiarArea(persona, area);
+      setAbierta(null);
     } catch (e) {
-      avisar(alFallar, textoDeError(e));
+      avisar("No se pudo cambiar de área", textoDeError(e));
     } finally {
       setOcupado(false);
     }
   }
 
-  function mover(persona: Usuario, area: Area) {
-    return ejecutar(async () => {
-      await cambiarArea(persona, area);
-      setMoviendo(null);
-    }, "No se pudo cambiar de área");
-  }
-
   return (
     <Bloque>
-      <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">Buscar</Texto>
-      <View className="flex-row items-center h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] mb-3">
-        <Icono nombre="buscar" tamano={18} color="#6E686C" />
-        <TextInput
-          value={busqueda}
-          onChangeText={setBusqueda}
-          placeholder="Nombre de la persona"
-          placeholderTextColor="#8B8589"
-          accessibilityLabel="Buscar por nombre"
-          className="flex-1 ml-2 text-tinta text-sm h-full"
-          style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+      <View className="flex-row items-end">
+        <View className="flex-1 min-w-0 mr-3">
+          <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">Buscar</Texto>
+          <View className="flex-row items-center h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px]">
+            <Icono nombre="buscar" tamano={18} color="#6E686C" />
+            <TextInput
+              value={busqueda}
+              onChangeText={(t) => {
+                setBusqueda(t);
+                setPagina(0);
+              }}
+              placeholder="Nombre o correo"
+              placeholderTextColor="#8B8589"
+              accessibilityLabel="Buscar por nombre o correo"
+              className="flex-1 ml-2 text-tinta text-sm h-full"
+              style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+            />
+          </View>
+        </View>
+        <Desplegable
+          etiqueta="Área"
+          className="w-[190px]"
+          opciones={[{ valor: null, etiqueta: "Todas las áreas" }, ...areas.map((a) => ({ valor: a.id, etiqueta: a.nombre }))]}
+          valor={areaFiltro}
+          alCambiar={(id) => {
+            setAreaFiltro(id);
+            setPagina(0);
+          }}
         />
       </View>
-      <Pildoras
-        opciones={[{ valor: null, etiqueta: "Todas las áreas" }, ...areas.map((a) => ({ valor: a.id, etiqueta: a.nombre }))]}
-        valor={areaFiltro}
-        alCambiar={setAreaFiltro}
-      />
 
-      <View className="flex-row border-b-[1.5px] border-vino pb-2 mt-2">
+      <View className="flex-row border-b-[1.5px] border-vino pb-2 mt-4">
         <Texto className="flex-1 text-tinta-media text-[13px] font-semibold">Persona</Texto>
-        <Texto className="w-40 text-tinta-media text-[13px] font-semibold">Área</Texto>
-        <Texto className="w-32 text-tinta-media text-[13px] font-semibold">Rol</Texto>
-        <Texto className="w-28 text-tinta-media text-[13px] font-semibold">Último depósito</Texto>
-        <View className="w-44" />
+        <Texto className="w-44 text-tinta-media text-[13px] font-semibold">Área</Texto>
+        <Texto className="w-32 text-tinta-media text-[13px] font-semibold">Último depósito</Texto>
+        <Texto className="w-[184px] text-tinta-media text-[13px] font-semibold">Estado</Texto>
+        <View className="w-6" />
       </View>
 
       {filas.length === 0 ? (
@@ -331,64 +356,105 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
         </Texto>
       ) : null}
 
-      {filas.map(({ persona, ultimoDeposito }, i) => {
-        const rol = ETIQUETA_ROL[persona.rol];
+      {vista.elementos.map(({ persona, ultimoDeposito, estado }, i) => {
         const avatar = AVATARES[i % AVATARES.length];
+        // El administrador no compite: no tiene área que cambiar.
         const gestionable = persona.rol !== "administrador";
-        return (
-          <View key={persona.id} className="border-b border-piedra-linea py-2.5">
-            <View className="flex-row items-center">
-              <View className="flex-1 min-w-0 flex-row items-center pr-2">
-                <View className={`w-8 h-8 rounded-full items-center justify-center mr-2.5 ${avatar.fondo}`}>
-                  <Texto className={`text-xs font-bold ${avatar.texto}`}>{iniciales(persona.nombre || "?")}</Texto>
-                </View>
-                <View className="flex-1 min-w-0">
-                  <Texto className="text-tinta text-sm font-bold" numberOfLines={1}>
-                    {persona.nombre || "Sin nombre"}
-                  </Texto>
-                  <Texto className="text-tinta-suave text-xs" numberOfLines={1}>
-                    {persona.email}
-                  </Texto>
-                </View>
+        const estaAbierta = abierta === persona.id;
+        const fila = (
+          <View className="flex-row items-center">
+            <View className="flex-1 min-w-0 flex-row items-center pr-2">
+              <View className={`w-8 h-8 rounded-full items-center justify-center mr-2.5 ${avatar.fondo}`}>
+                <Texto className={`text-xs font-bold ${avatar.texto}`}>{iniciales(persona.nombre || "?")}</Texto>
               </View>
-              <Texto className="w-40 text-tinta text-[13px] pr-2" numberOfLines={1}>
-                {persona.areaNombre ?? "—"}
-              </Texto>
-              <View className="w-32 items-start">
-                <Insignia texto={rol.texto} tono={rol.tono} />
-              </View>
-              <Texto className="w-28 text-tinta-media text-[13px]">
-                {ultimoDeposito ? fechaCorta(ultimoDeposito) : "Nunca"}
-              </Texto>
-              <View className="w-44 items-end">
-                {gestionable ? (
-                  <>
-                    <Enlace
-                      texto="Cambiar de área"
-                      deshabilitado={ocupado}
-                      alPresionar={() => setMoviendo(moviendo === persona.id ? null : persona.id)}
-                    />
-                  </>
-                ) : null}
+              <View className="flex-1 min-w-0">
+                <Texto className="text-tinta text-sm font-bold" numberOfLines={1}>
+                  {persona.nombre || "Sin nombre"}
+                </Texto>
+                <Texto className="text-tinta-suave text-xs" numberOfLines={1}>
+                  {etiquetaRol(persona)}
+                </Texto>
               </View>
             </View>
+            <Texto className="w-44 text-tinta text-[13px] pr-2" numberOfLines={1}>
+              {persona.areaNombre ?? "—"}
+            </Texto>
+            <Texto className="w-32 text-tinta-media text-[13px]">
+              {ultimoDeposito ? diaRelativo(ultimoDeposito) : "—"}
+            </Texto>
+            <View className="w-[184px] items-start">
+              {estado ? (
+                <Insignia texto={ESTADO[estado].texto} tono={ESTADO[estado].tono} />
+              ) : (
+                <Texto className="text-tinta-suave text-[13px]">—</Texto>
+              )}
+            </View>
+            <View className="w-6 items-end">
+              {gestionable ? <Icono nombre={estaAbierta ? "arriba" : "abajo"} tamano={16} color="#6E686C" /> : null}
+            </View>
+          </View>
+        );
+        return (
+          <View key={persona.id} className="border-b border-piedra-linea py-2">
+            {gestionable ? (
+              <TouchableOpacity
+                onPress={() => setAbierta(estaAbierta ? null : persona.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${persona.nombre || "Sin nombre"}: ver correo y cambiar de área`}
+                accessibilityState={{ expanded: estaAbierta }}
+              >
+                {fila}
+              </TouchableOpacity>
+            ) : (
+              fila
+            )}
 
-            {moviendo === persona.id ? (
+            {estaAbierta ? (
               <View className="bg-piedra rounded-xl px-3 pt-3 pb-1 mt-2">
-                <Texto className="text-tinta-media text-xs mb-2">Mover a:</Texto>
-                <Pildoras
-                  opciones={areas.filter((a) => a.id !== persona.areaId).map((a) => ({ valor: a.id, etiqueta: a.nombre }))}
-                  valor={null as string | null}
-                  alCambiar={(id) => {
-                    const area = areas.find((a) => a.id === id);
-                    if (area) mover(persona, area);
-                  }}
-                />
+                <Texto className="text-tinta-media text-xs mb-2">
+                  Correo: <Texto className="text-tinta font-semibold">{persona.email || "—"}</Texto>
+                </Texto>
+                <Texto className="text-tinta-media text-xs mb-2">Cambiar de área a:</Texto>
+                <View className={ocupado ? "opacity-50" : ""} pointerEvents={ocupado ? "none" : "auto"}>
+                  <Pildoras
+                    opciones={areas.filter((a) => a.id !== persona.areaId).map((a) => ({ valor: a.id, etiqueta: a.nombre }))}
+                    valor={null as string | null}
+                    alCambiar={(id) => {
+                      const area = areas.find((a) => a.id === id);
+                      if (area) mover(persona, area);
+                    }}
+                  />
+                </View>
               </View>
             ) : null}
           </View>
         );
       })}
+
+      {filas.length > 0 ? (
+        <View className="flex-row items-center justify-between mt-4">
+          <Texto className="text-tinta-media text-[13px]">
+            {`Mostrando ${vista.pagina * POR_PAGINA + 1}–${vista.pagina * POR_PAGINA + vista.elementos.length} de ${vista.total}`}
+          </Texto>
+          <View className="flex-row">
+            <BotonPanel
+              titulo="Anterior"
+              variante="secundario"
+              compacto
+              deshabilitado={vista.pagina === 0}
+              onPress={() => setPagina(vista.pagina - 1)}
+              className="mr-2"
+            />
+            <BotonPanel
+              titulo="Siguiente"
+              variante="secundario"
+              compacto
+              deshabilitado={vista.pagina >= vista.paginas - 1}
+              onPress={() => setPagina(vista.pagina + 1)}
+            />
+          </View>
+        </View>
+      ) : null}
     </Bloque>
   );
 }
@@ -415,8 +481,8 @@ function TablaAreas({
         ) : null}
       </View>
       <Texto className="text-tinta-suave text-xs mt-1 mb-2 leading-[17px]">
-        Cada área tiene un código para que su gente se una. La dotación es cuántas personas trabajan en
-        ella: con ella se calcula la participación.
+        Cada área tiene un código para que su gente se una. Al lado, cuántas personas se registraron de
+        su dotación, que es la base de la participación.
       </Texto>
 
       {areas.length === 0 && editando !== "nueva" ? (
@@ -437,14 +503,15 @@ function TablaAreas({
           />
         ) : (
           <View key={a.id} className="flex-row items-center py-2 border-t border-piedra-linea">
-            <View className="flex-1 min-w-0 pr-2">
-              <Texto className="text-tinta text-[13px] font-semibold" numberOfLines={1}>
-                {a.nombre}
-              </Texto>
-              <Texto className="text-tinta-suave text-xs">
-                {registradas[a.id] ?? 0} de {a.dotacion} registradas
-              </Texto>
-            </View>
+            <Texto className="flex-1 min-w-0 pr-2 text-tinta text-[13px] font-semibold" numberOfLines={1}>
+              {a.nombre}
+            </Texto>
+            <Texto
+              className="w-[72px] text-right text-tinta-suave text-[13px] mr-2"
+              accessibilityLabel={`${registradas[a.id] ?? 0} de ${a.dotacion} personas registradas`}
+            >
+              {registradas[a.id] ?? 0} de {a.dotacion}
+            </Texto>
             <View className="bg-piedra rounded-md px-2 py-1 mr-3">
               <Texto className="text-vino text-xs font-bold tracking-widest">{a.codigo}</Texto>
             </View>

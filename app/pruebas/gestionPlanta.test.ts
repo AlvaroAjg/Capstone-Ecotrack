@@ -3,6 +3,7 @@ import {
   agruparPorPunto,
   filasPersonas,
   generarCodigoArea,
+  paginar,
   personasPorArea,
   validadoresDeRonda,
 } from "../src/lib/gestionPlanta";
@@ -54,7 +55,7 @@ describe("personasPorArea", () => {
 
 describe("filasPersonas", () => {
   const PERSONAS = [
-    usuario({ id: "ana", nombre: "Ana Pérez" }),
+    usuario({ id: "ana", nombre: "Ana Pérez", email: "aperez@vina.cl" }),
     usuario({ id: "bruno", nombre: "Bruno Díaz", areaId: "fermentacion" }),
     usuario({ id: "carla", nombre: "Carla Soto", rol: "validador" }),
   ];
@@ -78,9 +79,47 @@ describe("filasPersonas", () => {
     expect(filas.map((f) => f.persona.id)).toEqual(["ana"]);
   });
 
+  test("busca también por correo", () => {
+    const filas = filasPersonas(PERSONAS, [], { busqueda: "APEREZ@", areaId: null });
+    expect(filas.map((f) => f.persona.id)).toEqual(["ana"]);
+  });
+
   test("filtra por área", () => {
     const filas = filasPersonas(PERSONAS, [], { busqueda: "", areaId: "fermentacion" });
     expect(filas.map((f) => f.persona.id)).toEqual(["bruno"]);
+  });
+
+  test("activa si depositó este mes; si no, sin depósitos; el administrador no tiene estado", () => {
+    const filas = filasPersonas(
+      [...PERSONAS, usuario({ id: "adela", nombre: "Adela", rol: "administrador", areaId: null })],
+      [
+        registro({ colaboradorId: "ana", creadoEn: fecha(2026, 9, 2) }),
+        registro({ colaboradorId: "bruno", creadoEn: fecha(2026, 8, 31) }),
+      ],
+      { busqueda: "", areaId: null },
+      fecha(2026, 9, 16)
+    );
+    const estado = Object.fromEntries(filas.map((f) => [f.persona.id, f.estado]));
+    expect(estado).toEqual({ adela: null, ana: "activa", bruno: "sinDepositos", carla: "sinDepositos" });
+  });
+});
+
+describe("paginar", () => {
+  const LISTA = Array.from({ length: 23 }, (_, i) => i);
+
+  test("corta la lista en páginas", () => {
+    const p = paginar(LISTA, 2, 10);
+    expect(p.elementos).toEqual([20, 21, 22]);
+    expect(p).toMatchObject({ pagina: 2, paginas: 3, total: 23 });
+  });
+
+  test("una página fuera de rango muestra la última", () => {
+    expect(paginar(LISTA, 7, 10).pagina).toBe(2);
+    expect(paginar(LISTA, -1, 10).pagina).toBe(0);
+  });
+
+  test("una lista vacía tiene una página vacía", () => {
+    expect(paginar([], 0, 10)).toEqual({ elementos: [], pagina: 0, paginas: 1, total: 0 });
   });
 });
 

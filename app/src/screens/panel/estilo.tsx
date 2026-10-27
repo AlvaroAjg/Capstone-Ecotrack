@@ -196,6 +196,54 @@ export function Pildoras<T extends string | null>({
   );
 }
 
+/**
+ * Lista desplegable con su etiqueta arriba, del alto de CampoPanel. El panel
+ * solo corre en el navegador, así que usa el <select> nativo: el teclado y el
+ * lector de pantalla ya saben usarlo.
+ */
+export function Desplegable<T extends string | null>({
+  etiqueta,
+  opciones,
+  valor,
+  alCambiar,
+  className = "",
+}: {
+  etiqueta: string;
+  opciones: { valor: T; etiqueta: string }[];
+  valor: T;
+  alCambiar: (v: T) => void;
+  className?: string;
+}) {
+  if (Platform.OS !== "web") return null;
+  // El <select> solo maneja textos: cada opción va por su posición, así
+  // también sirve una opción con valor null ("Todas").
+  const elegida = Math.max(0, opciones.findIndex((o) => o.valor === valor));
+  return (
+    <View className={className}>
+      <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">{etiqueta}</Texto>
+      {React.createElement(
+        "select",
+        {
+          "aria-label": etiqueta,
+          value: String(elegida),
+          onChange: (e: { target: { value: string } }) => alCambiar(opciones[Number(e.target.value)].valor),
+          style: {
+            height: 44,
+            padding: "0 12px",
+            background: "#F7F8F5",
+            border: "1px solid #CFD2CA",
+            borderRadius: 10,
+            fontFamily: FUENTE.cuerpo,
+            fontSize: 14,
+            color: "#221C20",
+          },
+        },
+        opciones.map((o, i) => React.createElement("option", { key: i, value: String(i) }, o.etiqueta))
+      )}
+    </View>
+  );
+}
+
 /** Campo de formulario del panel: etiqueta arriba y caja de 44 px. */
 export function CampoPanel({
   etiqueta,
@@ -306,6 +354,8 @@ const TRAZOS = {
     "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z",
   salir: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   cerrar: "M18 6 6 18M6 6l12 12",
+  abajo: "M6 9l6 6 6-6",
+  arriba: "M18 15l-6-6-6 6",
   editar: "M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z",
   qr: "M3 3h7v7H3zM14 3h7v7h-7zM3 14h7v7H3zM14 14h3v3h-3zM20 14v.01M14 20h.01M17 17h4v4h-4z",
   renovar: "M21 12a9 9 0 1 1-3-6.7L21 8M21 3v5h-5",
