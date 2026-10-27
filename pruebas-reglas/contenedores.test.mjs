@@ -96,6 +96,46 @@ describe("contenedores", () => {
   test("nadie borra un contenedor", async () => {
     await assertFails(deleteDoc(doc(como("carla"), "contenedores/MIXTO1")));
   });
+
+  // ---- ubicación y nombre del punto limpio
+
+  test("la administradora crea un contenedor con la ubicación de su punto", async () => {
+    await assertSucceeds(
+      setDoc(doc(como("carla"), "contenedores/PAPEL1"), nuevo({ ubicacion: "Edificio principal, primer piso" }))
+    );
+  });
+
+  test("no con una ubicación que no es texto o es demasiado larga", async () => {
+    await assertFails(setDoc(doc(como("carla"), "contenedores/PAPEL1"), nuevo({ ubicacion: 3 })));
+    await assertFails(setDoc(doc(como("carla"), "contenedores/PAPEL1"), nuevo({ ubicacion: "x".repeat(81) })));
+  });
+
+  test("la administradora cambia el nombre y la ubicación del punto", async () => {
+    await assertSucceeds(
+      updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { punto: "Casino", ubicacion: "Edificio principal" })
+    );
+  });
+
+  test("también en un contenedor ya desactivado, para que su historial siga en el mismo punto", async () => {
+    await assertSucceeds(updateDoc(doc(como("carla"), "contenedores/VIEJO1"), { punto: "Casino" }));
+  });
+
+  test("no deja el punto sin nombre ni con nombre o ubicación demasiado largos", async () => {
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { punto: "" }));
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { punto: "x".repeat(61) }));
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { ubicacion: "x".repeat(81) }));
+  });
+
+  test("al renombrar no cambia el material, la planta ni lo reactiva", async () => {
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { punto: "Casino", material: "Vidrio" }));
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/MIXTO1"), { punto: "Casino", plantaId: "planta-b" }));
+    await assertFails(updateDoc(doc(como("carla"), "contenedores/VIEJO1"), { punto: "Casino", activo: true }));
+  });
+
+  test("la validadora no renombra puntos, ni el administrador de otra planta", async () => {
+    await assertFails(updateDoc(doc(como("vale"), "contenedores/MIXTO1"), { punto: "Casino" }));
+    await assertFails(updateDoc(doc(como("diego"), "contenedores/MIXTO1"), { punto: "Casino" }));
+  });
 });
 
 // --------------------------------------------------------------- incidencias

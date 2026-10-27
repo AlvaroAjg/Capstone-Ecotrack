@@ -1,6 +1,5 @@
 import React from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
-import type { Material } from "../../lib/tipos";
 import type { EstadoRonda } from "../../lib/resumenPanel";
 
 /**
@@ -79,13 +78,14 @@ export function EncabezadoSeccion({
   );
 }
 
-type VarianteBoton = "primario" | "secundario" | "suave" | "peligro" | "claro";
+type VarianteBoton = "primario" | "secundario" | "suave" | "peligro" | "vino" | "claro";
 
 const ESTILO_BOTON: Record<VarianteBoton, { caja: string; texto: string; icono: string }> = {
   primario: { caja: "bg-oliva", texto: "text-white", icono: "#FFFFFF" },
   secundario: { caja: "bg-white border border-piedra-control", texto: "text-tinta", icono: "#221C20" },
   suave: { caja: "bg-oliva-claro", texto: "text-oliva-oscuro", icono: "#2C4D20" },
   peligro: { caja: "bg-white border border-rojizo-claro", texto: "text-rojizo-oscuro", icono: "#8A2A22" },
+  vino: { caja: "bg-vino", texto: "text-white", icono: "#FFFFFF" },
   // Sobre las tarjetas vino.
   claro: { caja: "bg-piedra", texto: "text-vino", icono: "#2B1424" },
 };
@@ -311,24 +311,8 @@ export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icon
   vacio: { texto: "Sin depósitos", tono: "gris", icono: "reloj" },
 };
 
-/**
- * Un color por material, para las tapas de los contenedores y los gráficos.
- * Se distinguen también por claridad, no solo por tono. null es el mixto.
- */
-export function colorMaterial(material: Material | null): string {
-  switch (material) {
-    case "Plástico":
-      return "#C79A1E";
-    case "Papel/cartón":
-      return "#3B6EA8";
-    case "Vidrio":
-      return "#2F7F7A";
-    case "Metal":
-      return "#8A8F96";
-    default:
-      return "#3F6B2E";
-  }
-}
+/** También lo usan las etiquetas QR impresas (lib/etiquetaQr.ts). */
+export { colorMaterial } from "../../lib/tipos";
 
 /** Iniciales para el círculo de una persona: "Rosa Muñoz" → "RM". */
 export function iniciales(nombre: string): string {
@@ -342,6 +326,7 @@ export function iniciales(nombre: string): string {
 /** Trazos de 24×24, del mismo estilo que los del diseño. */
 const TRAZOS = {
   calendario: "M3 5h18v16H3zM16 3v4M8 3v4M3 10h18",
+  abajo: "M6 9l6 6 6-6",
   descargar: "M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3",
   mas: "M12 5v14M5 12h14",
   campana: "M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0",
@@ -354,7 +339,6 @@ const TRAZOS = {
     "M20 12v10H4V12M2 7h20v5H2zM12 22V7M12 7H7.5a2.5 2.5 0 0 1 0-5C11 2 12 7 12 7zM12 7h4.5a2.5 2.5 0 0 0 0-5C13 2 12 7 12 7z",
   salir: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
   cerrar: "M18 6 6 18M6 6l12 12",
-  abajo: "M6 9l6 6 6-6",
   copiar: "M9 9h11v11H9zM5 15H4a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h10a1 1 0 0 1 1 1v1",
   correo: "M3 5h18v14H3zM3 7l9 6 9-6",
   arriba: "M18 15l-6-6-6 6",

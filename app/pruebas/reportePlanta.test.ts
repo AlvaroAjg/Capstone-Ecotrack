@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { mesesReportables, reporteDePlanta } from "../src/lib/reportePlanta";
+import { mesesDelResumen, mesesReportables, reporteDePlanta } from "../src/lib/reportePlanta";
 import type { Incidencia, Registro, Retiro } from "../src/lib/tipos";
 import {
   EMBOTELLADO,
@@ -223,5 +223,27 @@ describe("reporteDePlanta", () => {
       enCurso: false,
       etiqueta: "agosto de 2026",
     });
+  });
+});
+
+describe("mesesDelResumen", () => {
+  test("los meses reportables y los que siguen hasta el último, aunque no lleguen", () => {
+    expect(mesesDelResumen(["2026-10", "2026-09"], "2026-12")).toEqual(["2026-12", "2026-11", "2026-10", "2026-09"]);
+  });
+
+  test("rellena los meses sin actividad entre medio", () => {
+    expect(mesesDelResumen(["2026-10", "2026-07"], "2026-10")).toEqual(["2026-10", "2026-09", "2026-08", "2026-07"]);
+  });
+
+  test("nunca ofrece un mes posterior al último", () => {
+    expect(mesesDelResumen(["2027-01", "2026-12", "2026-11"], "2026-12")).toEqual(["2026-12", "2026-11"]);
+  });
+
+  test("cruza el cambio de año", () => {
+    expect(mesesDelResumen(["2026-11"], "2027-02")).toEqual(["2027-02", "2027-01", "2026-12", "2026-11"]);
+  });
+
+  test("sin meses reportables, solo el último", () => {
+    expect(mesesDelResumen([], "2026-12")).toEqual(["2026-12"]);
   });
 });

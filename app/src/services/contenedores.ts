@@ -18,6 +18,7 @@ function aContenedor(codigo: string, d: any): Contenedor {
     codigo,
     plantaId: d.plantaId ?? "",
     punto: d.punto ?? "",
+    ubicacion: d.ubicacion ?? "",
     material: (d.material ?? null) as Material | null,
     activo: d.activo ?? false,
     creadoEn: d.creadoEn ?? 0,
@@ -64,21 +65,76 @@ async function codigoLibre(): Promise<string> {
   throw new Error("No se pudo generar un código de contenedor. Intenta de nuevo.");
 }
 
-/** Agrega un contenedor a un punto limpio de la planta. `material` null = mixto. */
+/**
+ * Agrega un contenedor a un punto limpio de la planta. `material` null =
+ * mixto. Lleva la ubicación del punto, como los demás contenedores de él.
+ */
 export async function crearContenedor(
   plantaId: string,
   punto: string,
-  material: Material | null
+  material: Material | null,
+  ubicacion = ""
 ): Promise<string> {
   const codigo = await codigoLibre();
   await setDoc(doc(db, "contenedores", codigo), {
     plantaId,
     punto,
+    ubicacion,
     material,
     activo: true,
     creadoEn: Date.now(),
   });
   return codigo;
+}
+
+/**
+ * Un punto limpio nuevo con sus contenedores, en una sola escritura: o se
+ * crean todos, o ninguno. Devuelve los códigos, en el orden de `materiales`.
+ */
+export async function crearPunto(
+  plantaId: string,
+  punto: string,
+  ubicacion: string,
+  materiales: (Material | null)[]
+): Promise<string[]> {
+  const codigos: string[] = [];
+  for (const _ of materiales) {
+    let codigo = await codigoLibre();
+    // Dos códigos al azar iguales en el mismo lote son casi imposibles, pero
+    // el segundo pisaría al primero.
+    while (codigos.includes(codigo)) codigo = await codigoLibre();
+    codigos.push(codigo);
+  }
+  const lote = writeBatch(db);
+  const ahora = Date.now();
+  materiales.forEach((material, i) =>
+    lote.set(doc(db, "contenedores", codigos[i]), {
+      plantaId,
+      punto,
+      ubicacion,
+      material,
+      activo: true,
+      creadoEn: ahora,
+    })
+  );
+  await lote.commit();
+  return codigos;
+}
+
+/**
+ * Cambia el nombre o la ubicación de un punto limpio. Se hace en todos sus
+ * contenedores, también en los desactivados, para que su historial siga
+ * apareciendo en el mismo punto. Va en un lote: o cambian todos, o ninguno.
+ */
+export async function editarPunto(
+  contenedores: Contenedor[],
+  datos: { punto: string; ubicacion: string }
+): Promise<void> {
+  const lote = writeBatch(db);
+  for (const c of contenedores) {
+    lote.update(doc(db, "contenedores", c.codigo), { punto: datos.punto, ubicacion: datos.ubicacion });
+  }
+  await lote.commit();
 }
 
 /** Quita un contenedor: su QR deja de servir, pero los depósitos hechos en él se conservan. */
@@ -98,6 +154,7 @@ export async function cambiarCodigo(contenedor: Contenedor): Promise<string> {
   lote.set(doc(db, "contenedores", codigo), {
     plantaId: contenedor.plantaId,
     punto: contenedor.punto,
+    ubicacion: contenedor.ubicacion,
     material: contenedor.material,
     activo: true,
     creadoEn: Date.now(),

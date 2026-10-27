@@ -242,3 +242,128 @@ export function rondaDeHoy(
         a.codigo.localeCompare(b.codigo)
     );
 }
+
+/** La ronda de hoy en un punto limpio: el resumen de sus contenedores. */
+export interface PuntoRonda {
+  punto: string;
+  estado: EstadoRonda;
+  /** Contenedores del punto con algo que revisar hoy. */
+  contenedores: number;
+  /** Depósitos del punto que esperan validación. */
+  pendientes: number;
+}
+
+/** Del más leve al más grave, para quedarse con el peor estado de un punto. */
+const GRAVEDAD: EstadoRonda[] = ["conforme", "sinMaterial", "observacion"];
+
+/**
+ * La ronda de hoy por punto limpio, como la recorre el validador. Un punto
+ * sigue pendiente mientras le quede un contenedor por revisar; si ya los
+ * revisó todos, toma el estado más grave de ellos. Los contenedores sin nada
+ * que revisar no cuentan, y un punto que solo tiene de esos no aparece.
+ */
+export function rondaPorPunto(filas: FilaRonda[]): PuntoRonda[] {
+  const puntos = new Map<string, FilaRonda[]>();
+  for (const f of filas) {
+    if (f.estado === "vacio") continue;
+    const punto = f.punto || "Sin punto";
+    puntos.set(punto, [...(puntos.get(punto) ?? []), f]);
+  }
+
+  return [...puntos.entries()].map(([punto, propias]) => {
+    const estado: EstadoRonda = propias.some((f) => f.estado === "pendiente")
+      ? "pendiente"
+      : propias.reduce<EstadoRonda>(
+          (peor, f) => (GRAVEDAD.indexOf(f.estado) > GRAVEDAD.indexOf(peor) ? f.estado : peor),
+          "conforme"
+        );
+    return {
+      punto,
+      estado,
+      contenedores: propias.length,
+      pendientes: propias.reduce((t, f) => t + f.pendientes, 0),
+    };
+  });
+}
+
+export interface InicioRonda {
+  /** Uid de quien hizo la primera revisión del día. */
+  validadorId: string;
+  desde: number;
+}
+
+/**
+ * Quién empezó la ronda de hoy y a qué hora: lo primero que validó, rechazó o
+ * reportó en el día. null si todavía no empieza.
+ */
+export function inicioDeRonda(
+  registros: Registro[],
+  incidencias: Incidencia[],
+  ahora: number = Date.now()
+): InicioRonda | null {
+  const desde = inicioDelDia(ahora);
+  const deHoy = (t: number | null): t is number => t !== null && t >= desde && t <= ahora;
+
+  const acciones: InicioRonda[] = [
+    ...registros
+      .filter((r) => r.estado !== "pendiente" && deHoy(r.validadoEn) && r.validadoPor)
+      .map((r) => ({ validadorId: r.validadoPor as string, desde: r.validadoEn as number })),
+    ...incidencias
+      .filter((i) => deHoy(i.reportadoEn))
+      .map((i) => ({ validadorId: i.reportadoPor, desde: i.reportadoEn })),
+  ];
+  if (acciones.length === 0) return null;
+  return acciones.reduce((primera, a) => (a.desde < primera.desde ? a : primera));
+}
+
+/**
+ * Cuándo pasó lo último en la planta: un depósito, una validación, un
+ * reporte o una certificación. Con eso el Resumen dice hasta qué hora llegan
+ * sus datos. null si todavía no pasa nada.
+ */
+export function ultimaActividad(registros: Registro[], incidencias: Incidencia[]): number | null {
+  let ultima: number | null = null;
+  const considerar = (t: number | null) => {
+    if (t !== null && (ultima === null || t > ultima)) ultima = t;
+  };
+  for (const r of registros) {
+    considerar(r.creadoEn);
+    considerar(r.validadoEn);
+    considerar(r.certificadoEn);
+  }
+  for (const i of incidencias) considerar(i.reportadoEn);
+  return ultima;
+}
+
+export interface DepositosPunto {
+  punto: string;
+  porMaterial: Record<Material, number>;
+  total: number;
+}
+
+/**
+ * Depósitos validados en el mes por punto limpio y material, del punto con
+ * más al que tiene menos. El punto sale del contenedor donde se hizo el
+ * depósito, también si después se desactivó (al cambiarle el código).
+ */
+export function depositosPorPunto(
+  registros: Registro[],
+  contenedores: Contenedor[],
+  mes: string,
+  ahora: number = Date.now()
+): DepositosPunto[] {
+  const { desde, hasta } = rangoDelMes(mes, ahora);
+  const puntoDe = new Map(contenedores.map((c) => [c.codigo, c.punto || "Sin punto"]));
+  const vacio = () => Object.fromEntries(MATERIALES.map((m) => [m.nombre, 0])) as Record<Material, number>;
+
+  const filas = new Map<string, DepositosPunto>();
+  for (const r of registros) {
+    if (!esValidado(r) || r.validadoEn === null || r.validadoEn < desde || r.validadoEn > hasta) continue;
+    const punto = puntoDe.get(r.contenedor) ?? "Sin punto";
+    const fila = filas.get(punto) ?? { punto, porMaterial: vacio(), total: 0 };
+    fila.porMaterial[r.material]++;
+    fila.total++;
+    filas.set(punto, fila);
+  }
+  return [...filas.values()].sort((a, b) => b.total - a.total || a.punto.localeCompare(b.punto, "es"));
+}

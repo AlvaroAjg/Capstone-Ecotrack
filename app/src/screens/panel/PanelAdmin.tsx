@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
-import { useEcoTrack } from "../../state/EcoTrack";
+import { useEcoTrack, type Usuario } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
 import IncentivoSeccion from "./IncentivoSeccion";
@@ -9,7 +9,8 @@ import RetirosSeccion from "./RetirosSeccion";
 import { usePantallaCompleta } from "../../components/ui";
 import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
-import { rondaDeHoy } from "../../lib/resumenPanel";
+import { inicioDeRonda, rondaDeHoy, rondaPorPunto } from "../../lib/resumenPanel";
+import { escucharPersonas } from "../../services/personas";
 import { avanceAreas } from "../../lib/incentivo";
 import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales } from "./estilo";
 
@@ -201,6 +202,10 @@ function MenuCuenta() {
   );
 }
 
+function hora(t: number): string {
+  return new Date(t).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
+}
+
 /** "jueves 24", para la franja de hoy. */
 function hoyCorto(): string {
   return new Date().toLocaleDateString("es-CL", { weekday: "long", day: "numeric" });
@@ -208,19 +213,59 @@ function hoyCorto(): string {
 
 /**
  * Lo de hoy en la planta, en una franja bajo la barra: cómo va la ronda del
- * validador, la campaña y los avisos más recientes. Tocar la ronda o la
- * campaña abre su sección.
+ * validador por punto limpio, la campaña y lo que pide atención en los
+ * puntos. Tocar la ronda o la campaña abre su sección.
  */
 function FranjaDeHoy({ alAbrir, padding }: { alAbrir: (s: SeccionPanel) => void; padding: number }) {
-  const { registros, incidencias, contenedores, campana, ranking, avisos } = useEcoTrack();
-  const ronda = useMemo(
-    () => rondaDeHoy(registros, incidencias, contenedores).filter((f) => f.estado !== "vacio"),
+  const { usuario, registros, incidencias, contenedores, campana, ranking, avisos, porRetirar } = useEcoTrack();
+  const [personas, setPersonas] = useState<Usuario[]>([]);
+  const puntos = useMemo(
+    () => rondaPorPunto(rondaDeHoy(registros, incidencias, contenedores)),
     [registros, incidencias, contenedores]
   );
-  const revisados = ronda.filter((f) => f.estado !== "pendiente").length;
+  const inicio = useMemo(() => inicioDeRonda(registros, incidencias), [registros, incidencias]);
+  const revisados = puntos.filter((p) => p.estado !== "pendiente").length;
   const vigente = campana !== null && campana.terminaEn >= Date.now();
   const avance = vigente ? avanceAreas(campana.metaParticipacion, ranking) : [];
   const cumplen = avance.filter((a) => a.cumple).length;
+
+  // Para decir quién hace la ronda: el administrador ve los nombres de su planta.
+  useEffect(() => {
+    if (!usuario?.plantaId) return;
+    return escucharPersonas(usuario.plantaId, setPersonas);
+  }, [usuario?.plantaId]);
+  const validador = inicio ? personas.find((p) => p.id === inicio.validadorId)?.nombre ?? "el validador" : null;
+
+  let ronda: { titulo: string; detalle: string };
+  if (puntos.length === 0) {
+    ronda = { titulo: "Ronda de hoy:", detalle: "ningún punto limpio tiene depósitos que revisar" };
+  } else {
+    const cuenta = `${revisados} de ${puntos.length} punto${puntos.length === 1 ? "" : "s"}`;
+    if (!inicio) ronda = { titulo: "Ronda de hoy:", detalle: `${cuenta}, todavía no empieza` };
+    else
+      ronda = {
+        titulo: revisados < puntos.length ? "Ronda en curso:" : "Ronda completa:",
+        detalle: `${cuenta}, ${validador} desde las ${hora(inicio.desde)}`,
+      };
+  }
+
+  // Lo que pide atención, de lo más urgente a lo menos: contenedores con algo
+  // que no correspondía, los listos para retiro y los que esperan la ronda.
+  const atencion = [
+    ...avisos.filter((a) => a.tono === "alerta").map((a) => ({ id: a.id, texto: a.titulo, alerta: true })),
+    ...porRetirar.map((c) => ({
+      id: c.contenedor,
+      texto: `${c.punto || "Sin punto"}: ${c.material ? c.material.toLowerCase() : "mixto"} listo para retiro`,
+      alerta: false,
+    })),
+    ...puntos
+      .filter((p) => p.estado === "pendiente" && p.pendientes > 0)
+      .map((p) => ({
+        id: `pendiente-${p.punto}`,
+        texto: `${p.punto}: ${p.pendientes} depósito${p.pendientes === 1 ? "" : "s"} por validar`,
+        alerta: true,
+      })),
+  ];
 
   return (
     <View
@@ -239,23 +284,21 @@ function FranjaDeHoy({ alAbrir, padding }: { alAbrir: (s: SeccionPanel) => void;
         className="flex-[1.5] justify-center px-7 border-l border-piedra-borde min-w-0"
       >
         <Texto className="text-tinta-media text-[13px]" numberOfLines={1}>
-          <Texto className="text-tinta font-bold">Ronda de hoy: </Texto>
-          {ronda.length === 0
-            ? "ningún contenedor tiene depósitos que revisar"
-            : `${revisados} de ${ronda.length} contenedor${ronda.length === 1 ? "" : "es"} revisados`}
+          <Texto className="text-tinta font-bold">{ronda.titulo} </Texto>
+          {ronda.detalle}
         </Texto>
-        {ronda.length > 0 ? (
+        {puntos.length > 0 ? (
           <View className="flex-row mt-1.5 overflow-hidden">
-            {ronda.slice(0, 4).map((f) => {
-              const estado = ESTADO_RONDA[f.estado];
+            {puntos.slice(0, 4).map((p) => {
+              const estado = ESTADO_RONDA[p.estado];
               return (
-                <View key={f.codigo} className="mr-1.5">
-                  <Insignia texto={f.punto || f.nombre} tono={estado.tono} icono={estado.icono} />
+                <View key={p.punto} className="mr-1.5">
+                  <Insignia texto={p.punto} tono={estado.tono} icono={estado.icono} />
                 </View>
               );
             })}
-            {ronda.length > 4 ? (
-              <Texto className="text-tinta-suave text-xs self-center">+{ronda.length - 4}</Texto>
+            {puntos.length > 4 ? (
+              <Texto className="text-tinta-suave text-xs self-center">+{puntos.length - 4}</Texto>
             ) : null}
           </View>
         ) : null}
@@ -288,17 +331,17 @@ function FranjaDeHoy({ alAbrir, padding }: { alAbrir: (s: SeccionPanel) => void;
       </TouchableOpacity>
 
       <View className="flex-1 justify-center pl-7 border-l border-piedra-borde min-w-0">
-        {avisos.length === 0 ? (
-          <Texto className="text-tinta-suave text-[13px]">Ningún contenedor espera retiro.</Texto>
+        {atencion.length === 0 ? (
+          <Texto className="text-tinta-suave text-[13px]">Nada pendiente en los puntos limpios.</Texto>
         ) : (
-          avisos.slice(0, 2).map((a, i) => (
+          atencion.slice(0, 2).map((a, i) => (
             <View key={a.id} className={`flex-row items-center ${i > 0 ? "mt-1" : ""}`}>
-              <View className={`w-2 h-2 rounded-full mr-2 ${a.tono === "alerta" ? "bg-ambar" : "bg-oliva"}`} />
+              <View className={`w-2 h-2 rounded-full mr-2 ${a.alerta ? "bg-ambar" : "bg-oliva"}`} />
               <Texto
                 className={`text-[13px] flex-1 ${i === 0 ? "text-tinta font-semibold" : "text-tinta-media"}`}
                 numberOfLines={1}
               >
-                {a.titulo}
+                {a.texto}
               </Texto>
             </View>
           ))

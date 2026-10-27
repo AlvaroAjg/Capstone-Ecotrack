@@ -7,6 +7,8 @@ import { nombreContenedor, type Area, type Contenedor, type Registro, type Usuar
 
 export interface PuntoLimpio {
   punto: string;
+  /** La ubicación de sus contenedores, o "" si ninguno la tiene. */
+  ubicacion: string;
   contenedores: Contenedor[];
 }
 
@@ -25,6 +27,7 @@ export function agruparPorPunto(contenedores: Contenedor[]): PuntoLimpio[] {
   return Array.from(porPunto.entries())
     .map(([punto, lista]) => ({
       punto,
+      ubicacion: lista.find((c) => c.ubicacion)?.ubicacion ?? "",
       contenedores: lista.sort(
         (a, b) =>
           Number(a.material !== null) - Number(b.material !== null) ||

@@ -1,9 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+  depositosPorPunto,
   indicadoresDelMes,
+  inicioDeRonda,
   kilosPorMaterial,
   rondaDeHoy,
+  rondaPorPunto,
+  ultimaActividad,
   validadosPorSemana,
+  type FilaRonda,
 } from "../src/lib/resumenPanel";
 import {
   certificado,
@@ -163,5 +168,129 @@ describe("rondaDeHoy", () => {
     const registros = [registro({ contenedor: "PLA111" }), registro({ contenedor: "PLA111" })];
     const fila = rondaDeHoy(registros, [], CONTENEDORES).find((f) => f.codigo === "PLA111");
     expect(fila).toMatchObject({ estado: "pendiente", pendientes: 2, revisadoEn: null });
+  });
+});
+
+describe("rondaPorPunto", () => {
+  const fila = (cambios: Partial<FilaRonda>): FilaRonda => ({
+    codigo: "K7QM9X",
+    nombre: "Contenedor mixto",
+    punto: "Casino",
+    estado: "vacio",
+    revisados: 0,
+    pendientes: 0,
+    revisadoEn: null,
+    ...cambios,
+  });
+
+  test("agrupa los contenedores por punto y deja fuera los que no tienen nada que revisar", () => {
+    const puntos = rondaPorPunto([
+      fila({ codigo: "A", punto: "Bodega", estado: "conforme" }),
+      fila({ codigo: "B", punto: "Casino", estado: "conforme" }),
+      fila({ codigo: "C", punto: "Casino", estado: "vacio" }),
+      fila({ codigo: "D", punto: "Patio", estado: "vacio" }),
+    ]);
+    expect(puntos).toEqual([
+      { punto: "Bodega", estado: "conforme", contenedores: 1, pendientes: 0 },
+      { punto: "Casino", estado: "conforme", contenedores: 1, pendientes: 0 },
+    ]);
+  });
+
+  test("el punto sigue pendiente mientras le quede un contenedor por revisar", () => {
+    const [casino] = rondaPorPunto([
+      fila({ codigo: "A", estado: "observacion" }),
+      fila({ codigo: "B", estado: "pendiente", pendientes: 2 }),
+    ]);
+    expect(casino).toMatchObject({ estado: "pendiente", contenedores: 2, pendientes: 2 });
+  });
+
+  test("revisado entero, toma el estado más grave de sus contenedores", () => {
+    const [casino] = rondaPorPunto([
+      fila({ codigo: "A", estado: "conforme" }),
+      fila({ codigo: "B", estado: "observacion" }),
+      fila({ codigo: "C", estado: "sinMaterial" }),
+    ]);
+    expect(casino.estado).toBe("observacion");
+  });
+
+  test("un contenedor sin punto se agrupa como Sin punto", () => {
+    expect(rondaPorPunto([fila({ punto: "", estado: "pendiente" })])[0].punto).toBe("Sin punto");
+  });
+});
+
+describe("inicioDeRonda", () => {
+  test("null si hoy nadie ha revisado nada", () => {
+    const registros = [validado({ validadoEn: fecha(2026, 9, 15, 9) }), registro()];
+    expect(inicioDeRonda(registros, [])).toBeNull();
+  });
+
+  test("quién hizo la primera revisión del día y a qué hora", () => {
+    const registros = [
+      validado({ validadoEn: fecha(2026, 9, 16, 9), validadoPor: "vale" }),
+      registro({ estado: "rechazado", validadoEn: fecha(2026, 9, 16, 8) + 30 * 60_000, validadoPor: "vale" }),
+    ];
+    expect(inicioDeRonda(registros, [])).toEqual({ validadorId: "vale", desde: fecha(2026, 9, 16, 8) + 30 * 60_000 });
+  });
+
+  test("un reporte de contaminación también cuenta como inicio", () => {
+    const registros = [validado({ validadoEn: fecha(2026, 9, 16, 9), validadoPor: "vale" })];
+    const incidencias = [incidencia({ reportadoEn: fecha(2026, 9, 16, 8), reportadoPor: "tomas" })];
+    expect(inicioDeRonda(registros, incidencias)).toEqual({ validadorId: "tomas", desde: fecha(2026, 9, 16, 8) });
+  });
+});
+
+describe("ultimaActividad", () => {
+  test("null sin depósitos ni reportes", () => {
+    expect(ultimaActividad([], [])).toBeNull();
+  });
+
+  test("lo último entre depósitos, validaciones, certificaciones y reportes", () => {
+    const registros = [
+      registro({ creadoEn: fecha(2026, 9, 14) }),
+      certificado({ creadoEn: fecha(2026, 9, 15, 8) }),
+    ];
+    const incidencias = [incidencia({ reportadoEn: fecha(2026, 9, 15, 7) })];
+    // El certificado se emitió dos minutos después de crearse el depósito (ver fabrica.ts).
+    expect(ultimaActividad(registros, incidencias)).toBe(fecha(2026, 9, 15, 8) + 120_000);
+  });
+
+  test("un reporte posterior a todo lo demás", () => {
+    const incidencias = [incidencia({ reportadoEn: fecha(2026, 9, 16, 11) })];
+    expect(ultimaActividad([registro()], incidencias)).toBe(fecha(2026, 9, 16, 11));
+  });
+});
+
+describe("depositosPorPunto", () => {
+  const CONTENEDORES = [
+    contenedor({ codigo: "PLA111", punto: "Casino", material: "Plástico" }),
+    contenedor({ codigo: "VID222", punto: "Bodega", material: "Vidrio" }),
+    contenedor({ codigo: "OLD333", punto: "Casino", activo: false }),
+  ];
+
+  test("cuenta los validados del mes por punto y material, del punto con más al de menos", () => {
+    const registros = [
+      validado({ contenedor: "PLA111", material: "Plástico", validadoEn: fecha(2026, 9, 2) }),
+      validado({ contenedor: "PLA111", material: "Plástico", validadoEn: fecha(2026, 9, 3) }),
+      certificado({ contenedor: "OLD333", material: "Metal", creadoEn: fecha(2026, 9, 4) }),
+      validado({ contenedor: "VID222", material: "Vidrio", validadoEn: fecha(2026, 9, 5) }),
+    ];
+    const [casino, bodega] = depositosPorPunto(registros, CONTENEDORES, "2026-09");
+    expect(casino).toMatchObject({ punto: "Casino", total: 3 });
+    expect(casino.porMaterial).toEqual({ "Papel/cartón": 0, "Plástico": 2, "Vidrio": 0, "Metal": 1 });
+    expect(bodega).toMatchObject({ punto: "Bodega", total: 1 });
+  });
+
+  test("no cuenta los pendientes, los rechazados ni los de otro mes", () => {
+    const registros = [
+      registro({ contenedor: "PLA111" }),
+      registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 2) }),
+      validado({ contenedor: "PLA111", validadoEn: fecha(2026, 8, 30) }),
+    ];
+    expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")).toEqual([]);
+  });
+
+  test("un depósito en un contenedor que ya no existe va a Sin punto", () => {
+    const registros = [validado({ contenedor: "NOEXISTE", validadoEn: fecha(2026, 9, 2) })];
+    expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")[0].punto).toBe("Sin punto");
   });
 });

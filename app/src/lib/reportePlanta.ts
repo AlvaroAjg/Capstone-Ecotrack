@@ -30,6 +30,11 @@ const HORA = 60 * 60 * 1000;
 /** Metas del piloto (README, "Métricas de éxito"). */
 export const META_PARTICIPACION = 60;
 export const META_HORAS_CADENA = 48;
+/** % de los días hábiles en que el validador hizo su ronda. */
+export const META_RONDAS = 70;
+
+/** Último mes que cubre el proyecto: el Resumen no ofrece meses posteriores. */
+export const ULTIMO_MES = "2026-12";
 
 export interface ReportePlanta {
   /** "2026-09" */
@@ -122,6 +127,24 @@ export function mesesReportables(
   for (const i of incidencias) {
     if (i.plantaId === plantaId) meses.add(mesDe(i.reportadoEn));
   }
+  return Array.from(meses).sort().reverse();
+}
+
+/** "2026-11" → "2026-12"; "2026-12" → "2027-01". */
+function mesSiguiente(mes: string): string {
+  const [anio, numero] = mes.split("-").map(Number);
+  return numero === 12 ? `${anio + 1}-01` : `${anio}-${String(numero + 1).padStart(2, "0")}`;
+}
+
+/**
+ * Meses que ofrece el selector del Resumen: los reportables y todos los que
+ * siguen hasta `ultimo`, aunque todavía no lleguen, para poder elegirlos de
+ * antemano. Nunca uno posterior a `ultimo`. Del más reciente al más antiguo.
+ */
+export function mesesDelResumen(reportables: string[], ultimo: string = ULTIMO_MES): string[] {
+  const meses = new Set(reportables.filter((m) => m <= ultimo));
+  const primero = [...meses].sort()[0] ?? ultimo;
+  for (let m = primero; m <= ultimo; m = mesSiguiente(m)) meses.add(m);
   return Array.from(meses).sort().reverse();
 }
 

@@ -18,7 +18,7 @@ const ASPECTO_DIA: Record<EstadoDia, { caja: string; texto: string; etiqueta: st
 const DIAS_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"];
 
 function hora(t: number): string {
-  return new Date(t).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit" });
+  return new Date(t).toLocaleTimeString("es-CL", { hour: "2-digit", minute: "2-digit", hour12: false });
 }
 
 /**
