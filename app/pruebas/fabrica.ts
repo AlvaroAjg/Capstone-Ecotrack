@@ -126,6 +126,7 @@ export function contenedor(cambios: Partial<Contenedor> = {}): Contenedor {
     codigo: "K7QM9X",
     plantaId: "planta-1",
     punto: "Casino",
+    ubicacion: "",
     material: "Plástico",
     activo: true,
     creadoEn: fecha(2026, 9, 1),

@@ -252,25 +252,41 @@ service cloud.firestore {
     // esa planta. Así nadie registra un depósito desde su casa escribiendo un
     // código que se imagina. `punto` es el nombre del punto limpio donde está:
     // así sirve igual si la planta tiene uno o varios.
+    /** Nombre del punto limpio (obligatorio) y su ubicación (opcional), con largo acotado. */
+    function puntoValido(datos) {
+      return datos.punto is string
+        && datos.punto.size() > 0
+        && datos.punto.size() <= 60
+        && (!('ubicacion' in datos)
+            || (datos.ubicacion is string && datos.ubicacion.size() <= 80));
+    }
+
     match /contenedores/{codigo} {
       allow get: if autenticado();
       allow list: if esValidadorOAdminDe(resource.data.plantaId);
 
-      // Mixto (material null) o de uno de los materiales de la tabla.
+      // Mixto (material null) o de uno de los materiales de la tabla. La
+      // ubicación describe dónde está el punto limpio (p. ej. "Edificio
+      // principal, primer piso") y es opcional.
       allow create: if esAdminDe(request.resource.data.plantaId)
-                    && request.resource.data.keys().hasOnly(['plantaId', 'punto', 'material', 'activo', 'creadoEn'])
-                    && request.resource.data.punto is string
-                    && request.resource.data.punto.size() > 0
-                    && request.resource.data.punto.size() <= 60
+                    && request.resource.data.keys().hasOnly(['plantaId', 'punto', 'ubicacion', 'material', 'activo', 'creadoEn'])
+                    && puntoValido(request.resource.data)
                     && request.resource.data.activo == true
                     && (request.resource.data.material == null
                         || request.resource.data.material in kgPorTalla());
 
-      // Lo único que se cambia es desactivarlo (al quitarlo o al cambiarle el
-      // código): los depósitos hechos en él siguen apuntando a este documento.
+      // Se cambia de dos formas, y siempre lo hace el administrador de su
+      // planta. Desactivarlo (al quitarlo o al cambiarle el código): los
+      // depósitos hechos en él siguen apuntando a este documento. O cambiar el
+      // nombre o la ubicación de su punto limpio, que se hace en todos sus
+      // contenedores a la vez: el material, la planta y si está activo no se
+      // tocan, así un depósito nunca cambia de material ni de planta.
       allow update: if esAdminDe(resource.data.plantaId)
-                    && soloCambia(['activo'])
-                    && request.resource.data.activo == false;
+                    && (
+                      (soloCambia(['activo']) && request.resource.data.activo == false)
+                      ||
+                      (soloCambia(['punto', 'ubicacion']) && puntoValido(request.resource.data))
+                    );
 
       allow delete: if false;
     }

@@ -20,6 +20,15 @@ describe("agruparPorPunto", () => {
     expect(puntos[1].contenedores.map((c) => c.codigo)).toEqual(["MIX222", "VID111"]);
   });
 
+  test("la ubicación del punto sale de sus contenedores", () => {
+    const [casino] = agruparPorPunto([
+      contenedor({ codigo: "MIX222", material: null }),
+      contenedor({ codigo: "VID111", material: "Vidrio", ubicacion: "Edificio principal" }),
+    ]);
+    expect(casino.ubicacion).toBe("Edificio principal");
+    expect(agruparPorPunto([contenedor()])[0].ubicacion).toBe("");
+  });
+
   test("un punto sin contenedores activos no aparece", () => {
     expect(agruparPorPunto([contenedor({ activo: false })])).toEqual([]);
   });

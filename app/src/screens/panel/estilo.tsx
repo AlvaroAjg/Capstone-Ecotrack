@@ -1,6 +1,5 @@
 import React from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
-import type { Material } from "../../lib/tipos";
 import type { EstadoRonda } from "../../lib/resumenPanel";
 
 /**
@@ -79,13 +78,14 @@ export function EncabezadoSeccion({
   );
 }
 
-type VarianteBoton = "primario" | "secundario" | "suave" | "peligro";
+type VarianteBoton = "primario" | "secundario" | "suave" | "peligro" | "vino";
 
 const ESTILO_BOTON: Record<VarianteBoton, { caja: string; texto: string; icono: string }> = {
   primario: { caja: "bg-oliva", texto: "text-white", icono: "#FFFFFF" },
   secundario: { caja: "bg-white border border-piedra-control", texto: "text-tinta", icono: "#221C20" },
   suave: { caja: "bg-oliva-claro", texto: "text-oliva-oscuro", icono: "#2C4D20" },
   peligro: { caja: "bg-white border border-rojizo-claro", texto: "text-rojizo-oscuro", icono: "#8A2A22" },
+  vino: { caja: "bg-vino", texto: "text-white", icono: "#FFFFFF" },
 };
 
 export function BotonPanel({
@@ -259,24 +259,8 @@ export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icon
   vacio: { texto: "Sin depósitos", tono: "gris", icono: "reloj" },
 };
 
-/**
- * Un color por material, para las tapas de los contenedores y los gráficos.
- * Se distinguen también por claridad, no solo por tono. null es el mixto.
- */
-export function colorMaterial(material: Material | null): string {
-  switch (material) {
-    case "Plástico":
-      return "#C79A1E";
-    case "Papel/cartón":
-      return "#3B6EA8";
-    case "Vidrio":
-      return "#2F7F7A";
-    case "Metal":
-      return "#8A8F96";
-    default:
-      return "#3F6B2E";
-  }
-}
+/** También lo usan las etiquetas QR impresas (lib/etiquetaQr.ts). */
+export { colorMaterial } from "../../lib/tipos";
 
 /** Iniciales para el círculo de una persona: "Rosa Muñoz" → "RM". */
 export function iniciales(nombre: string): string {

@@ -334,3 +334,36 @@ export function ultimaActividad(registros: Registro[], incidencias: Incidencia[]
   for (const i of incidencias) considerar(i.reportadoEn);
   return ultima;
 }
+
+export interface DepositosPunto {
+  punto: string;
+  porMaterial: Record<Material, number>;
+  total: number;
+}
+
+/**
+ * Depósitos validados en el mes por punto limpio y material, del punto con
+ * más al que tiene menos. El punto sale del contenedor donde se hizo el
+ * depósito, también si después se desactivó (al cambiarle el código).
+ */
+export function depositosPorPunto(
+  registros: Registro[],
+  contenedores: Contenedor[],
+  mes: string,
+  ahora: number = Date.now()
+): DepositosPunto[] {
+  const { desde, hasta } = rangoDelMes(mes, ahora);
+  const puntoDe = new Map(contenedores.map((c) => [c.codigo, c.punto || "Sin punto"]));
+  const vacio = () => Object.fromEntries(MATERIALES.map((m) => [m.nombre, 0])) as Record<Material, number>;
+
+  const filas = new Map<string, DepositosPunto>();
+  for (const r of registros) {
+    if (!esValidado(r) || r.validadoEn === null || r.validadoEn < desde || r.validadoEn > hasta) continue;
+    const punto = puntoDe.get(r.contenedor) ?? "Sin punto";
+    const fila = filas.get(punto) ?? { punto, porMaterial: vacio(), total: 0 };
+    fila.porMaterial[r.material]++;
+    fila.total++;
+    filas.set(punto, fila);
+  }
+  return [...filas.values()].sort((a, b) => b.total - a.total || a.punto.localeCompare(b.punto, "es"));
+}

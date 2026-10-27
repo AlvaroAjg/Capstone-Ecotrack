@@ -40,6 +40,7 @@ module.exports = {
           borde: "#E2E4DE",
           control: "#CFD2CA",
           campo: "#F7F8F5",
+          oscura: "#E6E8E1",
           punto: "#B8BDB1",
         },
         tinta: {

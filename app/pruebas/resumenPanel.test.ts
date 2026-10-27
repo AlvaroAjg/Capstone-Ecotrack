@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
+  depositosPorPunto,
   indicadoresDelMes,
   inicioDeRonda,
   kilosPorMaterial,
@@ -256,5 +257,40 @@ describe("ultimaActividad", () => {
   test("un reporte posterior a todo lo demás", () => {
     const incidencias = [incidencia({ reportadoEn: fecha(2026, 9, 16, 11) })];
     expect(ultimaActividad([registro()], incidencias)).toBe(fecha(2026, 9, 16, 11));
+  });
+});
+
+describe("depositosPorPunto", () => {
+  const CONTENEDORES = [
+    contenedor({ codigo: "PLA111", punto: "Casino", material: "Plástico" }),
+    contenedor({ codigo: "VID222", punto: "Bodega", material: "Vidrio" }),
+    contenedor({ codigo: "OLD333", punto: "Casino", activo: false }),
+  ];
+
+  test("cuenta los validados del mes por punto y material, del punto con más al de menos", () => {
+    const registros = [
+      validado({ contenedor: "PLA111", material: "Plástico", validadoEn: fecha(2026, 9, 2) }),
+      validado({ contenedor: "PLA111", material: "Plástico", validadoEn: fecha(2026, 9, 3) }),
+      certificado({ contenedor: "OLD333", material: "Metal", creadoEn: fecha(2026, 9, 4) }),
+      validado({ contenedor: "VID222", material: "Vidrio", validadoEn: fecha(2026, 9, 5) }),
+    ];
+    const [casino, bodega] = depositosPorPunto(registros, CONTENEDORES, "2026-09");
+    expect(casino).toMatchObject({ punto: "Casino", total: 3 });
+    expect(casino.porMaterial).toEqual({ "Papel/cartón": 0, "Plástico": 2, "Vidrio": 0, "Metal": 1 });
+    expect(bodega).toMatchObject({ punto: "Bodega", total: 1 });
+  });
+
+  test("no cuenta los pendientes, los rechazados ni los de otro mes", () => {
+    const registros = [
+      registro({ contenedor: "PLA111" }),
+      registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 2) }),
+      validado({ contenedor: "PLA111", validadoEn: fecha(2026, 8, 30) }),
+    ];
+    expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")).toEqual([]);
+  });
+
+  test("un depósito en un contenedor que ya no existe va a Sin punto", () => {
+    const registros = [validado({ contenedor: "NOEXISTE", validadoEn: fecha(2026, 9, 2) })];
+    expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")[0].punto).toBe("Sin punto");
   });
 });
