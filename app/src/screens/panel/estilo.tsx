@@ -78,13 +78,14 @@ export function EncabezadoSeccion({
   );
 }
 
-type VarianteBoton = "primario" | "secundario" | "suave" | "peligro";
+type VarianteBoton = "primario" | "secundario" | "suave" | "peligro" | "vino";
 
 const ESTILO_BOTON: Record<VarianteBoton, { caja: string; texto: string; icono: string }> = {
   primario: { caja: "bg-oliva", texto: "text-white", icono: "#FFFFFF" },
   secundario: { caja: "bg-white border border-piedra-control", texto: "text-tinta", icono: "#221C20" },
   suave: { caja: "bg-oliva-claro", texto: "text-oliva-oscuro", icono: "#2C4D20" },
   peligro: { caja: "bg-white border border-rojizo-claro", texto: "text-rojizo-oscuro", icono: "#8A2A22" },
+  vino: { caja: "bg-vino", texto: "text-white", icono: "#FFFFFF" },
 };
 
 export function BotonPanel({
