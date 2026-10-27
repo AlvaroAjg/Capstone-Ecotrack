@@ -94,6 +94,10 @@ describe("usuarios: creación", () => {
     await assertFails(crear(nuevo({ rol: "validador" })));
   });
 
+  test("nadie nace suplente", async () => {
+    await assertFails(crear(nuevo({ suplente: true })));
+  });
+
   test("nadie nace administrador, ni con el código de la planta", async () => {
     await assertFails(crear(nuevo({ rol: "administrador", plantaId: "planta-a", codigoRolUsado: "ADM-A" })));
   });
@@ -285,6 +289,29 @@ describe("usuarios: la administradora gestiona a las personas", () => {
     await assertSucceeds(updateDoc(doc(como("carla"), "usuarios/vale"), { rol: "colaborador" }));
   });
 
+  test("nombra suplente a una colaboradora", async () => {
+    await assertSucceeds(updateDoc(doc(como("carla"), "usuarios/eva"), { rol: "validador", suplente: true }));
+  });
+
+  test("pasa a la validadora de titular a suplente", async () => {
+    await assertSucceeds(updateDoc(doc(como("carla"), "usuarios/vale"), { suplente: true }));
+  });
+
+  test("devuelve a la suplente a colaboradora, sin la marca", async () => {
+    await updateDoc(doc(como("carla"), "usuarios/vale"), { suplente: true });
+    await assertSucceeds(updateDoc(doc(como("carla"), "usuarios/vale"), { rol: "colaborador", suplente: false }));
+  });
+
+  test("una colaboradora no queda marcada como suplente", async () => {
+    await assertFails(updateDoc(doc(como("carla"), "usuarios/ana"), { suplente: true }));
+    await updateDoc(doc(como("carla"), "usuarios/vale"), { suplente: true });
+    await assertFails(updateDoc(doc(como("carla"), "usuarios/vale"), { rol: "colaborador" }));
+  });
+
+  test("la marca de suplente es sí o no", async () => {
+    await assertFails(updateDoc(doc(como("carla"), "usuarios/vale"), { suplente: "sí" }));
+  });
+
   test("no hace administrador a nadie", async () => {
     await assertFails(updateDoc(doc(como("carla"), "usuarios/eva"), { rol: "administrador" }));
   });
@@ -315,5 +342,9 @@ describe("usuarios: la administradora gestiona a las personas", () => {
 
   test("la validadora no nombra validadores", async () => {
     await assertFails(updateDoc(doc(como("vale"), "usuarios/eva"), { rol: "validador" }));
+  });
+
+  test("ni se marca suplente a sí misma", async () => {
+    await assertFails(updateDoc(doc(como("vale"), "usuarios/vale"), { suplente: true }));
   });
 });

@@ -167,6 +167,7 @@ service cloud.firestore {
                     && request.auth.uid == uid
                     && request.resource.data.rol == 'colaborador'
                     && !('codigoRolUsado' in request.resource.data)
+                    && request.resource.data.get('suplente', false) == false
                     && (
                       (request.resource.data.get('plantaId', null) == null
                        && request.resource.data.get('areaId', null) == null)
@@ -214,14 +215,19 @@ service cloud.firestore {
         )
         ||
         // El administrador cambia a una persona de su planta de área, o la
-        // nombra validadora o la devuelve a colaboradora. No puede hacer
-        // administrador a nadie ni sacarla de la planta.
+        // nombra validadora (titular o suplente) o la devuelve a colaboradora.
+        // No puede hacer administrador a nadie ni sacarla de la planta. La
+        // marca de suplente solo la lleva un validador: no da ningún permiso,
+        // solo distingue en el panel quién hace la ronda cuando el titular falta.
         (
           request.auth.uid != uid
           && esAdminDe(resource.data.get('plantaId', null))
           && resource.data.rol in ['colaborador', 'validador']
           && request.resource.data.rol in ['colaborador', 'validador']
-          && soloCambia(['rol', 'areaId', 'areaNombre'])
+          && soloCambia(['rol', 'areaId', 'areaNombre', 'suplente'])
+          && request.resource.data.get('suplente', false) is bool
+          && (request.resource.data.get('suplente', false) == false
+              || request.resource.data.rol == 'validador')
           && areaDePlanta(request.resource.data.areaId,
                           request.resource.data.areaNombre,
                           resource.data.plantaId)
