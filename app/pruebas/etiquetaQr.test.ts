@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { htmlEtiquetaQr, svgQr } from "../src/lib/etiquetaQr";
+import { htmlEtiquetaQr, htmlHojaQr, svgQr } from "../src/lib/etiquetaQr";
 import { matrizQr } from "../src/lib/qr";
 import { contenedor } from "./fabrica";
 
@@ -25,5 +25,33 @@ describe("htmlEtiquetaQr", () => {
     const html = htmlEtiquetaQr(contenedor({ punto: "<b>Casino</b>" }), "Planta Piloto");
     expect(html).not.toContain("<b>Casino</b>");
     expect(html).toContain("&lt;b&gt;Casino&lt;/b&gt;");
+  });
+});
+
+describe("htmlHojaQr", () => {
+  const CASINO = [
+    contenedor({ codigo: "PLA111", punto: "Casino", material: "Plástico" }),
+    contenedor({ codigo: "MIX222", punto: "Casino", material: null }),
+  ];
+
+  test("una etiqueta por contenedor, con su QR, material, punto y código", () => {
+    const html = htmlHojaQr(CASINO, "Planta Piloto", "Hoja de QR del Casino");
+    expect(html.match(/class="etiqueta"/g)?.length).toBe(2);
+    expect(html.match(/<svg /g)?.length).toBe(2);
+    expect(html).toContain("Casino, PLA111");
+    expect(html).toContain("Mixto");
+    expect(html).toContain("Hoja de QR del Casino");
+  });
+
+  test("la franja de cada etiqueta tiene el color de su material", () => {
+    const html = htmlHojaQr(CASINO, "Planta Piloto", "Hoja");
+    expect(html).toContain("background:#C79A1E");
+    expect(html).toContain("background:#3F6B2E");
+  });
+
+  test("escapa el nombre del punto y el título", () => {
+    const html = htmlHojaQr([contenedor({ punto: "<b>Casino</b>" })], "Planta", "<i>Hoja</i>");
+    expect(html).not.toContain("<b>Casino</b>");
+    expect(html).not.toContain("<i>Hoja</i>");
   });
 });

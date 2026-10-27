@@ -1,6 +1,5 @@
 import React from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
-import type { Material } from "../../lib/tipos";
 import type { EstadoRonda } from "../../lib/resumenPanel";
 
 /**
@@ -259,24 +258,8 @@ export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icon
   vacio: { texto: "Sin depósitos", tono: "gris", icono: "reloj" },
 };
 
-/**
- * Un color por material, para las tapas de los contenedores y los gráficos.
- * Se distinguen también por claridad, no solo por tono. null es el mixto.
- */
-export function colorMaterial(material: Material | null): string {
-  switch (material) {
-    case "Plástico":
-      return "#C79A1E";
-    case "Papel/cartón":
-      return "#3B6EA8";
-    case "Vidrio":
-      return "#2F7F7A";
-    case "Metal":
-      return "#8A8F96";
-    default:
-      return "#3F6B2E";
-  }
-}
+/** También lo usan las etiquetas QR impresas (lib/etiquetaQr.ts). */
+export { colorMaterial } from "../../lib/tipos";
 
 /** Iniciales para el círculo de una persona: "Rosa Muñoz" → "RM". */
 export function iniciales(nombre: string): string {

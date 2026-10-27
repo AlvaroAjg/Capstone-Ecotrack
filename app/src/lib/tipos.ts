@@ -19,6 +19,26 @@ export const MATERIALES: { nombre: Material; emoji: string }[] = [
 ];
 
 /**
+ * Un color por material, para las tapas de los contenedores, los gráficos del
+ * panel y las etiquetas QR. Se distinguen también por claridad, no solo por
+ * tono. null es el mixto.
+ */
+export function colorMaterial(material: Material | null): string {
+  switch (material) {
+    case "Plástico":
+      return "#C79A1E";
+    case "Papel/cartón":
+      return "#3B6EA8";
+    case "Vidrio":
+      return "#2F7F7A";
+    case "Metal":
+      return "#8A8F96";
+    default:
+      return "#3F6B2E";
+  }
+}
+
+/**
  * Nadie pesa lo que recicla: el colaborador declara cuánto trae según el tamaño
  * de la bolsa en que lo trajo, y la app estima los kilos. La bolsa es solo una
  * referencia de volumen: el material se vacía suelto en el contenedor y la
