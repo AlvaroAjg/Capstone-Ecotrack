@@ -96,6 +96,12 @@ export interface Contenedor {
    * planta, así que cada contenedor lleva el suyo: sirve con uno o con varios.
    */
   punto: string;
+  /**
+   * Dónde está el punto limpio, para quien no lo conoce (p. ej. "Edificio
+   * principal, primer piso"). "" si no se indicó. Todos los contenedores de un
+   * punto llevan la misma.
+   */
+  ubicacion: string;
   /** Material que recibe; null si es mixto (el colaborador elige el material). */
   material: Material | null;
   /** Al cambiar el código de un contenedor, el anterior queda inactivo. */
