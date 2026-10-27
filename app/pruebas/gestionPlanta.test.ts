@@ -2,10 +2,14 @@ import { describe, expect, test } from "vitest";
 import {
   agruparPorPunto,
   filasPersonas,
+  enlacesCorreo,
   generarCodigoArea,
+  mensajeInvitacion,
+  paginar,
   personasPorArea,
+  validadoresDeRonda,
 } from "../src/lib/gestionPlanta";
-import { contenedor, fecha, registro, usuario } from "./fabrica";
+import { EMBOTELLADO, contenedor, fecha, registro, usuario } from "./fabrica";
 
 describe("agruparPorPunto", () => {
   test("agrupa los activos por punto limpio, el mixto primero", () => {
@@ -47,6 +51,23 @@ describe("generarCodigoArea", () => {
   });
 });
 
+describe("mensajeInvitacion", () => {
+  test("lleva el enlace de la app y el código del área con su nombre", () => {
+    const mensaje = mensajeInvitacion(EMBOTELLADO, "https://recytrack.web.app");
+    expect(mensaje).toContain("https://recytrack.web.app");
+    expect(mensaje).toContain("EMB-4821 (Embotellado)");
+  });
+});
+
+describe("enlacesCorreo", () => {
+  test("lleva el asunto y el cuerpo codificados en los tres enlaces", () => {
+    const enlaces = enlacesCorreo("Invitación", "Hola & bienvenida");
+    expect(enlaces.mailto).toBe("mailto:?subject=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
+    expect(enlaces.outlook).toContain("subject=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
+    expect(enlaces.gmail).toContain("su=Invitaci%C3%B3n&body=Hola%20%26%20bienvenida");
+  });
+});
+
 describe("personasPorArea", () => {
   test("cuenta colaboradores y validadores por área, sin el administrador", () => {
     const cuenta = personasPorArea([
@@ -62,7 +83,7 @@ describe("personasPorArea", () => {
 
 describe("filasPersonas", () => {
   const PERSONAS = [
-    usuario({ id: "ana", nombre: "Ana Pérez" }),
+    usuario({ id: "ana", nombre: "Ana Pérez", email: "aperez@vina.cl" }),
     usuario({ id: "bruno", nombre: "Bruno Díaz", areaId: "fermentacion" }),
     usuario({ id: "carla", nombre: "Carla Soto", rol: "validador" }),
   ];
@@ -86,8 +107,73 @@ describe("filasPersonas", () => {
     expect(filas.map((f) => f.persona.id)).toEqual(["ana"]);
   });
 
+  test("busca también por correo", () => {
+    const filas = filasPersonas(PERSONAS, [], { busqueda: "APEREZ@", areaId: null });
+    expect(filas.map((f) => f.persona.id)).toEqual(["ana"]);
+  });
+
   test("filtra por área", () => {
     const filas = filasPersonas(PERSONAS, [], { busqueda: "", areaId: "fermentacion" });
     expect(filas.map((f) => f.persona.id)).toEqual(["bruno"]);
+  });
+
+  test("activa si depositó este mes; si no, sin depósitos; el administrador no tiene estado", () => {
+    const filas = filasPersonas(
+      [...PERSONAS, usuario({ id: "adela", nombre: "Adela", rol: "administrador", areaId: null })],
+      [
+        registro({ colaboradorId: "ana", creadoEn: fecha(2026, 9, 2) }),
+        registro({ colaboradorId: "bruno", creadoEn: fecha(2026, 8, 31) }),
+      ],
+      { busqueda: "", areaId: null },
+      fecha(2026, 9, 16)
+    );
+    const estado = Object.fromEntries(filas.map((f) => [f.persona.id, f.estado]));
+    expect(estado).toEqual({ adela: null, ana: "activa", bruno: "sinDepositos", carla: "sinDepositos" });
+  });
+});
+
+describe("paginar", () => {
+  const LISTA = Array.from({ length: 23 }, (_, i) => i);
+
+  test("corta la lista en páginas", () => {
+    const p = paginar(LISTA, 2, 10);
+    expect(p.elementos).toEqual([20, 21, 22]);
+    expect(p).toMatchObject({ pagina: 2, paginas: 3, total: 23 });
+  });
+
+  test("una página fuera de rango muestra la última", () => {
+    expect(paginar(LISTA, 7, 10).pagina).toBe(2);
+    expect(paginar(LISTA, -1, 10).pagina).toBe(0);
+  });
+
+  test("una lista vacía tiene una página vacía", () => {
+    expect(paginar([], 0, 10)).toEqual({ elementos: [], pagina: 0, paginas: 1, total: 0 });
+  });
+});
+
+describe("validadoresDeRonda", () => {
+  test("distingue al titular del suplente", () => {
+    const v = validadoresDeRonda([
+      usuario({ id: "ana" }),
+      usuario({ id: "rosa", nombre: "Rosa", rol: "validador" }),
+      usuario({ id: "tomas", nombre: "Tomás", rol: "validador", suplente: true }),
+    ]);
+    expect(v.titular?.id).toBe("rosa");
+    expect(v.suplente?.id).toBe("tomas");
+    expect(v.otros).toEqual([]);
+  });
+
+  test("sin validadores no hay ni titular ni suplente", () => {
+    expect(validadoresDeRonda([usuario()])).toEqual({ titular: null, suplente: null, otros: [] });
+  });
+
+  test("si sobran validadores, el primero por nombre ocupa el puesto y el resto queda aparte", () => {
+    const v = validadoresDeRonda([
+      usuario({ id: "zoe", nombre: "Zoe", rol: "validador" }),
+      usuario({ id: "beto", nombre: "Beto", rol: "validador" }),
+    ]);
+    expect(v.titular?.id).toBe("beto");
+    expect(v.suplente).toBeNull();
+    expect(v.otros.map((p) => p.id)).toEqual(["zoe"]);
   });
 });

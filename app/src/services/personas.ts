@@ -1,4 +1,4 @@
-import { collection, doc, onSnapshot, query, updateDoc, where } from "firebase/firestore";
+import { collection, doc, onSnapshot, query, updateDoc, where, writeBatch } from "firebase/firestore";
 import { db } from "../lib/firebase";
 import type { Area, Usuario } from "../lib/tipos";
 import { aUsuario } from "./auth";
@@ -21,10 +21,26 @@ export async function cambiarArea(persona: Usuario, area: Area): Promise<void> {
 }
 
 /**
- * Nombra validadora a una persona de la planta o la devuelve a colaboradora.
- * Sigue en su área. Nadie más puede cambiar un rol, y a administrador no se
- * llega por aquí (ver promoverAAdministrador).
+ * Nombra a una persona de la planta validador titular o suplente. Sigue en su
+ * área. Quien ocupaba ese puesto (`anterior`) vuelve a colaborador en el mismo
+ * lote: así nunca quedan dos titulares ni dos suplentes. Nadie más puede
+ * cambiar un rol, y a administrador no se llega por aquí (ver
+ * promoverAAdministrador).
  */
-export async function cambiarRol(persona: Usuario, rol: "colaborador" | "validador"): Promise<void> {
-  await updateDoc(doc(db, "usuarios", persona.id), { rol });
+export async function nombrarValidador(
+  persona: Usuario,
+  puesto: "titular" | "suplente",
+  anterior: Usuario | null
+): Promise<void> {
+  const lote = writeBatch(db);
+  lote.update(doc(db, "usuarios", persona.id), { rol: "validador", suplente: puesto === "suplente" });
+  if (anterior && anterior.id !== persona.id) {
+    lote.update(doc(db, "usuarios", anterior.id), { rol: "colaborador", suplente: false });
+  }
+  await lote.commit();
+}
+
+/** Devuelve a un validador, titular o suplente, a colaborador. */
+export async function devolverAColaborador(persona: Usuario): Promise<void> {
+  await updateDoc(doc(db, "usuarios", persona.id), { rol: "colaborador", suplente: false });
 }

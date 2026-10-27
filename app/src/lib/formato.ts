@@ -82,6 +82,27 @@ export function fechaCorta(timestamp: number | null): string {
   return `${dos(f.getDate())}/${dos(f.getMonth() + 1)} ${dos(f.getHours())}:${dos(f.getMinutes())}`;
 }
 
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/**
+ * "Hoy", "Ayer", "Hace 3 días" o "28 ago": cuántos días de calendario pasaron,
+ * no cuántas horas. Un depósito de anoche a las 23:00 es de "Ayer" aunque
+ * hayan pasado dos horas; tiempoRelativo diría "hace 2 h".
+ */
+export function diaRelativo(timestamp: number, ahora: number = Date.now()): string {
+  const inicioDelDia = (t: number) => {
+    const f = new Date(t);
+    return new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
+  };
+  // Redondear absorbe la hora de más o de menos del cambio de horario.
+  const dias = Math.round((inicioDelDia(ahora) - inicioDelDia(timestamp)) / DIA);
+  if (dias <= 0) return "Hoy";
+  if (dias === 1) return "Ayer";
+  if (dias < 7) return `Hace ${dias} días`;
+  const f = new Date(timestamp);
+  return `${f.getDate()} ${MESES_CORTOS[f.getMonth()]}`;
+}
+
 /** Las métricas y el ranking se calculan sobre el mes calendario en curso. */
 export function esDelMesActual(timestamp: number | null): boolean {
   if (!timestamp) return false;

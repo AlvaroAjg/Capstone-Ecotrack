@@ -1,15 +1,25 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { TextInput, View, useWindowDimensions } from "react-native";
+import { Linking, TextInput, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Area, type Usuario } from "../../state/EcoTrack";
-import { filasPersonas, generarCodigoArea, personasPorArea } from "../../lib/gestionPlanta";
-import { fechaCorta } from "../../lib/formato";
+import {
+  filasPersonas,
+  enlacesCorreo,
+  generarCodigoArea,
+  mensajeInvitacion,
+  paginar,
+  personasPorArea,
+  validadoresDeRonda,
+  type EstadoPersona,
+} from "../../lib/gestionPlanta";
+import { diaRelativo } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import * as servicioAreas from "../../services/areas";
-import { cambiarArea, cambiarRol, escucharPersonas } from "../../services/personas";
+import { cambiarArea, devolverAColaborador, escucharPersonas, nombrarValidador } from "../../services/personas";
 import {
   Bloque,
   BotonPanel,
   CampoPanel,
+  Desplegable,
   EncabezadoSeccion,
   Enlace,
   Icono,
@@ -24,6 +34,9 @@ import {
 /** Desde este ancho, validadores y áreas van al lado de la tabla; bajo él, debajo. */
 const ANCHO_DOS_COLUMNAS = 1280;
 
+/** Filas por página de la tabla: la planta tiene cerca de 180 personas. */
+const POR_PAGINA = 10;
+
 /**
  * Personas y áreas de la planta. Las áreas son las que compiten en el ranking:
  * cada una tiene un código para que su gente se una y una dotación, que es el
@@ -32,6 +45,7 @@ const ANCHO_DOS_COLUMNAS = 1280;
 export default function PersonasSeccion() {
   const { usuario, areas } = useEcoTrack();
   const [personas, setPersonas] = useState<Usuario[]>([]);
+  const [invitando, setInvitando] = useState(false);
   const dosColumnas = useWindowDimensions().width >= ANCHO_DOS_COLUMNAS;
 
   useEffect(() => {
@@ -48,7 +62,11 @@ export default function PersonasSeccion() {
         detalle={`${personas.length} persona${personas.length === 1 ? "" : "s"} en ${areas.length} área${
           areas.length === 1 ? "" : "s"
         }. Se suman cuando se unen a su área con el código.`}
+        acciones={
+          <BotonPanel titulo="Invitar colaborador" icono="mas" onPress={() => setInvitando(!invitando)} />
+        }
       />
+      {invitando ? <Invitacion areas={areas} alCerrar={() => setInvitando(false)} /> : null}
       <View className={dosColumnas ? "flex-row items-start" : ""}>
         <View className={dosColumnas ? "flex-1 min-w-0 mr-7" : "mb-6"}>
           <TablaPersonas personas={personas} areas={areas} />
@@ -62,10 +80,107 @@ export default function PersonasSeccion() {
   );
 }
 
-const ETIQUETA_ROL: Record<Usuario["rol"], { texto: string; tono: Tono }> = {
-  colaborador: { texto: "Colaborador", tono: "gris" },
-  validador: { texto: "Validador", tono: "azul" },
-  administrador: { texto: "Administrador", tono: "vino" },
+/**
+ * Invitar a alguien es pasarle el enlace de la app y el código de su área: se
+ * une con él en el paso 2 del registro. La app no manda correos (no hay
+ * servidor), así que arma el mensaje y el administrador lo envía desde su
+ * correo o WhatsApp, o lo copia.
+ */
+function Invitacion({ areas, alCerrar }: { areas: Area[]; alCerrar: () => void }) {
+  const [areaId, setAreaId] = useState<string | null>(areas[0]?.id ?? null);
+  const [copiado, setCopiado] = useState(false);
+  const area = areas.find((a) => a.id === areaId) ?? areas[0];
+
+  if (!area) {
+    return (
+      <Bloque className="mb-6">
+        <View className="flex-row items-center justify-between">
+          <Texto className="flex-1 text-tinta-media text-sm pr-4">
+            Primero crea un área: cada persona se une a la suya con el código del área.
+          </Texto>
+          <BotonPanel titulo="Cerrar" variante="secundario" compacto onPress={alCerrar} />
+        </View>
+      </Bloque>
+    );
+  }
+
+  // El panel corre en el navegador: el enlace es la misma dirección donde está publicado.
+  const mensaje = mensajeInvitacion(area, window.location.origin);
+  const correo = enlacesCorreo("Invitación a RecyTrack", mensaje);
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(mensaje);
+      setCopiado(true);
+      setTimeout(() => setCopiado(false), 2000);
+    } catch {
+      avisar("No se pudo copiar el mensaje", "Selecciónalo y cópialo a mano.");
+    }
+  }
+
+  return (
+    <Bloque className="mb-6">
+      <View className="flex-row items-center justify-between mb-1">
+        <Titulo className="text-[22px]">Invitar colaborador</Titulo>
+        <Enlace texto="Cerrar" tono="tinta" alPresionar={alCerrar} />
+      </View>
+      <Texto className="text-tinta-suave text-[13px] mb-4 leading-[19px]">
+        Elige su área y envíale este mensaje. Crea su cuenta con el enlace, escribe el código de su área y
+        aparece en la tabla apenas se une.
+      </Texto>
+      <View className="flex-row items-end">
+        <Desplegable
+          etiqueta="Área"
+          className="w-[220px] mr-4"
+          opciones={areas.map((a) => ({ valor: a.id as string | null, etiqueta: a.nombre }))}
+          valor={area.id}
+          alCambiar={setAreaId}
+        />
+        <View className="flex-1 min-w-0 bg-piedra rounded-xl px-4 py-3">
+          <Texto selectable className="text-tinta text-sm leading-5">
+            {mensaje}
+          </Texto>
+        </View>
+      </View>
+      <View className="flex-row flex-wrap mt-4">
+        <BotonPanel titulo={copiado ? "Copiado" : "Copiar mensaje"} icono="copiar" onPress={copiar} className="mr-2" />
+        <BotonPanel
+          titulo="Enviar por correo"
+          icono="correo"
+          variante="secundario"
+          // En la misma página, como hace el navegador con un enlace mailto: una
+          // pestaña nueva (lo que haría Linking.openURL) queda en blanco o se bloquea.
+          onPress={() => {
+            window.location.href = correo.mailto;
+          }}
+          className="mr-2"
+        />
+        <BotonPanel
+          titulo="Enviar por WhatsApp"
+          variante="secundario"
+          onPress={() => Linking.openURL(`https://wa.me/?text=${encodeURIComponent(mensaje)}`)}
+        />
+      </View>
+      <View className="flex-row items-center mt-2">
+        <Texto className="text-tinta-suave text-[13px] mr-2">¿No se abre tu correo? Escríbelo en</Texto>
+        <Enlace texto="Outlook" alPresionar={() => Linking.openURL(correo.outlook)} className="mr-2" />
+        <Texto className="text-tinta-suave text-[13px] mr-2">o</Texto>
+        <Enlace texto="Gmail" alPresionar={() => Linking.openURL(correo.gmail)} />
+      </View>
+    </Bloque>
+  );
+}
+
+/** Cómo se lee el rol bajo el nombre de cada persona. */
+function etiquetaRol(persona: Usuario): string {
+  if (persona.rol === "administrador") return "Administrador";
+  if (persona.rol === "validador") return persona.suplente ? "Validador suplente" : "Validador de ronda";
+  return "Colaborador";
+}
+
+const ESTADO: Record<EstadoPersona, { texto: string; tono: Tono }> = {
+  activa: { texto: "Activo", tono: "oliva" },
+  sinDepositos: { texto: "Sin depósitos este mes", tono: "gris" },
 };
 
 /** Colores de los círculos con iniciales, para distinguir filas de un vistazo. */
@@ -77,59 +192,33 @@ const AVATARES = [
   { fondo: "bg-azulado-claro", texto: "text-azulado-oscuro" },
 ];
 
-/** Quién valida hoy los depósitos de la planta. */
-function Validadores({ personas }: { personas: Usuario[] }) {
-  const validadores = personas.filter((p) => p.rol === "validador");
-  return (
-    <View className="bg-vino rounded-[20px] px-5 py-4 mb-5">
-      <Titulo className="text-vino-texto text-[22px]">
-        {validadores.length > 1 ? "Validadores de ronda" : "Validador de ronda"}
-      </Titulo>
-      {validadores.length === 0 ? (
-        <Texto className="text-vino-nav text-[13px] mt-2 leading-[19px]">
-          Todavía no hay validador: nadie revisa los depósitos en el punto limpio. Nómbralo en la tabla
-          de personas.
-        </Texto>
-      ) : (
-        validadores.map((v) => (
-          <View key={v.id} className="flex-row items-center mt-3">
-            <View className="w-11 h-11 rounded-full bg-oliva-hoja items-center justify-center mr-3">
-              <Texto className="text-[#1D3314] font-bold">{iniciales(v.nombre)}</Texto>
-            </View>
-            <View className="flex-1 min-w-0">
-              <Texto className="text-vino-texto text-base font-bold" numberOfLines={1}>
-                {v.nombre}
-              </Texto>
-              <Texto className="text-vino-suave text-[13px]" numberOfLines={1}>
-                {v.areaNombre ?? "Sin área"}
-              </Texto>
-            </View>
-          </View>
-        ))
-      )}
-      <Texto className="text-vino-nav text-[13px] mt-3 pt-3 border-t border-vino-linea leading-[19px]">
-        Nombra a quien ya recorre la planta. Puedes nombrar a una segunda persona como suplente para los
-        días en que el titular no está.
-      </Texto>
-    </View>
-  );
-}
+/** Cuántas coincidencias muestra el buscador del validador. */
+const MAX_CANDIDATOS = 5;
 
 /**
- * Las personas de la planta: buscar, filtrar por área, cambiarlas de área y
- * nombrar al validador.
+ * Quién hace la ronda: el titular y su suplente para los días en que el
+ * titular no está. "Cambiar" abre un buscador para nombrar a otra persona en
+ * cualquiera de los dos puestos o devolver a alguien a colaborador.
  */
-function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
-  const { registros } = useEcoTrack();
+function Validadores({ personas }: { personas: Usuario[] }) {
+  const { titular, suplente, otros } = useMemo(() => validadoresDeRonda(personas), [personas]);
+  const [cambiando, setCambiando] = useState(false);
   const [busqueda, setBusqueda] = useState("");
-  const [areaFiltro, setAreaFiltro] = useState<string | null>(null);
-  // Persona a la que se le está eligiendo un área nueva.
-  const [moviendo, setMoviendo] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
 
-  const filas = useMemo(
-    () => filasPersonas(personas, registros, { busqueda, areaId: areaFiltro }),
-    [personas, registros, busqueda, areaFiltro]
+  // El administrador no valida: no aparece entre las personas que se pueden nombrar.
+  const candidatos = useMemo(
+    () =>
+      busqueda.trim()
+        ? filasPersonas(
+            personas.filter((p) => p.rol !== "administrador"),
+            [],
+            { busqueda, areaId: null }
+          )
+            .slice(0, MAX_CANDIDATOS)
+            .map((f) => f.persona)
+        : [],
+    [personas, busqueda]
   );
 
   async function ejecutar(accion: () => Promise<void>, alFallar: string) {
@@ -143,56 +232,218 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
     }
   }
 
-  function mover(persona: Usuario, area: Area) {
-    return ejecutar(async () => {
-      await cambiarArea(persona, area);
-      setMoviendo(null);
-    }, "No se pudo cambiar de área");
-  }
-
-  async function alternarValidador(persona: Usuario) {
-    const nombrar = persona.rol === "colaborador";
+  async function nombrar(persona: Usuario, puesto: "titular" | "suplente") {
+    // Quien ocupa hoy ese puesto vuelve a colaborador.
+    const anterior = puesto === "titular" ? titular : suplente;
+    const reemplaza = anterior && anterior.id !== persona.id ? ` ${anterior.nombre} vuelve a colaborador.` : "";
     const acepta = await confirmar(
-      nombrar ? "Nombrar validador" : "Devolver a colaborador",
-      nombrar
+      puesto === "titular" ? "Nombrar validador titular" : "Nombrar validador suplente",
+      (persona.rol === "colaborador"
         ? `${persona.nombre} verá la vista de validación en vez de la de colaborador y podrá validar los depósitos de toda la planta. Sigue en ${persona.areaNombre ?? "su área"}.`
-        : `${persona.nombre} vuelve a la vista de colaborador y deja de validar depósitos.`,
-      nombrar ? "Nombrar" : "Devolver"
+        : `${persona.nombre} pasa a ser el validador ${puesto}.`) + reemplaza,
+      "Nombrar"
     );
     if (!acepta) return;
-    await ejecutar(
-      () => cambiarRol(persona, nombrar ? "validador" : "colaborador"),
-      "No se pudo cambiar el rol"
+    await ejecutar(async () => {
+      await nombrarValidador(persona, puesto, anterior);
+      setBusqueda("");
+    }, "No se pudo nombrar al validador");
+  }
+
+  async function devolver(persona: Usuario) {
+    const acepta = await confirmar(
+      "Devolver a colaborador",
+      `${persona.nombre} vuelve a la vista de colaborador y deja de validar depósitos.`,
+      "Devolver"
     );
+    if (!acepta) return;
+    await ejecutar(() => devolverAColaborador(persona), "No se pudo cambiar el rol");
+  }
+
+  return (
+    <View className="bg-vino rounded-[20px] px-5 py-4 mb-5">
+      <View className="flex-row items-center justify-between">
+        <Titulo className="text-vino-texto text-[22px]">Validador de ronda</Titulo>
+        <BotonPanel
+          titulo={cambiando ? "Listo" : "Cambiar"}
+          variante="claro"
+          compacto
+          onPress={() => {
+            setCambiando(!cambiando);
+            setBusqueda("");
+          }}
+        />
+      </View>
+
+      {titular ? (
+        <View className="flex-row items-center mt-3">
+          <View className="w-11 h-11 rounded-full bg-oliva-hoja items-center justify-center mr-3">
+            <Texto className="text-[#1D3314] font-bold">{iniciales(titular.nombre)}</Texto>
+          </View>
+          <View className="flex-1 min-w-0">
+            <Texto className="text-vino-texto text-base font-bold" numberOfLines={1}>
+              {titular.nombre}
+            </Texto>
+            <Texto className="text-vino-suave text-[13px]" numberOfLines={1}>
+              {titular.areaNombre ?? "Sin área"}
+            </Texto>
+          </View>
+          {cambiando ? (
+            <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(titular)} />
+          ) : null}
+        </View>
+      ) : (
+        <Texto className="text-vino-nav text-[13px] mt-2 leading-[19px]">
+          Todavía no hay validador: nadie revisa los depósitos en el punto limpio. Nombra a quien ya recorre
+          la planta.
+        </Texto>
+      )}
+
+      <View className="mt-3 pt-3 border-t border-vino-linea">
+        <View className="flex-row items-center">
+          <Texto className="flex-1 text-vino-nav text-[13px] leading-[19px]">
+            {suplente
+              ? `Suplente: ${suplente.nombre}${suplente.areaNombre ? `, de ${suplente.areaNombre}` : ""}`
+              : "Sin suplente para los días en que el titular no está."}
+          </Texto>
+          {cambiando && suplente ? (
+            <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(suplente)} />
+          ) : null}
+        </View>
+        {otros.map((p) => (
+          <View key={p.id} className="flex-row items-center mt-1">
+            <Texto className="flex-1 text-vino-nav text-[13px] leading-[19px]">
+              {`También valida: ${p.nombre}${p.areaNombre ? `, de ${p.areaNombre}` : ""}`}
+            </Texto>
+            {cambiando ? (
+              <Enlace texto="Quitar" tono="claro" deshabilitado={ocupado} alPresionar={() => devolver(p)} />
+            ) : null}
+          </View>
+        ))}
+      </View>
+
+      {cambiando ? (
+        <View className="mt-3 pt-3 border-t border-vino-linea">
+          <Texto className="text-vino-nav text-[13px] font-semibold mb-1.5">Buscar a quien nombrar</Texto>
+          <View className="flex-row items-center h-11 px-3.5 bg-vino-medio border border-vino-linea rounded-[10px]">
+            <Icono nombre="buscar" tamano={18} color="#C3AEBC" />
+            <TextInput
+              value={busqueda}
+              onChangeText={setBusqueda}
+              placeholder="Nombre o correo"
+              placeholderTextColor="#C3AEBC"
+              accessibilityLabel="Buscar a quien nombrar validador"
+              className="flex-1 ml-2 text-vino-texto text-sm h-full"
+              style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+            />
+          </View>
+          {busqueda.trim() && candidatos.length === 0 ? (
+            <Texto className="text-vino-suave text-[13px] mt-2">Nadie coincide con la búsqueda.</Texto>
+          ) : null}
+          {candidatos.map((p) => (
+            <View key={p.id} className="flex-row items-center py-2 border-b border-vino-linea">
+              <View className="flex-1 min-w-0 pr-2">
+                <Texto className="text-vino-texto text-sm font-bold" numberOfLines={1}>
+                  {p.nombre || "Sin nombre"}
+                </Texto>
+                <Texto className="text-vino-suave text-xs" numberOfLines={1}>
+                  {p.areaNombre ?? "Sin área"}
+                </Texto>
+              </View>
+              {p.id === titular?.id ? (
+                <Texto className="text-vino-suave text-[13px] mr-3">Titular</Texto>
+              ) : (
+                <Enlace
+                  texto="Titular"
+                  tono="claro"
+                  deshabilitado={ocupado}
+                  alPresionar={() => nombrar(p, "titular")}
+                  className="mr-3"
+                />
+              )}
+              {p.id === suplente?.id ? (
+                <Texto className="text-vino-suave text-[13px]">Suplente</Texto>
+              ) : (
+                <Enlace texto="Suplente" tono="claro" deshabilitado={ocupado} alPresionar={() => nombrar(p, "suplente")} />
+              )}
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/**
+ * Las personas de la planta: buscar, filtrar por área y, al tocar una fila,
+ * ver su correo y cambiarla de área. Al validador se lo nombra en su tarjeta.
+ */
+function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[] }) {
+  const { registros } = useEcoTrack();
+  const [busqueda, setBusqueda] = useState("");
+  const [areaFiltro, setAreaFiltro] = useState<string | null>(null);
+  const [pagina, setPagina] = useState(0);
+  // Persona cuya fila está abierta para ver su correo y cambiarla de área.
+  const [abierta, setAbierta] = useState<string | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+
+  const filas = useMemo(
+    () => filasPersonas(personas, registros, { busqueda, areaId: areaFiltro }),
+    [personas, registros, busqueda, areaFiltro]
+  );
+  const vista = paginar(filas, pagina, POR_PAGINA);
+
+  async function mover(persona: Usuario, area: Area) {
+    setOcupado(true);
+    try {
+      await cambiarArea(persona, area);
+      setAbierta(null);
+    } catch (e) {
+      avisar("No se pudo cambiar de área", textoDeError(e));
+    } finally {
+      setOcupado(false);
+    }
   }
 
   return (
     <Bloque>
-      <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">Buscar</Texto>
-      <View className="flex-row items-center h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] mb-3">
-        <Icono nombre="buscar" tamano={18} color="#6E686C" />
-        <TextInput
-          value={busqueda}
-          onChangeText={setBusqueda}
-          placeholder="Nombre de la persona"
-          placeholderTextColor="#8B8589"
-          accessibilityLabel="Buscar por nombre"
-          className="flex-1 ml-2 text-tinta text-sm h-full"
-          style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+      <View className="flex-row items-end">
+        <View className="flex-1 min-w-0 mr-3">
+          <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">Buscar</Texto>
+          <View className="flex-row items-center h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px]">
+            <Icono nombre="buscar" tamano={18} color="#6E686C" />
+            <TextInput
+              value={busqueda}
+              onChangeText={(t) => {
+                setBusqueda(t);
+                setPagina(0);
+              }}
+              placeholder="Nombre o correo"
+              placeholderTextColor="#8B8589"
+              accessibilityLabel="Buscar por nombre o correo"
+              className="flex-1 ml-2 text-tinta text-sm h-full"
+              style={{ fontFamily: "'Hanken Grotesk', system-ui, sans-serif" }}
+            />
+          </View>
+        </View>
+        <Desplegable
+          etiqueta="Área"
+          className="w-[190px]"
+          opciones={[{ valor: null, etiqueta: "Todas las áreas" }, ...areas.map((a) => ({ valor: a.id, etiqueta: a.nombre }))]}
+          valor={areaFiltro}
+          alCambiar={(id) => {
+            setAreaFiltro(id);
+            setPagina(0);
+          }}
         />
       </View>
-      <Pildoras
-        opciones={[{ valor: null, etiqueta: "Todas las áreas" }, ...areas.map((a) => ({ valor: a.id, etiqueta: a.nombre }))]}
-        valor={areaFiltro}
-        alCambiar={setAreaFiltro}
-      />
 
-      <View className="flex-row border-b-[1.5px] border-vino pb-2 mt-2">
+      <View className="flex-row border-b-[1.5px] border-vino pb-2 mt-4">
         <Texto className="flex-1 text-tinta-media text-[13px] font-semibold">Persona</Texto>
-        <Texto className="w-40 text-tinta-media text-[13px] font-semibold">Área</Texto>
-        <Texto className="w-32 text-tinta-media text-[13px] font-semibold">Rol</Texto>
-        <Texto className="w-28 text-tinta-media text-[13px] font-semibold">Último depósito</Texto>
-        <View className="w-44" />
+        <Texto className="w-44 text-tinta-media text-[13px] font-semibold">Área</Texto>
+        <Texto className="w-32 text-tinta-media text-[13px] font-semibold">Último depósito</Texto>
+        <Texto className="w-[184px] text-tinta-media text-[13px] font-semibold">Estado</Texto>
+        <View className="w-6" />
       </View>
 
       {filas.length === 0 ? (
@@ -203,70 +454,105 @@ function TablaPersonas({ personas, areas }: { personas: Usuario[]; areas: Area[]
         </Texto>
       ) : null}
 
-      {filas.map(({ persona, ultimoDeposito }, i) => {
-        const rol = ETIQUETA_ROL[persona.rol];
+      {vista.elementos.map(({ persona, ultimoDeposito, estado }, i) => {
         const avatar = AVATARES[i % AVATARES.length];
+        // El administrador no compite: no tiene área que cambiar.
         const gestionable = persona.rol !== "administrador";
-        return (
-          <View key={persona.id} className="border-b border-piedra-linea py-2.5">
-            <View className="flex-row items-center">
-              <View className="flex-1 min-w-0 flex-row items-center pr-2">
-                <View className={`w-8 h-8 rounded-full items-center justify-center mr-2.5 ${avatar.fondo}`}>
-                  <Texto className={`text-xs font-bold ${avatar.texto}`}>{iniciales(persona.nombre || "?")}</Texto>
-                </View>
-                <View className="flex-1 min-w-0">
-                  <Texto className="text-tinta text-sm font-bold" numberOfLines={1}>
-                    {persona.nombre || "Sin nombre"}
-                  </Texto>
-                  <Texto className="text-tinta-suave text-xs" numberOfLines={1}>
-                    {persona.email}
-                  </Texto>
-                </View>
+        const estaAbierta = abierta === persona.id;
+        const fila = (
+          <View className="flex-row items-center">
+            <View className="flex-1 min-w-0 flex-row items-center pr-2">
+              <View className={`w-8 h-8 rounded-full items-center justify-center mr-2.5 ${avatar.fondo}`}>
+                <Texto className={`text-xs font-bold ${avatar.texto}`}>{iniciales(persona.nombre || "?")}</Texto>
               </View>
-              <Texto className="w-40 text-tinta text-[13px] pr-2" numberOfLines={1}>
-                {persona.areaNombre ?? "—"}
-              </Texto>
-              <View className="w-32 items-start">
-                <Insignia texto={rol.texto} tono={rol.tono} />
-              </View>
-              <Texto className="w-28 text-tinta-media text-[13px]">
-                {ultimoDeposito ? fechaCorta(ultimoDeposito) : "Nunca"}
-              </Texto>
-              <View className="w-44 items-end">
-                {gestionable ? (
-                  <>
-                    <Enlace
-                      texto={persona.rol === "validador" ? "Devolver a colaborador" : "Nombrar validador"}
-                      tono="azul"
-                      deshabilitado={ocupado}
-                      alPresionar={() => alternarValidador(persona)}
-                    />
-                    <Enlace
-                      texto="Cambiar de área"
-                      deshabilitado={ocupado}
-                      alPresionar={() => setMoviendo(moviendo === persona.id ? null : persona.id)}
-                    />
-                  </>
-                ) : null}
+              <View className="flex-1 min-w-0">
+                <Texto className="text-tinta text-sm font-bold" numberOfLines={1}>
+                  {persona.nombre || "Sin nombre"}
+                </Texto>
+                <Texto className="text-tinta-suave text-xs" numberOfLines={1}>
+                  {etiquetaRol(persona)}
+                </Texto>
               </View>
             </View>
+            <Texto className="w-44 text-tinta text-[13px] pr-2" numberOfLines={1}>
+              {persona.areaNombre ?? "—"}
+            </Texto>
+            <Texto className="w-32 text-tinta-media text-[13px]">
+              {ultimoDeposito ? diaRelativo(ultimoDeposito) : "—"}
+            </Texto>
+            <View className="w-[184px] items-start">
+              {estado ? (
+                <Insignia texto={ESTADO[estado].texto} tono={ESTADO[estado].tono} />
+              ) : (
+                <Texto className="text-tinta-suave text-[13px]">—</Texto>
+              )}
+            </View>
+            <View className="w-6 items-end">
+              {gestionable ? <Icono nombre={estaAbierta ? "arriba" : "abajo"} tamano={16} color="#6E686C" /> : null}
+            </View>
+          </View>
+        );
+        return (
+          <View key={persona.id} className="border-b border-piedra-linea py-2">
+            {gestionable ? (
+              <TouchableOpacity
+                onPress={() => setAbierta(estaAbierta ? null : persona.id)}
+                accessibilityRole="button"
+                accessibilityLabel={`${persona.nombre || "Sin nombre"}: ver correo y cambiar de área`}
+                accessibilityState={{ expanded: estaAbierta }}
+              >
+                {fila}
+              </TouchableOpacity>
+            ) : (
+              fila
+            )}
 
-            {moviendo === persona.id ? (
+            {estaAbierta ? (
               <View className="bg-piedra rounded-xl px-3 pt-3 pb-1 mt-2">
-                <Texto className="text-tinta-media text-xs mb-2">Mover a:</Texto>
-                <Pildoras
-                  opciones={areas.filter((a) => a.id !== persona.areaId).map((a) => ({ valor: a.id, etiqueta: a.nombre }))}
-                  valor={null as string | null}
-                  alCambiar={(id) => {
-                    const area = areas.find((a) => a.id === id);
-                    if (area) mover(persona, area);
-                  }}
-                />
+                <Texto className="text-tinta-media text-xs mb-2">
+                  Correo: <Texto className="text-tinta font-semibold">{persona.email || "—"}</Texto>
+                </Texto>
+                <Texto className="text-tinta-media text-xs mb-2">Cambiar de área a:</Texto>
+                <View className={ocupado ? "opacity-50" : ""} pointerEvents={ocupado ? "none" : "auto"}>
+                  <Pildoras
+                    opciones={areas.filter((a) => a.id !== persona.areaId).map((a) => ({ valor: a.id, etiqueta: a.nombre }))}
+                    valor={null as string | null}
+                    alCambiar={(id) => {
+                      const area = areas.find((a) => a.id === id);
+                      if (area) mover(persona, area);
+                    }}
+                  />
+                </View>
               </View>
             ) : null}
           </View>
         );
       })}
+
+      {filas.length > 0 ? (
+        <View className="flex-row items-center justify-between mt-4">
+          <Texto className="text-tinta-media text-[13px]">
+            {`Mostrando ${vista.pagina * POR_PAGINA + 1}–${vista.pagina * POR_PAGINA + vista.elementos.length} de ${vista.total}`}
+          </Texto>
+          <View className="flex-row">
+            <BotonPanel
+              titulo="Anterior"
+              variante="secundario"
+              compacto
+              deshabilitado={vista.pagina === 0}
+              onPress={() => setPagina(vista.pagina - 1)}
+              className="mr-2"
+            />
+            <BotonPanel
+              titulo="Siguiente"
+              variante="secundario"
+              compacto
+              deshabilitado={vista.pagina >= vista.paginas - 1}
+              onPress={() => setPagina(vista.pagina + 1)}
+            />
+          </View>
+        </View>
+      ) : null}
     </Bloque>
   );
 }
@@ -293,8 +579,8 @@ function TablaAreas({
         ) : null}
       </View>
       <Texto className="text-tinta-suave text-xs mt-1 mb-2 leading-[17px]">
-        Cada área tiene un código para que su gente se una. La dotación es cuántas personas trabajan en
-        ella: con ella se calcula la participación.
+        Cada área tiene un código para que su gente se una. Al lado, cuántas personas se registraron de
+        su dotación, que es la base de la participación.
       </Texto>
 
       {areas.length === 0 && editando !== "nueva" ? (
@@ -315,14 +601,15 @@ function TablaAreas({
           />
         ) : (
           <View key={a.id} className="flex-row items-center py-2 border-t border-piedra-linea">
-            <View className="flex-1 min-w-0 pr-2">
-              <Texto className="text-tinta text-[13px] font-semibold" numberOfLines={1}>
-                {a.nombre}
-              </Texto>
-              <Texto className="text-tinta-suave text-xs">
-                {registradas[a.id] ?? 0} de {a.dotacion} registradas
-              </Texto>
-            </View>
+            <Texto className="flex-1 min-w-0 pr-2 text-tinta text-[13px] font-semibold" numberOfLines={1}>
+              {a.nombre}
+            </Texto>
+            <Texto
+              className="w-[72px] text-right text-tinta-suave text-[13px] mr-2"
+              accessibilityLabel={`${registradas[a.id] ?? 0} de ${a.dotacion} personas registradas`}
+            >
+              {registradas[a.id] ?? 0} de {a.dotacion}
+            </Texto>
             <View className="bg-piedra rounded-md px-2 py-1 mr-3">
               <Texto className="text-vino text-xs font-bold tracking-widest">{a.codigo}</Texto>
             </View>

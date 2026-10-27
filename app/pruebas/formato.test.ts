@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
   cantidadDeposito,
+  diaRelativo,
   esDeHoy,
   esDelMesActual,
   fechaCorta,
@@ -74,6 +75,14 @@ describe("fechas", () => {
     expect(tiempoRelativo(ahora - 3 * 3_600_000)).toBe("hace 3 h");
     expect(tiempoRelativo(ahora - 30 * 3_600_000)).toBe("ayer");
     expect(tiempoRelativo(ahora - 5 * 86_400_000)).toBe("hace 5 días");
+  });
+
+  test("diaRelativo cuenta días de calendario", () => {
+    const ahora = fecha(2026, 9, 16, 1);
+    expect(diaRelativo(fecha(2026, 9, 16, 0), ahora)).toBe("Hoy");
+    expect(diaRelativo(fecha(2026, 9, 15, 23), ahora)).toBe("Ayer");
+    expect(diaRelativo(fecha(2026, 9, 13), ahora)).toBe("Hace 3 días");
+    expect(diaRelativo(fecha(2026, 8, 28), ahora)).toBe("28 ago");
   });
 
   test("fechaCorta", () => {

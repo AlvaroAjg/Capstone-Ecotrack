@@ -38,6 +38,7 @@ export function aUsuario(uid: string, d: any): Usuario {
     plantaId: d.plantaId ?? null,
     areaId: d.areaId ?? null,
     areaNombre: d.areaNombre ?? null,
+    suplente: d.suplente === true,
     avisosVistosHasta: d.avisosVistosHasta ?? 0,
   };
 }

@@ -2,7 +2,8 @@
 // planta: contenedores por punto limpio, áreas y personas. Son funciones puras
 // (sin React ni Firestore) para poder probarlas.
 
-import { nombreContenedor, type Contenedor, type Registro, type Usuario } from "./tipos";
+import { mesDe } from "./certificadoMensual";
+import { nombreContenedor, type Area, type Contenedor, type Registro, type Usuario } from "./tipos";
 
 export interface PuntoLimpio {
   punto: string;
@@ -60,6 +61,34 @@ export function generarCodigoArea(
   throw new Error("No se pudo generar un código de área. Intenta de nuevo.");
 }
 
+/**
+ * El mensaje con que el administrador invita a alguien a su área: el enlace
+ * de la app y el código que la persona escribe en el paso 2 del registro. Lo
+ * envía el administrador desde su correo o WhatsApp: la app no manda correos.
+ */
+export function mensajeInvitacion(area: Pick<Area, "nombre" | "codigo">, enlace: string): string {
+  return (
+    `Hola, te invito a RecyTrack, el reciclaje de la planta. Entra a ${enlace} y crea tu cuenta. ` +
+    `Cuando te pida el código de tu área, escribe ${area.codigo} (${area.nombre}).`
+  );
+}
+
+/**
+ * Enlaces para escribir un correo ya redactado. `mailto` abre la app de correo
+ * del computador, pero en Windows muchas veces no hay una configurada y no
+ * pasa nada: por eso también van los de Outlook y Gmail en la web, que abren
+ * la ventana de redactar con la cuenta en que ya se inició sesión.
+ */
+export function enlacesCorreo(asunto: string, cuerpo: string): { mailto: string; outlook: string; gmail: string } {
+  const su = encodeURIComponent(asunto);
+  const body = encodeURIComponent(cuerpo);
+  return {
+    mailto: `mailto:?subject=${su}&body=${body}`,
+    outlook: `https://outlook.office.com/mail/deeplink/compose?subject=${su}&body=${body}`,
+    gmail: `https://mail.google.com/mail/?view=cm&fs=1&su=${su}&body=${body}`,
+  };
+}
+
 /** Cuántas personas registradas tiene cada área (colaboradores y validadores). */
 export function personasPorArea(personas: Usuario[]): Record<string, number> {
   const cuenta: Record<string, number> = {};
@@ -70,10 +99,17 @@ export function personasPorArea(personas: Usuario[]): Record<string, number> {
   return cuenta;
 }
 
+/**
+ * Cómo va una persona este mes: si ya depositó o todavía no. El administrador
+ * no deposita, así que no tiene estado (null).
+ */
+export type EstadoPersona = "activa" | "sinDepositos";
+
 export interface FilaPersona {
   persona: Usuario;
   /** Último depósito que registró; null si nunca ha depositado. */
   ultimoDeposito: number | null;
+  estado: EstadoPersona | null;
 }
 
 /** Para buscar sin importar mayúsculas ni tildes. */
@@ -83,22 +119,87 @@ function normalizar(texto: string): string {
 
 /**
  * Las personas de la planta para la tabla del panel, por nombre, con la fecha
- * de su último depósito. `busqueda` filtra por nombre (sin importar tildes) y
- * `areaId`, por área; null muestra todas.
+ * de su último depósito y su estado del mes de `ahora`. `busqueda` filtra por
+ * nombre o correo (sin importar tildes) y `areaId`, por área; null muestra
+ * todas.
  */
 export function filasPersonas(
   personas: Usuario[],
   registros: Registro[],
-  filtro: { busqueda: string; areaId: string | null }
+  filtro: { busqueda: string; areaId: string | null },
+  ahora: number = Date.now()
 ): FilaPersona[] {
   const ultimo = new Map<string, number>();
   for (const r of registros) {
     ultimo.set(r.colaboradorId, Math.max(ultimo.get(r.colaboradorId) ?? 0, r.creadoEn));
   }
   const buscado = normalizar(filtro.busqueda);
+  const mes = mesDe(ahora);
   return personas
-    .filter((p) => !buscado || normalizar(p.nombre).includes(buscado))
+    .filter((p) => !buscado || normalizar(p.nombre).includes(buscado) || normalizar(p.email).includes(buscado))
     .filter((p) => filtro.areaId === null || p.areaId === filtro.areaId)
     .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"))
-    .map((persona) => ({ persona, ultimoDeposito: ultimo.get(persona.id) ?? null }));
+    .map((persona) => {
+      const ultimoDeposito = ultimo.get(persona.id) ?? null;
+      const estado: EstadoPersona | null =
+        persona.rol === "administrador"
+          ? null
+          : ultimoDeposito !== null && mesDe(ultimoDeposito) === mes
+            ? "activa"
+            : "sinDepositos";
+      return { persona, ultimoDeposito, estado };
+    });
+}
+
+export interface Pagina<T> {
+  elementos: T[];
+  /** La página que se muestra, desde 0, ya dentro del rango. */
+  pagina: number;
+  paginas: number;
+  total: number;
+}
+
+/**
+ * Una página de `lista`. Si `pagina` quedó fuera de rango (por ejemplo,
+ * porque un filtro dejó menos filas), entrega la última que existe. Una lista
+ * vacía tiene una página, vacía.
+ */
+export function paginar<T>(lista: T[], pagina: number, porPagina: number): Pagina<T> {
+  const paginas = Math.max(1, Math.ceil(lista.length / porPagina));
+  const actual = Math.min(Math.max(0, pagina), paginas - 1);
+  return {
+    elementos: lista.slice(actual * porPagina, (actual + 1) * porPagina),
+    pagina: actual,
+    paginas,
+    total: lista.length,
+  };
+}
+
+export interface ValidadoresDeRonda {
+  titular: Usuario | null;
+  suplente: Usuario | null;
+  /**
+   * Validadores que no son ni el titular ni el suplente: los que quedaron de
+   * antes de distinguirlos. Se muestran para que nadie valide sin que el
+   * administrador lo vea.
+   */
+  otros: Usuario[];
+}
+
+/**
+ * Quién hace la ronda: el titular es el validador sin la marca de suplente y
+ * el suplente, el que la tiene. Si hay más de uno de cada tipo, el primero
+ * por nombre ocupa el puesto y el resto queda en `otros`.
+ */
+export function validadoresDeRonda(personas: Usuario[]): ValidadoresDeRonda {
+  const validadores = personas
+    .filter((p) => p.rol === "validador")
+    .sort((a, b) => a.nombre.localeCompare(b.nombre, "es"));
+  const titular = validadores.find((p) => !p.suplente) ?? null;
+  const suplente = validadores.find((p) => p.suplente) ?? null;
+  return {
+    titular,
+    suplente,
+    otros: validadores.filter((p) => p !== titular && p !== suplente),
+  };
 }
