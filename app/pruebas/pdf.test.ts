@@ -36,10 +36,10 @@ async function abrir(bytes: Uint8Array) {
 }
 
 describe("certificado mensual", () => {
-  test("una página con pocos depósitos", async () => {
+  test("con pocos depósitos: el diploma y una página de detalle", async () => {
     const c = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 5) })], "2026-09", ANA)!;
     const pdf = await abrir(await generarCertificadoPdf(c));
-    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getPageCount()).toBe(2);
     expect(pdf.getTitle()).toBe(`Certificado RecyTrack ${c.codigo}`);
   });
 
