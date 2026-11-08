@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { EstadoRonda } from "../../lib/resumenPanel";
+import { etiquetaMes } from "../../lib/certificadoMensual";
 
 /**
  * Piezas visuales del panel del administrador, según su diseño: títulos con
@@ -313,6 +314,70 @@ export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icon
 
 /** También lo usan las etiquetas QR impresas (lib/etiquetaQr.ts). */
 export { colorMaterial } from "../../lib/tipos";
+
+/** "2026-10" → "Octubre 2026", para el selector de meses. */
+export function mesLargo(mes: string): string {
+  const [nombre, , anio] = etiquetaMes(mes).split(" ");
+  return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${anio}`;
+}
+
+/** Botón con el mes elegido que despliega los meses con actividad. */
+export function SelectorMes({
+  meses,
+  valor,
+  alCambiar,
+}: {
+  meses: string[];
+  valor: string;
+  alCambiar: (mes: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const varios = meses.length > 1;
+
+  return (
+    <View className="relative">
+      <TouchableOpacity
+        onPress={() => setAbierto((v) => !v)}
+        disabled={!varios}
+        accessibilityRole="button"
+        accessibilityLabel={`Mes: ${mesLargo(valor)}`}
+        accessibilityState={{ expanded: abierto, disabled: !varios }}
+        className="h-11 flex-row items-center px-4 bg-white border border-piedra-control rounded-[10px]"
+      >
+        <Icono nombre="calendario" tamano={18} color="#221C20" />
+        <Texto className="text-tinta text-sm font-medium mx-2">{mesLargo(valor)}</Texto>
+        {varios ? <Icono nombre="abajo" tamano={16} color="#221C20" /> : null}
+      </TouchableOpacity>
+
+      {abierto ? (
+        <View
+          className="absolute right-0 top-[52px] w-[200px] bg-white rounded-2xl border border-piedra-borde py-1.5"
+          style={{ shadowColor: "#2B1424", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 8 } }}
+        >
+          {meses.map((m) => {
+            const elegido = m === valor;
+            return (
+              <TouchableOpacity
+                key={m}
+                onPress={() => {
+                  alCambiar(m);
+                  setAbierto(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: elegido }}
+                className={`px-4 py-2.5 ${elegido ? "bg-oliva-claro" : ""}`}
+              >
+                <Texto className={`text-sm ${elegido ? "text-oliva-oscuro font-bold" : "text-tinta"}`}>
+                  {mesLargo(m)}
+                </Texto>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 /** Iniciales para el círculo de una persona: "Rosa Muñoz" → "RM". */
 export function iniciales(nombre: string): string {
