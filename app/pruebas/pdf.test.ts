@@ -54,9 +54,9 @@ describe("certificado mensual", () => {
 });
 
 describe("reporte mensual de la planta", () => {
-  test("se genera con un mes vacío", async () => {
+  test("se genera con un mes vacío: el tablero y una página de detalle", async () => {
     const pdf = await abrir(await generarReportePdf(reporteDePlanta(PLANTA, [EMBOTELLADO], "2026-09", [], [])));
-    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getPageCount()).toBe(2);
     expect(pdf.getTitle()).toBe("Reporte RecyTrack Planta Piloto 2026-09");
   });
 

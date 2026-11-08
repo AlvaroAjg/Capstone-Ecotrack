@@ -97,7 +97,7 @@ function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
 }
 
 export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint8Array> {
-  const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
+  const { doc, normal, negrita, serif, nuevaPagina } = await nuevoDocumento({
     titulo: `Certificado RecyTrack ${c.codigo}`,
     asunto: `Certificado mensual de reciclaje, ${c.etiqueta}`,
   });
@@ -197,7 +197,7 @@ export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint
 
   piesDePagina(
     doc,
-    { normal, negrita },
+    { normal, negrita, serif },
     `Certificado ${c.codigo}`,
     "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada."
   );

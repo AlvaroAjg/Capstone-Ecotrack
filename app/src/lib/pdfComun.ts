@@ -30,10 +30,54 @@ export const TEXTO = rgb(0.07, 0.09, 0.15);
 
 export type Color = ReturnType<typeof rgb>;
 
+/** "#3F6B2E" → el color de pdf-lib. */
+export function hex(color: string): Color {
+  const n = parseInt(color.replace("#", ""), 16);
+  return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
+}
+
+/** Los colores de RecyTrack, los mismos del panel (ver tailwind.config.js). */
+export const MARCA = {
+  vino: hex("#2B1424"),
+  vinoTexto: hex("#F6EFF3"),
+  vinoSuave: hex("#C3AEBC"),
+  vinoNav: hex("#DCCDD6"),
+  oliva: hex("#3F6B2E"),
+  olivaClaro: hex("#E6EEDD"),
+  olivaMedio: hex("#A9C98F"),
+  olivaHoja: hex("#8DB574"),
+  uva: hex("#CFE3BE"),
+  ambar: hex("#A8732F"),
+  ambarOscuro: hex("#7A4E17"),
+  ambarClaro: hex("#F5EBDD"),
+  ambarVivo: hex("#D9A35B"),
+  rojizo: hex("#8A2A22"),
+  piedra: hex("#F1F2EE"),
+  piedraBorde: hex("#E2E4DE"),
+  piedraLinea: hex("#ECEDE8"),
+  piedraControl: hex("#CFD2CA"),
+  marfil: hex("#FBFAF7"),
+  tinta: hex("#221C20"),
+  tintaMedia: hex("#4D474B"),
+  tintaSuave: hex("#6E686C"),
+};
+
 export interface Pincel {
   pagina: PDFPage;
   normal: PDFFont;
   negrita: PDFFont;
+  /** Con serifa, para títulos y números grandes, como Gloock en el panel. */
+  serif: PDFFont;
+}
+
+interface OpcionesTexto {
+  negrita?: boolean;
+  serif?: boolean;
+  color?: Color;
+}
+
+function fuenteDe(p: Pincel, opciones: OpcionesTexto): PDFFont {
+  return opciones.serif ? p.serif : opciones.negrita ? p.negrita : p.normal;
 }
 
 /** Un documento A4 con las fuentes ya cargadas y una forma de agregar páginas. */
@@ -45,8 +89,9 @@ export async function nuevoDocumento(metadatos: { titulo: string; asunto: string
 
   const normal = await doc.embedFont(StandardFonts.Helvetica);
   const negrita = await doc.embedFont(StandardFonts.HelveticaBold);
-  const nuevaPagina = (): Pincel => ({ pagina: doc.addPage([ANCHO, ALTO]), normal, negrita });
-  return { doc, normal, negrita, nuevaPagina };
+  const serif = await doc.embedFont(StandardFonts.TimesRoman);
+  const nuevaPagina = (): Pincel => ({ pagina: doc.addPage([ANCHO, ALTO]), normal, negrita, serif });
+  return { doc, normal, negrita, serif, nuevaPagina };
 }
 
 /**
@@ -68,21 +113,27 @@ export function seguro(texto: string): string {
 }
 
 /** Texto centrado horizontalmente. `arriba` se mide desde el borde superior. */
-export function centrado(
+export function centrado(p: Pincel, texto: string, arriba: number, tamano: number, opciones: OpcionesTexto = {}) {
+  centradoEn(p, texto, ANCHO / 2, arriba, tamano, opciones);
+}
+
+/** Texto centrado en `centro`, no en la página. */
+export function centradoEn(
   p: Pincel,
   texto: string,
+  centro: number,
   arriba: number,
   tamano: number,
-  opciones: { negrita?: boolean; color?: Color } = {}
+  opciones: OpcionesTexto = {}
 ) {
   const limpio = seguro(texto);
-  const fuente = opciones.negrita ? p.negrita : p.normal;
+  const fuente = fuenteDe(p, opciones);
   p.pagina.drawText(limpio, {
-    x: (ANCHO - fuente.widthOfTextAtSize(limpio, tamano)) / 2,
+    x: centro - fuente.widthOfTextAtSize(limpio, tamano) / 2,
     y: ALTO - arriba,
     size: tamano,
     font: fuente,
-    color: opciones.color ?? TEXTO,
+    color: opciones.color ?? MARCA.tinta,
   });
 }
 
@@ -92,14 +143,14 @@ export function izquierda(
   x: number,
   arriba: number,
   tamano: number,
-  opciones: { negrita?: boolean; color?: Color } = {}
+  opciones: OpcionesTexto = {}
 ) {
   p.pagina.drawText(seguro(texto), {
     x,
     y: ALTO - arriba,
     size: tamano,
-    font: opciones.negrita ? p.negrita : p.normal,
-    color: opciones.color ?? TEXTO,
+    font: fuenteDe(p, opciones),
+    color: opciones.color ?? MARCA.tinta,
   });
 }
 
@@ -110,17 +161,120 @@ export function derecha(
   x: number,
   arriba: number,
   tamano: number,
-  opciones: { negrita?: boolean; color?: Color } = {}
+  opciones: OpcionesTexto = {}
 ) {
   const limpio = seguro(texto);
-  const fuente = opciones.negrita ? p.negrita : p.normal;
+  const fuente = fuenteDe(p, opciones);
   p.pagina.drawText(limpio, {
     x: x - fuente.widthOfTextAtSize(limpio, tamano),
     y: ALTO - arriba,
     size: tamano,
     font: fuente,
-    color: opciones.color ?? TEXTO,
+    color: opciones.color ?? MARCA.tinta,
   });
+}
+
+/** El tamaño más grande, hasta `maximo`, con que `texto` cabe en `ancho`. */
+export function tamanoQueCabe(fuente: PDFFont, texto: string, ancho: number, maximo: number, minimo = 8): number {
+  const limpio = seguro(texto);
+  let tamano = maximo;
+  while (tamano > minimo && fuente.widthOfTextAtSize(limpio, tamano) > ancho) tamano -= 0.5;
+  return tamano;
+}
+
+/** Ancho de `texto` con esas opciones, para alinear cosas a su lado. */
+export function anchoTexto(p: Pincel, texto: string, tamano: number, opciones: OpcionesTexto = {}): number {
+  return fuenteDe(p, opciones).widthOfTextAtSize(seguro(texto), tamano);
+}
+
+/**
+ * Rectángulo con esquinas redondeadas. `arriba` es su borde superior, medido
+ * desde arriba de la página como el resto de las piezas.
+ */
+export function caja(
+  p: Pincel,
+  x: number,
+  arriba: number,
+  ancho: number,
+  alto: number,
+  opciones: { relleno?: Color; borde?: Color; grosor?: number; radio?: number } = {}
+) {
+  const r = Math.min(opciones.radio ?? 8, ancho / 2, alto / 2);
+  const camino =
+    `M ${r} 0 H ${ancho - r} A ${r} ${r} 0 0 1 ${ancho} ${r} V ${alto - r} ` +
+    `A ${r} ${r} 0 0 1 ${ancho - r} ${alto} H ${r} A ${r} ${r} 0 0 1 0 ${alto - r} V ${r} A ${r} ${r} 0 0 1 ${r} 0 Z`;
+  p.pagina.drawSvgPath(camino, {
+    x,
+    y: ALTO - arriba,
+    color: opciones.relleno,
+    borderColor: opciones.borde,
+    borderWidth: opciones.borde ? opciones.grosor ?? 1 : 0,
+  });
+}
+
+/**
+ * Anillo de avance: un círculo de fondo y, encima, el arco del `porcentaje`
+ * empezando arriba, en el sentido del reloj. `centroArriba` se mide desde
+ * arriba de la página.
+ */
+export function anillo(
+  p: Pincel,
+  centroX: number,
+  centroArriba: number,
+  radio: number,
+  grosor: number,
+  porcentaje: number,
+  color: Color,
+  fondo: Color
+) {
+  const y = ALTO - centroArriba;
+  p.pagina.drawCircle({ x: centroX, y, size: radio, borderColor: fondo, borderWidth: grosor });
+  const avance = Math.max(0, Math.min(100, porcentaje));
+  if (avance <= 0) return;
+  if (avance >= 100) {
+    p.pagina.drawCircle({ x: centroX, y, size: radio, borderColor: color, borderWidth: grosor });
+    return;
+  }
+  const angulo = (avance / 100) * 2 * Math.PI;
+  const finX = radio * Math.sin(angulo);
+  const finY = -radio * Math.cos(angulo);
+  const largo = avance > 50 ? 1 : 0;
+  p.pagina.drawSvgPath(`M 0 ${-radio} A ${radio} ${radio} 0 ${largo} 1 ${finX} ${finY}`, {
+    x: centroX,
+    y,
+    borderColor: color,
+    borderWidth: grosor,
+  });
+}
+
+/** Línea vertical punteada, para marcar una meta sobre una barra. */
+export function marcaMeta(p: Pincel, x: number, arriba: number, alto: number, color: Color) {
+  p.pagina.drawLine({
+    start: { x, y: ALTO - arriba },
+    end: { x, y: ALTO - arriba - alto },
+    thickness: 1.2,
+    color,
+    dashArray: [2, 2],
+  });
+}
+
+/** El logo de RecyTrack: seis uvas, la de abajo ámbar, y una hoja. `lado` es su tamaño. */
+export function logo(p: Pincel, x: number, arriba: number, lado: number, uvas: Color = MARCA.uva) {
+  const e = lado / 40;
+  const uva = (cx: number, cy: number, color: Color) =>
+    p.pagina.drawCircle({ x: x + cx * e, y: ALTO - arriba - cy * e, size: 4.3 * e, color });
+  p.pagina.drawSvgPath("M 20 11 C 20 7 22.5 4.5 27 3.5 C 26.4 8.1 23.8 10.5 20 11 Z", {
+    x,
+    y: ALTO - arriba,
+    scale: e,
+    color: MARCA.olivaHoja,
+  });
+  uva(12, 17, uvas);
+  uva(20, 17, uvas);
+  uva(28, 17, uvas);
+  uva(16, 24.5, uvas);
+  uva(24, 24.5, uvas);
+  uva(20, 32, MARCA.ambarVivo);
 }
 
 export function linea(p: Pincel, arriba: number) {
@@ -146,7 +300,7 @@ export function franjaMarca(p: Pincel) {
  */
 export function piesDePagina(
   doc: PDFDocument,
-  fuentes: { normal: PDFFont; negrita: PDFFont },
+  fuentes: { normal: PDFFont; negrita: PDFFont; serif: PDFFont },
   referencia: string,
   nota: string
 ) {
@@ -157,16 +311,16 @@ export function piesDePagina(
       start: { x: MARGEN, y: 58 },
       end: { x: ANCHO - MARGEN, y: 58 },
       thickness: 0.8,
-      color: GRIS_CLARO,
+      color: MARCA.piedraBorde,
     });
     centrado(
       pie,
       `Emitido el ${fechaLarga(Date.now())} · ${referencia} · Página ${i + 1} de ${paginas.length}`,
       ALTO - 44,
       8,
-      { color: GRIS }
+      { color: MARCA.tintaSuave }
     );
-    centrado(pie, nota, ALTO - 32, 6.5, { color: GRIS });
+    centrado(pie, nota, ALTO - 32, 6.5, { color: MARCA.tintaSuave });
   });
 }
 
