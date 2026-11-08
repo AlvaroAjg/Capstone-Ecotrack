@@ -52,12 +52,18 @@ export async function nuevoDocumento(metadatos: { titulo: string; asunto: string
 /**
  * Las fuentes estándar del PDF solo codifican Latin-1: tildes y eñes sí, pero un
  * emoji o una letra fuera de ese rango haría fallar la generación. Se normalizan
- * los espacios especiales que produce toLocaleString y se reemplaza lo demás.
+ * los espacios especiales que produce toLocaleString, los guiones y comillas
+ * tipográficos pasan a sus equivalentes simples (las semanas son «1–4 oct») y
+ * se reemplaza lo demás.
  */
 export function seguro(texto: string): string {
   return texto
     .normalize("NFC")
     .replace(/[\s  ]+/g, " ")
+    .replace(/[‐-―−]/g, "-")
+    .replace(/[‘’]/g, "'")
+    .replace(/[“”]/g, '"')
+    .replace(/…/g, "...")
     .replace(/[^\x20-\x7E¡-ÿ]/g, "?");
 }
 

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { certificadoDelMes } from "../src/lib/certificadoMensual";
 import { generarCertificadoPdf } from "../src/lib/certificadoPdf.web";
 import { generarReportePdf } from "../src/lib/reportePdf.web";
+import { seguro } from "../src/lib/pdfComun";
 import { reporteDePlanta } from "../src/lib/reportePlanta";
 import type { Area, Retiro } from "../src/lib/tipos";
 import {
@@ -93,5 +94,15 @@ describe("reporte mensual de la planta", () => {
     const r = reporteDePlanta(PLANTA, areas, "2026-09", registros, incidencias, retiros);
     const pdf = await abrir(await generarReportePdf(r));
     expect(pdf.getPageCount()).toBeGreaterThan(1);
+  });
+});
+
+describe("seguro", () => {
+  test("guiones, comillas y puntos suspensivos tipográficos pasan a los simples", () => {
+    expect(seguro("1–4 oct — “Casino” … ‘a’")).toBe("1-4 oct - \"Casino\" ... 'a'");
+  });
+
+  test("tildes y eñes se conservan; lo que la fuente no tiene, no", () => {
+    expect(seguro("Ñuñoa, Fermentación ♻️")).toBe("Ñuñoa, Fermentación ??");
   });
 });
