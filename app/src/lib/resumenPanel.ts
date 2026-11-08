@@ -3,6 +3,7 @@
 // ronda de hoy por contenedor. Son funciones puras (sin React ni Firestore)
 // para poder probarlas; el panel solo las memoriza.
 
+import { esDiaHabil, feriadoDe } from "./feriados";
 import { porcentaje, sumaKg } from "./formato";
 import {
   MATERIALES,
@@ -47,7 +48,7 @@ export interface IndicadoresMes {
   kgEstimados: number;
   /** Días del mes en que el validador hizo su ronda. */
   rondas: number;
-  /** Días de lunes a viernes del mes, hasta hoy si es el mes en curso. */
+  /** Días hábiles del mes (de lunes a viernes, sin feriados), hasta hoy si es el mes en curso. */
   diasHabiles: number;
   /** Contenedores revisados, uno por cada día en que se revisó cada uno. */
   lotesRevisados: number;
@@ -88,8 +89,7 @@ export function indicadoresDelMes(
 
   let diasHabiles = 0;
   for (let d = desde; d <= hasta; d += DIA) {
-    const dia = new Date(d).getDay();
-    if (dia !== 0 && dia !== 6) diasHabiles++;
+    if (esDiaHabil(d)) diasHabiles++;
   }
 
   return {
@@ -114,6 +114,8 @@ export interface Semana {
   enCurso: boolean;
   /** Una semana del mes que aún no llega. */
   futura: boolean;
+  /** Los feriados de la semana, para explicar por qué tuvo menos depósitos. */
+  feriados: string[];
 }
 
 /**
@@ -136,6 +138,11 @@ export function validadosPorSemana(
     const ultimo = Math.min(ultimoDia, primero + ((7 - diaSemana) % 7));
     const desde = new Date(anio, numero - 1, primero).getTime();
     const hasta = new Date(anio, numero - 1, ultimo + 1).getTime() - 1;
+    const feriados: string[] = [];
+    for (let d = primero; d <= ultimo; d++) {
+      const nombre = feriadoDe(new Date(anio, numero - 1, d).getTime());
+      if (nombre) feriados.push(nombre);
+    }
 
     semanas.push({
       etiqueta: `${primero === ultimo ? primero : `${primero}–${ultimo}`} ${MESES_CORTOS[numero - 1]}`,
@@ -144,6 +151,7 @@ export function validadosPorSemana(
       ).length,
       enCurso: ahora >= desde && ahora <= hasta,
       futura: desde > ahora,
+      feriados,
     });
     primero = ultimo + 1;
   }

@@ -99,11 +99,11 @@ describe("validadosPorSemana", () => {
     );
     // Septiembre de 2026 parte un martes.
     expect(semanas).toEqual([
-      { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false },
-      { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false },
-      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false },
-      { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true },
-      { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true },
+      { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false, feriados: [] },
+      { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false, feriados: [] },
+      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false, feriados: [] },
+      { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
+      { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
     ]);
   });
 });
@@ -359,5 +359,23 @@ describe("depositosPorPunto", () => {
   test("un depósito en un contenedor que ya no existe va a Sin punto", () => {
     const registros = [validado({ contenedor: "NOEXISTE", validadoEn: fecha(2026, 9, 2) })];
     expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")[0].punto).toBe("Sin punto");
+  });
+});
+
+describe("feriados en el Resumen", () => {
+  const ENERO = fecha(2027, 1, 5);
+
+  test("los días hábiles de diciembre no cuentan sus dos feriados", () => {
+    // Diciembre de 2026 tiene 23 días de lunes a viernes; el 8 y el 25 son feriados.
+    expect(indicadoresDelMes([], [], "2026-12", ENERO).diasHabiles).toBe(21);
+  });
+
+  test("cada semana trae los nombres de sus feriados", () => {
+    const semanas = validadosPorSemana([], "2026-12", ENERO);
+    const conFeriado = semanas.filter((s) => s.feriados.length > 0);
+    expect(conFeriado.map((s) => [s.etiqueta, s.feriados])).toEqual([
+      ["7–13 dic", ["Inmaculada Concepción"]],
+      ["21–27 dic", ["Navidad"]],
+    ]);
   });
 });
