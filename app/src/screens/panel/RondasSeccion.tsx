@@ -11,6 +11,7 @@ const ASPECTO_DIA: Record<EstadoDia, { caja: string; texto: string; etiqueta: st
   completada: { caja: "bg-oliva border-oliva", texto: "text-white", etiqueta: "Ronda hecha" },
   noRealizada: { caja: "bg-rojizo-claro border-rojizo-claro", texto: "text-rojizo-oscuro", etiqueta: "No se hizo" },
   sinDepositos: { caja: "bg-piedra-linea border-piedra-linea", texto: "text-tinta-suave", etiqueta: "Sin depósitos" },
+  finDeSemana: { caja: "bg-piedra-linea border-piedra-linea", texto: "text-tinta-suave", etiqueta: "Fin de semana" },
   enCurso: { caja: "bg-ambar-claro border-ambar", texto: "text-ambar-oscuro", etiqueta: "Pendiente hoy" },
   futuro: { caja: "bg-white border-piedra-linea", texto: "text-piedra-punto", etiqueta: "" },
 };

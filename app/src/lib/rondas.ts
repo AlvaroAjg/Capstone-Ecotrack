@@ -2,18 +2,21 @@
 // y lo que encontró. Son funciones puras para poder probarlas; la sección
 // Rondas del panel solo las muestra.
 
+import { mesDe } from "./certificadoMensual";
 import { nombreContenedor, type Contenedor, type Incidencia, type Registro } from "./tipos";
 
 const DIA = 24 * 60 * 60 * 1000;
 
 /**
  * - completada: el validador validó, rechazó o reportó algo ese día.
- * - noRealizada: había depósitos esperando y no se revisó nada.
+ * - noRealizada: era día hábil, había depósitos esperando y no se revisó nada.
  * - sinDepositos: no había nada que revisar.
+ * - finDeSemana: sábado o domingo sin ronda. No cuenta como ronda que faltó,
+ *   igual que en los días hábiles del Resumen (ver indicadoresDelMes).
  * - enCurso: es hoy, hay depósitos esperando y todavía no pasa.
  * - futuro: un día del mes que aún no llega.
  */
-export type EstadoDia = "completada" | "noRealizada" | "sinDepositos" | "enCurso" | "futuro";
+export type EstadoDia = "completada" | "noRealizada" | "sinDepositos" | "finDeSemana" | "enCurso" | "futuro";
 
 export interface DiaRonda {
   /** Inicio del día, en hora local. */
@@ -26,22 +29,25 @@ export interface DiaRonda {
 }
 
 /**
- * El estado de la ronda en cada día del mes de `ahora`. Un depósito espera
- * desde que se registra hasta que el validador lo revisa, así que se cuenta
- * como pendiente en cada día que terminó sin revisarse.
+ * El estado de la ronda en cada día del mes `mes` (por defecto, el de
+ * `ahora`). Un depósito espera desde que se registra hasta que el validador lo
+ * revisa, así que se cuenta como pendiente en cada día que terminó sin
+ * revisarse.
  */
 export function rondasDelMes(
   registros: Registro[],
   incidencias: Incidencia[],
-  ahora: number = Date.now()
+  ahora: number = Date.now(),
+  mes: string = mesDe(ahora)
 ): DiaRonda[] {
+  const [anio, numero] = mes.split("-").map(Number);
+  const diasDelMes = new Date(anio, numero, 0).getDate();
   const hoy = new Date(ahora);
-  const diasDelMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0).getDate();
   const inicioHoy = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate()).getTime();
 
   const dias: DiaRonda[] = [];
   for (let d = 1; d <= diasDelMes; d++) {
-    const inicio = new Date(hoy.getFullYear(), hoy.getMonth(), d).getTime();
+    const inicio = new Date(anio, numero - 1, d).getTime();
     // El último instante que cuenta: el fin del día, o ahora si es hoy.
     const corte = inicio === inicioHoy ? ahora : inicio + DIA - 1;
 
@@ -56,8 +62,10 @@ export function rondasDelMes(
       (r) => r.creadoEn <= corte && (r.validadoEn === null || r.validadoEn > corte)
     ).length;
 
+    const diaSemana = new Date(inicio).getDay();
     let estado: EstadoDia;
     if (revisados > 0 || reportes > 0) estado = "completada";
+    else if (diaSemana === 0 || diaSemana === 6) estado = "finDeSemana";
     else if (pendientes === 0) estado = "sinDepositos";
     else estado = inicio === inicioHoy ? "enCurso" : "noRealizada";
     dias.push({ dia: inicio, estado, revisados, pendientes });
@@ -76,20 +84,22 @@ export interface Observacion {
 }
 
 /**
- * Lo que el validador encontró en el mes, de lo más reciente a lo más
- * antiguo: los reportes de contaminación y los contenedores que marcó «Sin
- * material». Los rechazos de un mismo contenedor el mismo día son una sola
- * observación, porque se marcan por tanda.
+ * Lo que el validador encontró en el mes `mes` (por defecto, el de `ahora`),
+ * de lo más reciente a lo más antiguo: los reportes de contaminación y los
+ * contenedores que marcó «Sin material». Los rechazos de un mismo contenedor
+ * el mismo día son una sola observación, porque se marcan por tanda.
  */
 export function observacionesDelMes(
   registros: Registro[],
   incidencias: Incidencia[],
   contenedores: Contenedor[],
-  ahora: number = Date.now()
+  ahora: number = Date.now(),
+  mes: string = mesDe(ahora)
 ): Observacion[] {
-  const hoy = new Date(ahora);
-  const desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1).getTime();
-  const delMes = (t: number | null): t is number => t !== null && t >= desde && t <= ahora;
+  const [anio, numero] = mes.split("-").map(Number);
+  const desde = new Date(anio, numero - 1, 1).getTime();
+  const hasta = Math.min(new Date(anio, numero, 1).getTime() - 1, ahora);
+  const delMes = (t: number | null): t is number => t !== null && t >= desde && t <= hasta;
   const datos = (codigo: string) => {
     const c = contenedores.find((x) => x.codigo === codigo);
     return { contenedor: c ? nombreContenedor(c) : `Contenedor ${codigo}`, punto: c?.punto ?? "" };
