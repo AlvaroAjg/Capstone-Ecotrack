@@ -140,3 +140,36 @@ describe("observacionesDelMes de otro mes", () => {
     expect(obs.map((o) => o.tipo)).toEqual(["sinMaterial"]);
   });
 });
+
+describe("rondasDelMes con feriados", () => {
+  test("un feriado sin ronda queda como feriado, con su nombre, aunque haya depósitos esperando", () => {
+    const dias = rondasDelMes(
+      [validado({ creadoEn: fecha(2026, 12, 7, 9), validadoEn: fecha(2026, 12, 9, 8) })],
+      [],
+      fecha(2027, 1, 5),
+      "2026-12"
+    );
+    expect(dias[7]).toMatchObject({ estado: "feriado", feriado: "Inmaculada Concepción" });
+    expect(dias[6].estado).toBe("noRealizada");
+    expect(dias[8].estado).toBe("completada");
+  });
+
+  test("si el validador pasa un feriado, la ronda cuenta igual", () => {
+    const dias = rondasDelMes(
+      [validado({ creadoEn: fecha(2026, 12, 24, 9), validadoEn: fecha(2026, 12, 25, 10) })],
+      [],
+      fecha(2027, 1, 5),
+      "2026-12"
+    );
+    expect(dias[24]).toMatchObject({ estado: "completada", feriado: "Navidad" });
+  });
+});
+
+describe("rondasDelMes, días que vienen", () => {
+  test("los fines de semana y feriados que vienen ya se marcan, el resto queda futuro", () => {
+    const dias = rondasDelMes([], [], fecha(2026, 12, 1), "2026-12");
+    expect(dias[3].estado).toBe("futuro"); // viernes 4
+    expect(dias[4].estado).toBe("finDeSemana"); // sábado 5
+    expect(dias[7]).toMatchObject({ estado: "feriado", feriado: "Inmaculada Concepción" }); // martes 8
+  });
+});

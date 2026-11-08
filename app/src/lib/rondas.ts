@@ -3,6 +3,7 @@
 // Rondas del panel solo las muestra.
 
 import { mesDe } from "./certificadoMensual";
+import { feriadoDe } from "./feriados";
 import { nombreContenedor, type Contenedor, type Incidencia, type Registro } from "./tipos";
 
 const DIA = 24 * 60 * 60 * 1000;
@@ -13,10 +14,18 @@ const DIA = 24 * 60 * 60 * 1000;
  * - sinDepositos: no había nada que revisar.
  * - finDeSemana: sábado o domingo sin ronda. No cuenta como ronda que faltó,
  *   igual que en los días hábiles del Resumen (ver indicadoresDelMes).
+ * - feriado: lo mismo un feriado (ver lib/feriados.ts): la planta no opera.
  * - enCurso: es hoy, hay depósitos esperando y todavía no pasa.
- * - futuro: un día del mes que aún no llega.
+ * - futuro: un día hábil del mes que aún no llega.
  */
-export type EstadoDia = "completada" | "noRealizada" | "sinDepositos" | "finDeSemana" | "enCurso" | "futuro";
+export type EstadoDia =
+  | "completada"
+  | "noRealizada"
+  | "sinDepositos"
+  | "finDeSemana"
+  | "feriado"
+  | "enCurso"
+  | "futuro";
 
 export interface DiaRonda {
   /** Inicio del día, en hora local. */
@@ -26,6 +35,8 @@ export interface DiaRonda {
   revisados: number;
   /** Depósitos que esperaban al terminar el día (o ahora, si es hoy). */
   pendientes: number;
+  /** El nombre del feriado, si ese día lo es. */
+  feriado: string | null;
 }
 
 /**
@@ -52,7 +63,11 @@ export function rondasDelMes(
     const corte = inicio === inicioHoy ? ahora : inicio + DIA - 1;
 
     if (inicio > inicioHoy) {
-      dias.push({ dia: inicio, estado: "futuro", revisados: 0, pendientes: 0 });
+      // Los fines de semana y feriados que vienen ya se sabe que no tienen ronda.
+      const feriado = feriadoDe(inicio);
+      const finDeSemana = [0, 6].includes(new Date(inicio).getDay());
+      const estado: EstadoDia = finDeSemana ? "finDeSemana" : feriado ? "feriado" : "futuro";
+      dias.push({ dia: inicio, estado, revisados: 0, pendientes: 0, feriado });
       continue;
     }
     const enElDia = (t: number | null) => t !== null && t >= inicio && t <= corte;
@@ -63,12 +78,14 @@ export function rondasDelMes(
     ).length;
 
     const diaSemana = new Date(inicio).getDay();
+    const feriado = feriadoDe(inicio);
     let estado: EstadoDia;
     if (revisados > 0 || reportes > 0) estado = "completada";
     else if (diaSemana === 0 || diaSemana === 6) estado = "finDeSemana";
+    else if (feriado) estado = "feriado";
     else if (pendientes === 0) estado = "sinDepositos";
     else estado = inicio === inicioHoy ? "enCurso" : "noRealizada";
-    dias.push({ dia: inicio, estado, revisados, pendientes });
+    dias.push({ dia: inicio, estado, revisados, pendientes, feriado });
   }
   return dias;
 }
