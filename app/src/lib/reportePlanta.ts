@@ -15,6 +15,14 @@
 import { mesDe, etiquetaMes } from "./certificadoMensual";
 import { porcentaje, sumaKg } from "./formato";
 import {
+  indicadoresDelMes,
+  kilosPorMaterial,
+  validadosPorSemana,
+  type IndicadoresMes,
+  type KilosMaterial,
+  type Semana,
+} from "./resumenPanel";
+import {
   MATERIALES,
   kgEfectivo,
   type Area,
@@ -99,6 +107,15 @@ export interface ReportePlanta {
 
   /** Contenedores reportados como contaminados en el mes, del más antiguo al más reciente. */
   contaminaciones: Incidencia[];
+
+  /**
+   * Lo mismo que muestra el Resumen del panel (ver resumenPanel.ts), para que
+   * el tablero del PDF diga lo mismo que la pantalla: depósitos validados,
+   * masa estimada, rondas, depósitos por semana y kilos por material.
+   */
+  indicadores: IndicadoresMes;
+  semanas: Semana[];
+  materialesEstimados: KilosMaterial[];
 }
 
 function promedioHoras(duraciones: number[]): number | null {
@@ -157,6 +174,7 @@ export function reporteDePlanta(
   retiros: Retiro[] = []
 ): ReportePlanta {
   const deLaPlanta = registros.filter((r) => r.plantaId === planta.id);
+  const incidenciasPlanta = incidencias.filter((i) => i.plantaId === planta.id);
   const delMes = deLaPlanta.filter((r) => mesDe(r.creadoEn) === mes);
   const certificados = deLaPlanta.filter(
     (r) => r.estado === "certificado" && r.certificadoEn !== null && mesDe(r.certificadoEn) === mes
@@ -241,5 +259,8 @@ export function reporteDePlanta(
     contaminaciones: incidencias
       .filter((i) => i.plantaId === planta.id && mesDe(i.reportadoEn) === mes)
       .sort((a, b) => a.reportadoEn - b.reportadoEn),
+    indicadores: indicadoresDelMes(deLaPlanta, incidenciasPlanta, mes),
+    semanas: validadosPorSemana(deLaPlanta, mes),
+    materialesEstimados: kilosPorMaterial(deLaPlanta, mes),
   };
 }
