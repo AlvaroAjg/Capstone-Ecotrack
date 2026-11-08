@@ -95,3 +95,15 @@ export function avanceAreas(meta: number, ranking: FilaRanking[]): AvanceArea[] 
     };
   });
 }
+
+/**
+ * Cuántas personas más tendrían que reciclar en el mes para que todas las
+ * áreas lleguen a la meta: en cada área, las que le faltan para llegar al %
+ * de su dotación. Las áreas que ya llegaron no suman.
+ */
+export function personasQueFaltan(meta: number, ranking: FilaRanking[]): number {
+  return ranking.reduce(
+    (total, f) => total + Math.max(0, Math.ceil((meta * f.dotacion) / 100) - f.participantes),
+    0
+  );
+}

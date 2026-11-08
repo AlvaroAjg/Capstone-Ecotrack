@@ -5,6 +5,7 @@ import {
   fechaIso,
   isoATexto,
   leerFechaTermino,
+  personasQueFaltan,
   textoFecha,
   validarCampana,
 } from "../src/lib/incentivo";
@@ -97,5 +98,19 @@ describe("fechas del calendario", () => {
   test("sin fecha o mal escrita, isoATexto queda vacío", () => {
     expect(isoATexto("")).toBe("");
     expect(isoATexto("8-11-2026")).toBe("");
+  });
+});
+
+describe("personasQueFaltan", () => {
+  const area = (dotacion: number, participantes: number) =>
+    ({ areaId: "a", nombre: "A", dotacion, participantes, depositos: 0, participacion: 0, esMiArea: false });
+
+  test("suma lo que le falta a cada área para llegar a su meta", () => {
+    // 60 % de 20 son 12 (faltan 7); 60 % de 8 son 4,8 → 5 (falta 1).
+    expect(personasQueFaltan(60, [area(20, 5), area(8, 4)])).toBe(8);
+  });
+
+  test("las áreas que ya llegaron no suman", () => {
+    expect(personasQueFaltan(50, [area(10, 7), area(4, 1)])).toBe(1);
   });
 });
