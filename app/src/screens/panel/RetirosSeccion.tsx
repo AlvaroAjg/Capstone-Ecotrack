@@ -4,6 +4,7 @@ import { useEcoTrack } from "../../state/EcoTrack";
 import { nombreContenedor, type ContenedorPorRetirar } from "../../lib/tipos";
 import { detalleRetiro, quienesRetiraron, retirosDelMes, validarRetiro } from "../../lib/retiros";
 import { etiquetaMes, mesDe } from "../../lib/certificadoMensual";
+import { fechaIso, isoATexto } from "../../lib/incentivo";
 import { formatKg, tiempoRelativo } from "../../lib/formato";
 import { avisar, confirmar, textoDeError } from "../../lib/dialogos";
 import ReporteMensual from "./ReporteMensual";
@@ -22,19 +23,6 @@ import {
 
 /** Desde este ancho, el reporte va al lado de los retiros; bajo él, debajo. */
 const ANCHO_DOS_COLUMNAS = 1280;
-
-/** "2026-11-08", el formato del campo de fecha del navegador. */
-function hoyIso(): string {
-  const f = new Date();
-  const dos = (n: number) => String(n).padStart(2, "0");
-  return `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}`;
-}
-
-/** "2026-11-08" → "08-11-2026", lo que lee validarRetiro. */
-function isoATexto(iso: string): string {
-  const [anio, mes, dia] = iso.split("-");
-  return iso ? `${dia}-${mes}-${anio}` : "";
-}
 
 /** "8 nov", para la tabla de retiros. */
 function diaCorto(t: number): string {
@@ -154,7 +142,7 @@ function porPunto(lista: ContenedorPorRetirar[]): { punto: string; contenedores:
 function FormularioRetiro() {
   const { porRetirar, incidencias, retiros, registrarRetiro } = useEcoTrack();
   const [elegidos, setElegidos] = useState<string[]>([]);
-  const [fecha, setFecha] = useState(hoyIso());
+  const [fecha, setFecha] = useState(fechaIso(Date.now()));
   const [quienRetira, setQuienRetira] = useState("");
   const [guia, setGuia] = useState("");
   const [peso, setPeso] = useState("");
@@ -208,7 +196,7 @@ function FormularioRetiro() {
       />
 
       <View className="flex-row">
-        <CampoFecha etiqueta="Fecha" valor={fecha} alCambiar={setFecha} maximo={hoyIso()} className="w-44 mr-3" />
+        <CampoFecha etiqueta="Fecha" valor={fecha} alCambiar={setFecha} maximo={fechaIso(Date.now())} className="w-44 mr-3" />
         <CampoPanel
           etiqueta="Quién retira"
           placeholder="Empresa o persona"

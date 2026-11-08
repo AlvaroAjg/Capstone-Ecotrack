@@ -25,6 +25,19 @@ export function textoFecha(instante: number): string {
   return `${dos(f.getDate())}-${dos(f.getMonth() + 1)}-${f.getFullYear()}`;
 }
 
+/** «2026-11-08», el formato del calendario del navegador. */
+export function fechaIso(instante: number): string {
+  const f = new Date(instante);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}`;
+}
+
+/** «2026-11-08» → «08-11-2026», lo que leen validarCampana y validarRetiro. "" si no hay fecha. */
+export function isoATexto(iso: string): string {
+  const partes = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return partes ? `${partes[3]}-${partes[2]}-${partes[1]}` : "";
+}
+
 export interface DatosCampana {
   nombre: string;
   metaParticipacion: number;
