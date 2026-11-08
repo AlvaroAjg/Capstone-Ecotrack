@@ -5,6 +5,7 @@ import {
   esDeHoy,
   esDelMesActual,
   fechaCorta,
+  formatDuracion,
   formatKg,
   generarCodigoRetiro,
   generarCodigoVerificacion,
@@ -105,5 +106,15 @@ describe("códigos", () => {
     for (let i = 0; i < 50; i++) {
       expect(generarCodigoRetiro()).toMatch(new RegExp(`^RET-${bloque}$`));
     }
+  });
+});
+
+describe("formatDuracion", () => {
+  test("segundos, minutos con segundos y horas con minutos", () => {
+    expect(formatDuracion(45_000)).toBe("45 s");
+    expect(formatDuracion(170_000)).toBe("2 min 50 s");
+    expect(formatDuracion(180_000)).toBe("3 min");
+    expect(formatDuracion(65 * 60_000)).toBe("1 h 5 min");
+    expect(formatDuracion(2 * 60 * 60_000)).toBe("2 h");
   });
 });

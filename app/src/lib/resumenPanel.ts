@@ -55,6 +55,8 @@ export interface IndicadoresMes {
   conObservacion: number;
   /** Lotes en que el validador rechazó depósitos (Sin material). */
   sinMaterial: number;
+  /** Depósitos rechazados en el mes, de todos esos lotes. */
+  rechazados: number;
 }
 
 /**
@@ -99,6 +101,7 @@ export function indicadoresDelMes(
     lotesRevisados: lotes.size,
     conObservacion: incidenciasMes.length,
     sinMaterial: lotesSinMaterial.size,
+    rechazados: revisadosMes.filter((r) => r.estado === "rechazado").length,
   };
 }
 
@@ -189,6 +192,8 @@ export interface FilaRonda {
   pendientes: number;
   /** Última acción del validador hoy; null si todavía no pasa. */
   revisadoEn: number | null;
+  /** Lo que reportó hoy que no correspondía en el contenedor. */
+  contaminantes: string[];
 }
 
 /**
@@ -233,6 +238,7 @@ export function rondaDeHoy(
         revisados: revisadosHoy.length,
         pendientes,
         revisadoEn: momentos.length > 0 ? Math.max(...momentos) : null,
+        contaminantes: reportesHoy.map((i) => i.contaminante),
       };
     })
     .sort(
@@ -251,6 +257,12 @@ export interface PuntoRonda {
   contenedores: number;
   /** Depósitos del punto que esperan validación. */
   pendientes: number;
+  /** Depósitos del punto que el validador revisó hoy. */
+  revisados: number;
+  /** Última revisión de hoy en el punto; null si todavía no pasa. */
+  revisadoEn: number | null;
+  /** Lo que reportó hoy en el punto, sin repetir. */
+  contaminantes: string[];
 }
 
 /** Del más leve al más grave, para quedarse con el peor estado de un punto. */
@@ -282,6 +294,12 @@ export function rondaPorPunto(filas: FilaRonda[]): PuntoRonda[] {
       estado,
       contenedores: propias.length,
       pendientes: propias.reduce((t, f) => t + f.pendientes, 0),
+      revisados: propias.reduce((t, f) => t + f.revisados, 0),
+      revisadoEn: propias.reduce<number | null>(
+        (ultima, f) => (f.revisadoEn !== null && (ultima === null || f.revisadoEn > ultima) ? f.revisadoEn : ultima),
+        null
+      ),
+      contaminantes: [...new Set(propias.flatMap((f) => f.contaminantes))],
     };
   });
 }
@@ -366,4 +384,33 @@ export function depositosPorPunto(
     filas.set(punto, fila);
   }
   return [...filas.values()].sort((a, b) => b.total - a.total || a.punto.localeCompare(b.punto, "es"));
+}
+
+/**
+ * Cuánto dura en promedio la ronda en el mes `mes`: en cada día con ronda, el
+ * tiempo entre lo primero y lo último que el validador revisó o reportó, en
+ * milisegundos. null si en el mes no hubo rondas.
+ */
+export function duracionPromedioRonda(
+  registros: Registro[],
+  incidencias: Incidencia[],
+  mes: string,
+  ahora: number = Date.now()
+): number | null {
+  const { desde, hasta } = rangoDelMes(mes, ahora);
+  const porDia = new Map<number, { primera: number; ultima: number }>();
+  const anotar = (t: number) => {
+    const dia = inicioDelDia(t);
+    const previo = porDia.get(dia);
+    porDia.set(dia, { primera: Math.min(previo?.primera ?? t, t), ultima: Math.max(previo?.ultima ?? t, t) });
+  };
+  for (const r of registros) {
+    if (r.estado !== "pendiente" && r.validadoEn !== null && r.validadoEn >= desde && r.validadoEn <= hasta) {
+      anotar(r.validadoEn);
+    }
+  }
+  for (const i of incidencias) if (i.reportadoEn >= desde && i.reportadoEn <= hasta) anotar(i.reportadoEn);
+  if (porDia.size === 0) return null;
+  const total = [...porDia.values()].reduce((t, d) => t + (d.ultima - d.primera), 0);
+  return Math.round(total / porDia.size);
 }
