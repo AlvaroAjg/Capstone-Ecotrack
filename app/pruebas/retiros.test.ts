@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
-import { retirosDelMes, validarRetiro } from "../src/lib/retiros";
+import { detalleRetiro, quienesRetiraron, retirosDelMes, validarRetiro } from "../src/lib/retiros";
 import type { Retiro } from "../src/lib/tipos";
-import { fecha, fijarAhora } from "./fabrica";
+import { certificado, contenedor, fecha, fijarAhora } from "./fabrica";
 
 // Los tests corren el miércoles 16 de septiembre de 2026 al mediodía.
 beforeEach(() => {
@@ -74,5 +74,70 @@ describe("retirosDelMes", () => {
       ["RET-2", false],
       ["RET-1", true],
     ]);
+  });
+});
+
+describe("detalleRetiro", () => {
+  const CONTENEDORES = [
+    contenedor({ codigo: "PLA111", punto: "Casino", material: "Plástico" }),
+    contenedor({ codigo: "MIX222", punto: "Bodega", material: null }),
+    contenedor({ codigo: "OLD333", punto: "Bodega", activo: false }),
+    contenedor({ codigo: "VID444", punto: "Patio", material: "Vidrio" }),
+  ];
+  const retiro = (cambios: Partial<Retiro>): Retiro => ({
+    id: "RET-1",
+    plantaId: "planta-1",
+    fecha: fecha(2026, 9, 10),
+    quienRetira: "Recicladora Sur",
+    guia: null,
+    contenedores: [],
+    pesoKg: null,
+    depositos: 0,
+    kgEstimado: 0,
+    registradoPor: "carla",
+    registradoEn: fecha(2026, 9, 10),
+    ...cambios,
+  });
+
+  test("los puntos de sus contenedores y los materiales de sus depósitos", () => {
+    const registros = [
+      certificado({ retiroId: "RET-1", contenedor: "PLA111", material: "Plástico" }),
+      certificado({ retiroId: "RET-1", contenedor: "MIX222", material: "Papel/cartón" }),
+      certificado({ retiroId: "RET-1", contenedor: "MIX222", material: "Metal" }),
+      certificado({ retiroId: "OTRO", contenedor: "VID444", material: "Vidrio" }),
+    ];
+    expect(detalleRetiro(retiro({ contenedores: ["PLA111", "MIX222"] }), CONTENEDORES, registros)).toEqual({
+      puntos: "Casino y Bodega",
+      materiales: "Papel/cartón, plástico y metal",
+    });
+  });
+
+  test("si pasó por todos los puntos de la planta, lo dice así", () => {
+    const detalle = detalleRetiro(retiro({ contenedores: ["PLA111", "OLD333", "VID444"] }), CONTENEDORES, []);
+    expect(detalle.puntos).toBe("Los 3 puntos");
+  });
+
+  test("todos los materiales, o un guion si no hay depósitos", () => {
+    const registros = (["Papel/cartón", "Plástico", "Vidrio", "Metal"] as const).map((material) =>
+      certificado({ retiroId: "RET-1", material })
+    );
+    expect(detalleRetiro(retiro({ contenedores: ["PLA111"] }), CONTENEDORES, registros).materiales).toBe("Todos");
+    expect(detalleRetiro(retiro({ contenedores: ["PLA111"] }), CONTENEDORES, []).materiales).toBe("—");
+  });
+});
+
+describe("quienesRetiraron", () => {
+  const r = (quienRetira: string, dia: number) =>
+    ({ quienRetira, fecha: fecha(2026, 9, dia) }) as Retiro;
+
+  test("los más recientes primero, sin repetir aunque cambie la mayúscula", () => {
+    expect(quienesRetiraron([r("Retiro municipal", 2), r("Recicladora Sur", 9), r("retiro municipal", 12)])).toEqual([
+      "retiro municipal",
+      "Recicladora Sur",
+    ]);
+  });
+
+  test("hasta el máximo pedido", () => {
+    expect(quienesRetiraron([r("A", 1), r("B", 2), r("C", 3)], 2)).toEqual(["C", "B"]);
   });
 });
