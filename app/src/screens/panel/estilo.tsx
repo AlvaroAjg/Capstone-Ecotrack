@@ -307,7 +307,7 @@ export function Enlace({
 export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icono: NombreIcono }> = {
   conforme: { texto: "Conforme", tono: "oliva", icono: "check" },
   observacion: { texto: "Con observación", tono: "ambar", icono: "alerta" },
-  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "alerta" },
+  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "cerrar" },
   pendiente: { texto: "Pendiente", tono: "gris", icono: "reloj" },
   vacio: { texto: "Sin depósitos", tono: "gris", icono: "reloj" },
 };
