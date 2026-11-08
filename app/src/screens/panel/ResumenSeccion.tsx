@@ -275,6 +275,11 @@ function GraficoSemanas({ semanas }: { semanas: Semana[] }) {
               {s.etiqueta}
             </Texto>
             {s.enCurso ? <Texto className="text-tinta-suave text-[11px]">En curso</Texto> : null}
+            {s.feriados.map((f) => (
+              <Texto key={f} className="text-ambar-oscuro text-[10px] text-center leading-[12px]">
+                {f}
+              </Texto>
+            ))}
           </View>
         ))}
       </View>
