@@ -18,15 +18,6 @@ export const LIMITE_INFERIOR = ALTO - 80;
 export const ALTO_FILA = 17;
 
 export const BLANCO = rgb(1, 1, 1);
-export const VERDE = rgb(0.086, 0.502, 0.238); // #15803D
-export const VERDE_OSCURO = rgb(0.078, 0.325, 0.176);
-export const VERDE_CLARO = rgb(0.86, 0.95, 0.89);
-export const ROJO = rgb(0.725, 0.11, 0.11); // #B91C1C
-export const GRIS = rgb(0.42, 0.45, 0.5);
-export const GRIS_SUAVE = rgb(0.62, 0.64, 0.68);
-export const GRIS_CLARO = rgb(0.9, 0.91, 0.93);
-export const FONDO_FILA = rgb(0.97, 0.98, 0.98);
-export const TEXTO = rgb(0.07, 0.09, 0.15);
 
 export type Color = ReturnType<typeof rgb>;
 
@@ -275,23 +266,6 @@ export function logo(p: Pincel, x: number, arriba: number, lado: number, uvas: C
   uva(16, 24.5, uvas);
   uva(24, 24.5, uvas);
   uva(20, 32, MARCA.ambarVivo);
-}
-
-export function linea(p: Pincel, arriba: number) {
-  p.pagina.drawLine({
-    start: { x: MARGEN, y: ALTO - arriba },
-    end: { x: ANCHO - MARGEN, y: ALTO - arriba },
-    thickness: 0.8,
-    color: GRIS_CLARO,
-  });
-}
-
-/** Franja verde superior con la marca, igual en todos los documentos. */
-export function franjaMarca(p: Pincel) {
-  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 110, color: VERDE });
-  p.pagina.drawRectangle({ x: 0, y: ALTO - 110, width: ANCHO, height: 5, color: VERDE_OSCURO });
-  centrado(p, "RecyTrack", 58, 28, { negrita: true, color: BLANCO });
-  centrado(p, "Reciclaje verificado, desde tu área hacia arriba", 80, 10, { color: VERDE_CLARO });
 }
 
 /**
