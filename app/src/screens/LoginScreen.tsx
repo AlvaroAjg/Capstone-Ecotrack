@@ -108,7 +108,9 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
       colors={["#0F3D24", "#1E6B3C", "#2F9E5B"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={{ flex: 1 }}
+      // Los círculos de adorno sobresalen del borde: sin recortarlos, en el
+      // teléfono la página se podía arrastrar hacia el lado.
+      style={{ flex: 1, overflow: "hidden" }}
     >
       <View className="absolute w-40 h-40 rounded-full bg-white/10 -top-10 -right-10" />
       <View className="absolute w-24 h-24 rounded-full bg-white/10 top-24 -left-8" />
