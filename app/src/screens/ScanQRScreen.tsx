@@ -239,7 +239,7 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
           </View>
 
           <View className="flex-row flex-wrap justify-between">
-            {MATERIALES.map((m) => (
+            {MATERIALES.map((m, i) => (
               <TouchableOpacity
                 key={m.nombre}
                 onPress={() => {
@@ -248,7 +248,9 @@ export default function ScanQRScreen({ nav }: { nav: Navegacion }) {
                   setPaso("talla");
                 }}
                 accessibilityRole="button"
-                className="w-[48%] bg-gray-50 border border-gray-200 rounded-2xl py-6 items-center mb-4"
+                className={`${
+                  i === MATERIALES.length - 1 && MATERIALES.length % 2 === 1 ? "w-full" : "w-[48%]"
+                } bg-gray-50 border border-gray-200 rounded-2xl py-6 items-center mb-4`}
               >
                 <Text className="text-4xl mb-2">{m.emoji}</Text>
                 <Text className="text-gray-700 font-medium text-sm">{m.nombre}</Text>
