@@ -2,7 +2,6 @@
 // campaña y ver cómo va cada área frente a la meta. Son funciones puras para
 // poder probarlas.
 
-import { porcentaje } from "./formato";
 import type { FilaRanking } from "./tipos";
 
 /**
@@ -64,7 +63,7 @@ export function validarCampana(
     return { ok: false, error: "Escribe un nombre de hasta 80 caracteres." };
   }
   if (!Number.isInteger(meta) || meta < 1 || meta > 100) {
-    return { ok: false, error: "La meta es un porcentaje de participación entre 1 y 100." };
+    return { ok: false, error: "La meta es un puntaje entre 1 y 100." };
   }
   if (!incentivo || incentivo.length > 200) {
     return { ok: false, error: "Escribe el incentivo, en hasta 200 caracteres." };
@@ -77,37 +76,21 @@ export function validarCampana(
 export interface AvanceArea {
   areaId: string;
   nombre: string;
-  participacion: number;
-  /** Puntos de participación que le faltan; 0 si ya llegó a la meta. */
+  puntaje: number;
   faltan: number;
   cumple: boolean;
 }
 
-/** Cómo va cada área frente a la meta, en el orden del ranking. */
+/** Cómo va cada área frente a la meta de puntaje, en el orden del ranking. */
 export function avanceAreas(meta: number, ranking: FilaRanking[]): AvanceArea[] {
   return ranking.map((f) => {
-    const faltan = Math.max(0, meta - f.participacion);
+    const faltan = Math.max(0, meta - f.puntaje);
     return {
       areaId: f.areaId,
       nombre: f.nombre,
-      participacion: f.participacion,
+      puntaje: f.puntaje,
       faltan,
       cumple: faltan === 0,
     };
   });
-}
-
-/**
- * Cuántas personas más tendrían que reciclar en el mes para que todas las
- * áreas lleguen a la meta: en cada área, las que le faltan para llegar al %
- * de su dotación. Las áreas que ya llegaron no suman.
- */
-export function personasQueFaltan(meta: number, ranking: FilaRanking[]): number {
-  return ranking.reduce((total, f) => total + faltanEnElArea(meta, f), 0);
-}
-
-function faltanEnElArea(meta: number, { participantes, dotacion }: FilaRanking): number {
-  let faltan = 0;
-  while (participantes + faltan < dotacion && porcentaje(participantes + faltan, dotacion) < meta) faltan++;
-  return faltan;
 }

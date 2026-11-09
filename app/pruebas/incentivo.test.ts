@@ -1,15 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { rankingDeAreas } from "../src/lib/derivados";
-import { porcentaje } from "../src/lib/formato";
 import {
   avanceAreas,
   fechaIso,
   isoATexto,
   leerFechaTermino,
-  personasQueFaltan,
   textoFecha,
   validarCampana,
 } from "../src/lib/incentivo";
+import { semanaDe } from "../src/lib/puntaje";
 import { EMBOTELLADO, FERMENTACION, fecha, fijarAhora, resumen } from "./fabrica";
 
 beforeEach(() => {
@@ -72,19 +71,22 @@ describe("validarCampana", () => {
 });
 
 describe("avanceAreas", () => {
-  test("cuánto le falta a cada área, en el orden del ranking", () => {
+  test("cuántos puntos le faltan a cada área, en el orden del ranking", () => {
+    const s1 = String(semanaDe(fecha(2026, 9, 1)));
+    const s2 = String(semanaDe(fecha(2026, 9, 7)));
+    const s3 = String(semanaDe(fecha(2026, 9, 14)));
     const ranking = rankingDeAreas(
       [EMBOTELLADO, FERMENTACION],
       resumen({
-        embotellado: { depositos: 9, participantes: 6 },
-        fermentacion: { depositos: 8, participantes: 7 },
+        embotellado: { depositos: 18, participantes: 6, semanas: { [s1]: 6, [s2]: 6, [s3]: 6 }, gramos: 6000 },
+        fermentacion: { depositos: 21, participantes: 7, semanas: { [s1]: 7, [s2]: 7, [s3]: 7 }, gramos: 3000 },
       }),
       null
     );
-    // Fermentación 70 %, Embotellado 30 %.
-    expect(avanceAreas(50, ranking)).toEqual([
-      { areaId: "fermentacion", nombre: "Fermentación", participacion: 70, faltan: 0, cumple: true },
-      { areaId: "embotellado", nombre: "Embotellado", participacion: 30, faltan: 20, cumple: false },
+    // Fermentación: 70 % de constancia y 0,3 kg por persona (el máximo) = 82. Embotellado: 30 % y 0,3 kg = 58.
+    expect(avanceAreas(60, ranking)).toEqual([
+      { areaId: "fermentacion", nombre: "Fermentación", puntaje: 82, faltan: 0, cumple: true },
+      { areaId: "embotellado", nombre: "Embotellado", puntaje: 58, faltan: 2, cumple: false },
     ]);
   });
 });
@@ -99,29 +101,5 @@ describe("fechas del calendario", () => {
   test("sin fecha o mal escrita, isoATexto queda vacío", () => {
     expect(isoATexto("")).toBe("");
     expect(isoATexto("8-11-2026")).toBe("");
-  });
-});
-
-describe("personasQueFaltan", () => {
-  const area = (dotacion: number, participantes: number) =>
-    ({ areaId: "a", nombre: "A", dotacion, participantes, depositos: 0, participacion: 0, esMiArea: false });
-
-  test("suma lo que le falta a cada área para llegar a su meta", () => {
-    // 60 % de 20 son 12 (faltan 7); 60 % de 8 son 4,8 → 5 (falta 1).
-    expect(personasQueFaltan(60, [area(20, 5), area(8, 4)])).toBe(8);
-  });
-
-  test("las áreas que ya llegaron no suman", () => {
-    expect(personasQueFaltan(50, [area(10, 7), area(4, 1)])).toBe(1);
-  });
-
-  test("un área cuyo porcentaje redondeado llega a la meta no suma, igual que en avanceAreas", () => {
-    const fila = { ...area(40, 11), participacion: porcentaje(11, 40) };
-    expect(avanceAreas(28, [fila])[0].cumple).toBe(true);
-    expect(personasQueFaltan(28, [fila])).toBe(0);
-  });
-
-  test("un área sin dotación no pide personas", () => {
-    expect(personasQueFaltan(60, [area(0, 0)])).toBe(0);
   });
 });
