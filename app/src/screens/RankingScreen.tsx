@@ -114,14 +114,14 @@ function Brecha({ ranking, miIndice }: { ranking: FilaRanking[]; miIndice: numbe
     texto =
       margen === 0
         ? `¡Van empatados con ${segunda.nombre}! El próximo depósito desempata.`
-        : `🔥 Van primeros, pero ${segunda.nombre} está a ${margen} puntos de alcanzarlos.`;
+        : `🔥 Van primeros, pero ${segunda.nombre} está a ${margen} punto${margen === 1 ? "" : "s"} de alcanzarlos.`;
   } else {
     const arriba = ranking[miIndice - 1];
     const falta = arriba.puntaje - mia.puntaje;
     texto =
       falta === 0
         ? `¡Van empatados con ${arriba.nombre}! El próximo depósito desempata.`
-        : `⚔️ Les faltan ${falta} puntos para pasar a ${arriba.nombre}.`;
+        : `⚔️ Les falta${falta === 1 ? "" : "n"} ${falta} punto${falta === 1 ? "" : "s"} para pasar a ${arriba.nombre}.`;
   }
 
   return (
