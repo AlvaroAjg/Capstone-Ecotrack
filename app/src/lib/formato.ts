@@ -64,14 +64,16 @@ export function generarCodigoRetiro(): string {
   return `RET-${bloque()}`;
 }
 
+/**
+ * "3 de septiembre de 2026, 09:05". La hora se arma a mano, como en
+ * fechaCorta: según el navegador, es-CL la daba como "9:05 a. m.", y la
+ * planta trabaja con 24 horas, como el resto del panel.
+ */
 export function fechaLarga(timestamp: number): string {
-  return new Date(timestamp).toLocaleString("es-CL", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const f = new Date(timestamp);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  const dia = f.toLocaleDateString("es-CL", { day: "numeric", month: "long", year: "numeric" });
+  return `${dia}, ${dos(f.getHours())}:${dos(f.getMinutes())}`;
 }
 
 /** "23/09 14:05": para tablas y detalles donde el año ya está dado por el contexto. */
