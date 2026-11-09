@@ -404,6 +404,50 @@ service cloud.firestore {
         );
     }
 
+    function lunesDelDia(dia) {
+      return dia - ((dia + 3) % 7);
+    }
+
+    function semanaDelInstante(semana, ms) {
+      return semana is int
+        && (
+          semana == lunesDelDia(math.floor((ms - 3 * 3600000) / 86400000))
+          || semana == lunesDelDia(math.floor((ms - 4 * 3600000) / 86400000))
+        );
+    }
+
+    function topeGramosSemana() {
+      return 5000;
+    }
+
+    function gramosConTope(antes, registro) {
+      let suma = antes + math.round(registro.kgDeclarado * 1000);
+      return suma > topeGramosSemana() ? topeGramosSemana() : suma;
+    }
+
+    function cuentaParticipante(datos, previo, nuevo) {
+      let ruta = /databases/$(database)/documents/participaciones/$(datos.mes + '_' + request.auth.uid);
+      let esPrimero = !exists(ruta) && existsAfter(ruta);
+      return (esPrimero && nuevo.participantes == previo.participantes + 1)
+        || (!esPrimero && nuevo.participantes == previo.participantes);
+    }
+
+    function cuentaSemanaYGramos(datos, previo, nuevo) {
+      let clave = string(datos.ultimaSemana);
+      let ruta = /databases/$(database)/documents/constancias/$(datos.mes + '_' + clave + '_' + request.auth.uid);
+      let primera = !exists(ruta);
+      let gramosAntes = primera ? 0 : get(ruta).data.gramos;
+      let antes = previo.get('semanas', {});
+      let despues = nuevo.get('semanas', {});
+      return existsAfter(ruta)
+        && getAfter(ruta).data.ultimoRegistro == datos.ultimoRegistro
+        && nuevo.get('gramos', 0) == previo.get('gramos', 0) + (getAfter(ruta).data.gramos - gramosAntes)
+        && (
+          (primera && despues.diff(antes).affectedKeys().hasOnly([clave]) && despues.get(clave, 0) == antes.get(clave, 0) + 1)
+          || (!primera && despues == antes)
+        );
+    }
+
     /** La escritura suma exactamente un depósito nuevo de quien escribe a su área. */
     function sumaUnDeposito(resumenId, antes) {
       let datos = request.resource.data;
@@ -412,9 +456,6 @@ service cloud.firestore {
       let area = registro.areaId;
       let previo = antes.get(area, {'depositos': 0, 'participantes': 0});
       let nuevo = datos.areas[area];
-      let rutaParticipacion =
-        /databases/$(database)/documents/participaciones/$(datos.mes + '_' + request.auth.uid);
-      let esPrimero = !exists(rutaParticipacion) && existsAfter(rutaParticipacion);
       return resumenId == datos.plantaId + '_' + datos.mes
         && datos.ultimoRegistro is string
         && !exists(rutaRegistro)
@@ -422,13 +463,12 @@ service cloud.firestore {
         && registro.colaboradorId == request.auth.uid
         && registro.plantaId == datos.plantaId
         && mesDelInstante(datos.mes, registro.creadoEn)
+        && semanaDelInstante(datos.ultimaSemana, registro.creadoEn)
         && datos.areas.diff(antes).affectedKeys().hasOnly([area])
-        && nuevo.keys().hasOnly(['depositos', 'participantes'])
+        && nuevo.keys().hasOnly(['depositos', 'participantes', 'semanas', 'gramos'])
         && nuevo.depositos == previo.depositos + 1
-        && (
-          (esPrimero && nuevo.participantes == previo.participantes + 1)
-          || (!esPrimero && nuevo.participantes == previo.participantes)
-        );
+        && cuentaParticipante(datos, previo, nuevo)
+        && cuentaSemanaYGramos(datos, previo, nuevo);
     }
 
     match /resumenes/{resumenId} {
@@ -437,12 +477,42 @@ service cloud.firestore {
       allow list: if dePlanta(resource.data.plantaId);
 
       allow create: if autenticado()
-                    && request.resource.data.keys().hasOnly(['plantaId', 'mes', 'areas', 'ultimoRegistro'])
+                    && request.resource.data.keys().hasOnly(['plantaId', 'mes', 'areas', 'ultimoRegistro', 'ultimaSemana'])
                     && sumaUnDeposito(resumenId, {});
 
       allow update: if autenticado()
-                    && soloCambia(['areas', 'ultimoRegistro'])
+                    && soloCambia(['areas', 'ultimoRegistro', 'ultimaSemana'])
                     && sumaUnDeposito(resumenId, resource.data.areas);
+
+      allow delete: if false;
+    }
+
+    function sumaGramos(constanciaId, antes) {
+      let datos = request.resource.data;
+      let rutaRegistro = /databases/$(database)/documents/registros/$(datos.ultimoRegistro);
+      let registro = getAfter(rutaRegistro).data;
+      return datos.uid == request.auth.uid
+        && datos.mes is string
+        && constanciaId == datos.mes + '_' + string(datos.semana) + '_' + request.auth.uid
+        && datos.ultimoRegistro is string
+        && !exists(rutaRegistro)
+        && existsAfter(rutaRegistro)
+        && registro.colaboradorId == request.auth.uid
+        && mesDelInstante(datos.mes, registro.creadoEn)
+        && semanaDelInstante(datos.semana, registro.creadoEn)
+        && datos.gramos == gramosConTope(antes, registro);
+    }
+
+    match /constancias/{constanciaId} {
+      allow get: if autenticado() && constanciaId.split('_')[2] == request.auth.uid;
+
+      allow create: if autenticado()
+                    && request.resource.data.keys().hasOnly(['uid', 'mes', 'semana', 'gramos', 'ultimoRegistro'])
+                    && sumaGramos(constanciaId, 0);
+
+      allow update: if autenticado()
+                    && soloCambia(['gramos', 'ultimoRegistro'])
+                    && sumaGramos(constanciaId, resource.data.gramos);
 
       allow delete: if false;
     }

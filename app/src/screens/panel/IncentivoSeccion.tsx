@@ -5,7 +5,6 @@ import {
   avanceAreas,
   fechaIso,
   isoATexto,
-  personasQueFaltan,
   validarCampana,
 } from "../../lib/incentivo";
 import { diaYMes } from "../../lib/formato";
@@ -46,7 +45,7 @@ export default function IncentivoSeccion() {
     <View>
       <EncabezadoSeccion
         titulo="Campañas e incentivos"
-        detalle="La meta se mide en participación: el porcentaje de personas de cada área que reciclan en el mes, nunca en kilos."
+        detalle="La meta es de puntaje: 60 % constancia semanal (cuánta gente del área recicla cada semana) y 40 % kilos por persona, con un tope de 5 kg por persona a la semana."
       />
       <View className="flex-row items-start">
         <View className="flex-1 min-w-0 mr-7">
@@ -92,7 +91,6 @@ function TarjetaCampana({
   const quedan = Math.max(0, Math.ceil((campana.terminaEn - Date.now()) / DIA));
   const avance = avanceAreas(campana.metaParticipacion, ranking);
   const cumplen = avance.filter((a) => a.cumple).length;
-  const faltan = personasQueFaltan(campana.metaParticipacion, ranking);
 
   return (
     <Bloque className="mb-6 px-7 py-6">
@@ -115,11 +113,8 @@ function TarjetaCampana({
         </Titulo>
         <View className="flex-1 ml-5">
           <Texto className="text-tinta-media text-[13px] leading-[19px]">
-            Áreas que llegan a la meta de {campana.metaParticipacion}%: que esa parte de su gente recicle al menos
-            una vez en el mes.{" "}
-            {faltan > 0
-              ? `${faltan === 1 ? "Falta 1 persona" : `Faltan ${faltan} personas`} para que lleguen todas.`
-              : "Todas llegan a la meta."}
+            Áreas que llegan a la meta de {campana.metaParticipacion} puntos.{" "}
+            {cumplen === avance.length ? "Todas llegan a la meta." : "El puntaje sube con cada semana en que más gente recicla."}
           </Texto>
           <View className="h-2.5 bg-piedra-linea rounded-full overflow-hidden mt-2">
             <View
@@ -168,19 +163,19 @@ function AvanceAreas({ campana, ranking }: { campana: Campana; ranking: FilaRank
           <View className="flex-1 h-2.5 bg-piedra-linea rounded-full overflow-hidden mr-3">
             <View
               className={`h-2.5 rounded-full ${f.cumple ? "bg-oliva" : "bg-ambar"}`}
-              style={{ width: `${Math.min(100, (f.participacion / campana.metaParticipacion) * 100)}%` }}
+              style={{ width: `${Math.min(100, (f.puntaje / campana.metaParticipacion) * 100)}%` }}
             />
           </View>
-          <Titulo className="w-14 text-right text-tinta text-[19px]">{f.participacion}%</Titulo>
+          <Titulo className="w-16 text-right text-tinta text-[19px]">{f.puntaje} pts</Titulo>
           <Texto
             className={`w-40 text-right text-xs ${f.cumple ? "text-oliva font-semibold" : "text-tinta-suave"}`}
           >
-            {f.cumple ? "Meta cumplida" : `Le falta un ${f.faltan}%`}
+            {f.cumple ? "Meta cumplida" : `Le faltan ${f.faltan} puntos`}
           </Texto>
         </View>
       ))}
       <Texto className="text-tinta-suave text-xs mt-3">
-        La barra es el avance hacia la meta de {campana.metaParticipacion}%, no hacia el 100 %.
+        La barra es el avance hacia la meta de {campana.metaParticipacion} puntos, no hacia 100.
       </Texto>
     </Bloque>
   );
@@ -260,7 +255,7 @@ function FormularioCampana({
       />
       <View className="flex-row">
         <CampoPanel
-          etiqueta="Meta en % de participación"
+          etiqueta="Meta de puntaje (de 1 a 100)"
           placeholder="50"
           keyboardType="number-pad"
           value={meta}

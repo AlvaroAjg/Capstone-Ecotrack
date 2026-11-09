@@ -27,35 +27,72 @@ function mesActual() {
 }
 
 const MES = mesActual();
+const DIA = 24 * 60 * 60 * 1000;
+
+/** Lunes de la semana de ahora en Chile (UTC-3), en días desde 1970, como semanaDe en la app. */
+function semanaActual() {
+  const dia = Math.floor((Date.now() - 3 * 60 * 60 * 1000) / DIA);
+  return dia - ((dia + 3) % 7);
+}
+
+const SEMANA = semanaActual();
+const CLAVE = String(SEMANA);
 
 /**
- * Como lo hará crearRegistro en la app: el depósito, la suma en el resumen y,
- * si es el primero del mes, la marca de participación, en un solo lote.
- * `ajustes` permite estropear una parte para probar que se rechaza.
+ * Como lo hará crearRegistro en la app: el depósito, la suma en el resumen, la
+ * marca de participación del mes si es el primero y la constancia de la semana
+ * con los gramos con tope, en un solo lote. `ajustes` permite estropear una
+ * parte para probar que se rechaza.
  */
-function depositar(uid, { primero = true, areaId, mes = MES, plantaId = "planta-a", suma = {}, ...ajustes } = {}) {
+function depositar(
+  uid,
+  {
+    primero = true,
+    primeraSemana = true,
+    gramosAntes = 0,
+    areaId,
+    mes = MES,
+    plantaId = "planta-a",
+    semana = SEMANA,
+    registro: cambiosRegistro = {},
+    suma = {},
+    ...ajustes
+  } = {}
+) {
   const db = como(uid);
   const lote = writeBatch(db);
   const registro = doc(collection(db, "registros"));
   const area = areaId ?? (uid === "eva" ? "fermentacion" : "embotellado");
-  lote.set(registro, deposito({ colaboradorId: uid, areaId: uid === "eva" ? "fermentacion" : "embotellado" }));
+  const datosRegistro = deposito({ colaboradorId: uid, areaId: uid === "eva" ? "fermentacion" : "embotellado", ...cambiosRegistro });
+  const gramos = ajustes.gramos ?? Math.min(5000, gramosAntes + Math.round(datosRegistro.kgDeclarado * 1000));
+  lote.set(registro, datosRegistro);
+  const conteo = {
+    depositos: increment(suma.depositos ?? 1),
+    participantes: increment(suma.participantes ?? (primero ? 1 : 0)),
+    gramos: increment(suma.gramos ?? gramos - gramosAntes),
+  };
+  if (primeraSemana || suma.semana) conteo.semanas = { [String(semana)]: increment(suma.semana ?? 1) };
   lote.set(
     doc(db, "resumenes", `${plantaId}_${mes}`),
     {
       plantaId,
       mes,
-      areas: {
-        [area]: {
-          depositos: increment(suma.depositos ?? 1),
-          participantes: increment(suma.participantes ?? (primero ? 1 : 0)),
-        },
-        ...(ajustes.otrasAreas ?? {}),
-      },
+      areas: { [area]: conteo, ...(ajustes.otrasAreas ?? {}) },
       ultimoRegistro: ajustes.ultimoRegistro ?? registro.id,
+      ultimaSemana: semana,
     },
     { merge: true }
   );
   if (primero) lote.set(doc(db, "participaciones", `${mes}_${uid}`), { uid, mes });
+  if (!ajustes.sinConstancia) {
+    lote.set(doc(db, "constancias", `${mes}_${semana}_${uid}`), {
+      uid,
+      mes,
+      semana,
+      gramos,
+      ultimoRegistro: ajustes.constanciaApuntaA ?? registro.id,
+    });
+  }
   return lote.commit();
 }
 
@@ -72,27 +109,34 @@ async function resumen() {
 describe("resúmenes: cada depósito suma a su área", () => {
   test("el primer depósito del mes crea el resumen y cuenta a la persona", async () => {
     await assertSucceeds(depositar("ana"));
-    assert.deepEqual((await resumen()).areas, { embotellado: { depositos: 1, participantes: 1 } });
+    assert.deepEqual((await resumen()).areas, {
+      embotellado: { depositos: 1, participantes: 1, semanas: { [CLAVE]: 1 }, gramos: 400 },
+    });
   });
 
   test("el segundo depósito suma un depósito, pero no otro participante", async () => {
     await depositar("ana");
-    await assertSucceeds(depositar("ana", { primero: false }));
-    assert.deepEqual((await resumen()).areas.embotellado, { depositos: 2, participantes: 1 });
+    await assertSucceeds(depositar("ana", { primero: false, primeraSemana: false, gramosAntes: 400 }));
+    assert.deepEqual((await resumen()).areas.embotellado, {
+      depositos: 2,
+      participantes: 1,
+      semanas: { [CLAVE]: 1 },
+      gramos: 800,
+    });
   });
 
   test("otra persona suma a su propia área", async () => {
     await depositar("ana");
     await assertSucceeds(depositar("eva"));
     const { areas } = await resumen();
-    assert.deepEqual(areas.fermentacion, { depositos: 1, participantes: 1 });
-    assert.deepEqual(areas.embotellado, { depositos: 1, participantes: 1 });
+    assert.deepEqual(areas.fermentacion, { depositos: 1, participantes: 1, semanas: { [CLAVE]: 1 }, gramos: 400 });
+    assert.deepEqual(areas.embotellado, { depositos: 1, participantes: 1, semanas: { [CLAVE]: 1 }, gramos: 400 });
   });
 
   test("nadie se cuenta dos veces como participante en el mes", async () => {
     await depositar("ana");
-    await assertFails(depositar("ana", { primero: false, suma: { participantes: 1 } }));
-    await assertFails(depositar("ana", { primero: true }));
+    await assertFails(depositar("ana", { primero: false, primeraSemana: false, gramosAntes: 400, suma: { participantes: 1 } }));
+    await assertFails(depositar("ana", { primero: true, primeraSemana: false, gramosAntes: 400 }));
   });
 
   test("no se cuenta como participante sin crear su marca", async () => {
@@ -110,7 +154,7 @@ describe("resúmenes: cada depósito suma a su área", () => {
   test("no toca los números de otra área", async () => {
     await depositar("eva");
     await assertFails(
-      depositar("ana", { otrasAreas: { fermentacion: { depositos: increment(-1), participantes: increment(0) } } })
+      depositar("ana", { otrasAreas: { fermentacion: { depositos: increment(-1), participantes: increment(0), gramos: increment(0) } } })
     );
   });
 
@@ -151,6 +195,85 @@ describe("resúmenes: cada depósito suma a su área", () => {
       );
     await assertFails(intentar("vale"));
     await assertFails(intentar("carla"));
+  });
+});
+
+// ------------------------------------------------------- constancia y kilos
+
+describe("resúmenes: constancia semanal y kilos con tope", () => {
+  async function conSemanaAvanzada(gramos) {
+    await sembrar(async (db) => {
+      await setDoc(doc(db, "participaciones", `${MES}_ana`), { uid: "ana", mes: MES });
+      await setDoc(doc(db, "constancias", `${MES}_${SEMANA}_ana`), { uid: "ana", mes: MES, semana: SEMANA, gramos, ultimoRegistro: "antes" });
+      await setDoc(doc(db, "resumenes", `planta-a_${MES}`), {
+        plantaId: "planta-a",
+        mes: MES,
+        areas: { embotellado: { depositos: 9, participantes: 1, semanas: { [CLAVE]: 1 }, gramos } },
+        ultimoRegistro: "antes",
+        ultimaSemana: SEMANA,
+      });
+    });
+  }
+
+  test("los kilos de una persona en la semana tienen tope de 5 kg", async () => {
+    await conSemanaAvanzada(4800);
+    await assertSucceeds(depositar("ana", { primero: false, primeraSemana: false, gramosAntes: 4800 }));
+    assert.equal((await resumen()).areas.embotellado.gramos, 5000);
+  });
+
+  test("con el tope cumplido, el depósito cuenta pero no suma kilos", async () => {
+    await conSemanaAvanzada(5000);
+    await assertSucceeds(depositar("ana", { primero: false, primeraSemana: false, gramosAntes: 5000 }));
+    assert.deepEqual((await resumen()).areas.embotellado, { depositos: 10, participantes: 1, semanas: { [CLAVE]: 1 }, gramos: 5000 });
+  });
+
+  test("una bolsa grande no pasa el tope de la semana", async () => {
+    const vidrio = { material: "Vidrio", talla: "XL", kgDeclarado: 12, contenedor: "VIDRI1" };
+    await assertFails(depositar("ana", { registro: vidrio, gramos: 12000 }));
+    await assertSucceeds(depositar("ana", { registro: vidrio }));
+    assert.equal((await resumen()).areas.embotellado.gramos, 5000);
+  });
+
+  test("no suma más kilos que los del depósito", async () => {
+    await assertFails(depositar("ana", { suma: { gramos: 1000 } }));
+    await assertFails(depositar("ana", { gramos: 1000 }));
+  });
+
+  test("nadie se cuenta dos veces en la misma semana", async () => {
+    await depositar("ana");
+    await assertFails(depositar("ana", { primero: false, primeraSemana: false, gramosAntes: 400, suma: { semana: 1 } }));
+  });
+
+  test("no se cuenta en la semana sin crear su constancia", async () => {
+    await assertFails(depositar("ana", { sinConstancia: true }));
+  });
+
+  test("no suma a otra semana que la del depósito", async () => {
+    await assertFails(depositar("ana", { semana: SEMANA - 7 }));
+  });
+
+  test("la constancia no sube sin un depósito nuevo en el mismo lote", async () => {
+    await assertFails(depositar("ana", { constanciaApuntaA: "pendiente1" }));
+    await assertFails(
+      setDoc(doc(como("ana"), "constancias", `${MES}_${SEMANA}_ana`), {
+        uid: "ana",
+        mes: MES,
+        semana: SEMANA,
+        gramos: 400,
+        ultimoRegistro: "pendiente1",
+      })
+    );
+  });
+
+  test("cada quien lee su constancia, no la de otra persona", async () => {
+    await assertSucceeds(getDoc(doc(como("ana"), "constancias", `${MES}_${SEMANA}_ana`)));
+    await assertFails(getDoc(doc(como("eva"), "constancias", `${MES}_${SEMANA}_ana`)));
+  });
+
+  test("nadie escribe la constancia de otra persona", async () => {
+    await assertFails(
+      setDoc(doc(como("eva"), "constancias", `${MES}_${SEMANA}_ana`), { uid: "ana", mes: MES, semana: SEMANA, gramos: 400, ultimoRegistro: "x" })
+    );
   });
 });
 

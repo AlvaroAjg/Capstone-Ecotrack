@@ -15,3 +15,7 @@ export function idResumen(plantaId: string, mes: string): string {
 export function idParticipacion(mes: string, uid: string): string {
   return `${mes}_${uid}`;
 }
+
+export function idConstancia(mes: string, semana: number, uid: string): string {
+  return `${mes}_${semana}_${uid}`;
+}

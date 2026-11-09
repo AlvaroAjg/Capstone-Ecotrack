@@ -66,14 +66,12 @@ export default function ResumenSeccion() {
   const semanas = useMemo(() => validadosPorSemana(registros, mes), [registros, mes]);
   const materiales = useMemo(() => kilosPorMaterial(registros, mes), [registros, mes]);
   const ultima = useMemo(() => ultimaActividad(registros, incidencias), [registros, incidencias]);
-  const rankingMes: FilaRanking[] = (reporte?.areas ?? []).map((a) => ({
+  const rankingMes: FilaParticipacion[] = (reporte?.areas ?? []).map((a) => ({
     areaId: a.area,
     nombre: a.area,
     dotacion: a.dotacion,
     participantes: a.participantes,
-    depositos: a.depositos,
     participacion: a.participacion,
-    esMiArea: false,
   }));
 
   async function descargar() {
@@ -196,7 +194,9 @@ export default function ResumenSeccion() {
  * en el mes. Se lee de un vistazo cuánta gente falta en cada área, que es lo
  * que mide la campaña.
  */
-function HilerasParticipacion({ ranking, enCurso }: { ranking: FilaRanking[]; enCurso: boolean }) {
+type FilaParticipacion = Pick<FilaRanking, "areaId" | "nombre" | "dotacion" | "participantes" | "participacion">;
+
+function HilerasParticipacion({ ranking, enCurso }: { ranking: FilaParticipacion[]; enCurso: boolean }) {
   return (
     <Bloque className="flex-1">
       <EncabezadoBloque

@@ -3,7 +3,9 @@
 // Firestore) para poder probarlas; el estado de la app (state/EcoTrack.tsx)
 // solo las memoriza.
 
+import { mesDe } from "./certificadoMensual";
 import { porcentaje, sumaKg } from "./formato";
+import { puntajesDeAreas, semanasDelMes } from "./puntaje";
 import {
   kgEfectivo,
   type Area,
@@ -26,23 +28,32 @@ export function unirRegistros(listas: Registro[][]): Registro[] {
 }
 
 /**
- * Ranking del mes: todas las áreas de la planta, de más a menos
- * participación (participantes ÷ dotación). Se ordena por participación y no
- * por kilos, porque los kilos son estimados y un área grande ganaría siempre.
- * A igual participación, va primero la que tiene más depósitos.
- *
- * Sale del resumen del mes (ver crearRegistro en services/registros.ts), así
- * que no necesita los depósitos de nadie. Sin resumen, todas quedan en 0.
+ * Ranking del mes: todas las áreas de la planta, de más a menos puntaje (ver
+ * lib/puntaje.ts). Sale del resumen del mes (ver crearRegistro en
+ * services/registros.ts), así que no necesita los depósitos de nadie. Sin
+ * resumen, todas quedan en 0.
  */
 export function rankingDeAreas(
   areas: Area[],
   resumen: ResumenMes | null,
-  miAreaId: string | null
+  miAreaId: string | null,
+  ahora: number = Date.now()
 ): FilaRanking[] {
+  const semanasMes = semanasDelMes(resumen?.mes ?? mesDe(ahora), ahora);
+  const puntajes = puntajesDeAreas(
+    areas.map((area) => ({
+      id: area.id,
+      dotacion: area.dotacion,
+      semanas: resumen?.areas[area.id]?.semanas,
+      gramos: resumen?.areas[area.id]?.gramos,
+    })),
+    semanasMes
+  );
   return areas
     .map((area) => {
       const conteo = resumen?.areas[area.id];
       const participantes = conteo?.participantes ?? 0;
+      const puntaje = puntajes.get(area.id) ?? { constancia: 0, kgPorPersona: 0, indiceKilos: 0, puntaje: 0 };
       return {
         areaId: area.id,
         nombre: area.nombre,
@@ -50,12 +61,14 @@ export function rankingDeAreas(
         participantes,
         depositos: conteo?.depositos ?? 0,
         participacion: porcentaje(participantes, area.dotacion),
+        ...puntaje,
         esMiArea: area.id === miAreaId,
       };
     })
     .sort(
       (a, b) =>
-        b.participacion - a.participacion ||
+        b.puntaje - a.puntaje ||
+        b.constancia - a.constancia ||
         b.depositos - a.depositos ||
         a.nombre.localeCompare(b.nombre, "es")
     );
@@ -100,9 +113,7 @@ export interface AvanceIncentivo {
   nombre: string;
   incentivo: string;
   meta: number;
-  /** Participación de mi área en el mes, en %. */
-  participacion: number;
-  /** Puntos de participación que le faltan a mi área; 0 si ya cumplió. */
+  puntaje: number;
   faltan: number;
   cumplida: boolean;
   terminaEn: number;
@@ -120,12 +131,12 @@ export function avanceIncentivo(
 ): AvanceIncentivo | null {
   const miArea = ranking.find((a) => a.esMiArea);
   if (!campana || !miArea || campana.terminaEn < ahora) return null;
-  const faltan = Math.max(0, campana.metaParticipacion - miArea.participacion);
+  const faltan = Math.max(0, campana.metaParticipacion - miArea.puntaje);
   return {
     nombre: campana.nombre,
     incentivo: campana.incentivo,
     meta: campana.metaParticipacion,
-    participacion: miArea.participacion,
+    puntaje: miArea.puntaje,
     faltan,
     cumplida: faltan === 0,
     terminaEn: campana.terminaEn,

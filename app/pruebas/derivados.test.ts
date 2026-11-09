@@ -5,6 +5,7 @@ import {
   rankingDeAreas,
   unirRegistros,
 } from "../src/lib/derivados";
+import { semanaDe } from "../src/lib/puntaje";
 import {
   EMBOTELLADO,
   FERMENTACION,
@@ -39,69 +40,71 @@ describe("unirRegistros", () => {
 });
 
 describe("rankingDeAreas", () => {
-  test("de más a menos participación, marcando mi área", () => {
-    // Embotellado: 5 de 20 (25%). Fermentación: 4 de 10 (40%).
+  const S1 = String(semanaDe(fecha(2026, 9, 1)));
+  const S2 = String(semanaDe(fecha(2026, 9, 7)));
+  const S3 = String(semanaDe(fecha(2026, 9, 14)));
+
+  test("de más a menos puntaje, marcando mi área", () => {
+    // Embotellado: 50 % de constancia y 1 kg por persona. Fermentación: 80 % y 0,5 kg.
     const ranking = rankingDeAreas(
       AREAS,
       resumen({
-        embotellado: { depositos: 12, participantes: 5 },
-        fermentacion: { depositos: 6, participantes: 4 },
+        embotellado: { depositos: 40, participantes: 12, semanas: { [S1]: 10, [S2]: 10, [S3]: 10 }, gramos: 20000 },
+        fermentacion: { depositos: 30, participantes: 8, semanas: { [S1]: 8, [S2]: 8, [S3]: 8 }, gramos: 5000 },
       }),
       "embotellado"
     );
-    expect(ranking.map((f) => [f.areaId, f.participacion, f.esMiArea])).toEqual([
-      ["fermentacion", 40, false],
-      ["embotellado", 25, true],
+    expect(ranking.map((f) => [f.areaId, f.constancia, f.indiceKilos, f.puntaje, f.esMiArea])).toEqual([
+      ["embotellado", 50, 100, 70, true],
+      ["fermentacion", 80, 50, 68, false],
     ]);
   });
 
-  test("gana la participación, no la cantidad de depósitos", () => {
+  test("no gana el área que recicló toda en un solo día", () => {
     const ranking = rankingDeAreas(
       AREAS,
       resumen({
-        embotellado: { depositos: 50, participantes: 2 },
-        fermentacion: { depositos: 3, participantes: 3 },
+        embotellado: { depositos: 36, participantes: 12, semanas: { [S1]: 12, [S2]: 12, [S3]: 12 }, gramos: 80000 },
+        fermentacion: { depositos: 10, participantes: 10, semanas: { [S1]: 10 }, gramos: 15000 },
       }),
       null
     );
-    expect(ranking[0].areaId).toBe("fermentacion");
+    expect(ranking.map((f) => [f.areaId, f.participacion, f.puntaje])).toEqual([
+      ["embotellado", 60, 76],
+      ["fermentacion", 100, 35],
+    ]);
   });
 
-  test("a igual participación, va primero la de más depósitos", () => {
-    // 50% en ambas: 10 de 20 y 5 de 10.
+  test("con todo empatado, se ordenan por nombre", () => {
     const ranking = rankingDeAreas(
       AREAS,
       resumen({
-        embotellado: { depositos: 10, participantes: 10 },
-        fermentacion: { depositos: 15, participantes: 5 },
+        embotellado: { depositos: 1, participantes: 1, semanas: {}, gramos: 0 },
+        fermentacion: { depositos: 1, participantes: 1, semanas: {}, gramos: 0 },
       }),
       null
     );
-    expect(ranking.map((f) => f.areaId)).toEqual(["fermentacion", "embotellado"]);
+    expect(ranking.map((f) => f.areaId)).toEqual(["embotellado", "fermentacion"]);
   });
 
   test("incluye a las áreas sin depósitos, con 0", () => {
     const ranking = rankingDeAreas(
       AREAS,
-      resumen({ embotellado: { depositos: 1, participantes: 1 } }),
+      resumen({ embotellado: { depositos: 1, participantes: 1, semanas: { [S3]: 1 }, gramos: 400 } }),
       null
     );
     expect(ranking).toHaveLength(2);
-    expect(ranking[1]).toMatchObject({ areaId: "fermentacion", participantes: 0, participacion: 0 });
+    expect(ranking[1]).toMatchObject({ areaId: "fermentacion", participantes: 0, participacion: 0, puntaje: 0 });
   });
 
   test("sin resumen del mes, todas en 0", () => {
     const ranking = rankingDeAreas(AREAS, null, "embotellado");
-    expect(ranking.every((f) => f.participacion === 0 && f.depositos === 0)).toBe(true);
+    expect(ranking.every((f) => f.puntaje === 0 && f.participacion === 0 && f.depositos === 0)).toBe(true);
   });
 
-  test("no pasa de 100% si la dotación quedó desactualizada", () => {
-    const [fila] = rankingDeAreas(
-      [FERMENTACION],
-      resumen({ fermentacion: { depositos: 12, participantes: 12 } }),
-      null
-    );
-    expect(fila.participacion).toBe(100);
+  test("un resumen anterior al puntaje, sin semanas ni kilos, queda en 0 sin fallar", () => {
+    const [fila] = rankingDeAreas([FERMENTACION], resumen({ fermentacion: { depositos: 12, participantes: 12 } }), null);
+    expect(fila).toMatchObject({ participacion: 100, constancia: 0, puntaje: 0 });
   });
 });
 
@@ -160,20 +163,32 @@ describe("avanceIncentivo", () => {
     actualizadaPor: "adela",
   };
 
-  test("cuánto le falta a mi área para la meta", () => {
-    // 6 de 20 personas de Embotellado: 30 %.
-    const ranking = rankingDeAreas(AREAS, resumen({ embotellado: { depositos: 9, participantes: 6 } }), "embotellado");
-    expect(avanceIncentivo(CAMPANA, ranking)).toMatchObject({
-      meta: 50,
-      participacion: 30,
-      faltan: 20,
+  const S1 = String(semanaDe(fecha(2026, 9, 1)));
+  const S2 = String(semanaDe(fecha(2026, 9, 7)));
+  const S3 = String(semanaDe(fecha(2026, 9, 14)));
+
+  test("cuánto le falta a mi área para la meta de puntaje", () => {
+    // Embotellado: 30 % de constancia y los únicos kilos de la planta (índice 100): 58 puntos.
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({ embotellado: { depositos: 18, participantes: 6, semanas: { [S1]: 6, [S2]: 6, [S3]: 6 }, gramos: 4000 } }),
+      "embotellado"
+    );
+    expect(avanceIncentivo({ ...CAMPANA, metaParticipacion: 70 }, ranking)).toMatchObject({
+      meta: 70,
+      puntaje: 58,
+      faltan: 12,
       cumplida: false,
     });
   });
 
   test("si mi área pasó la meta, está cumplida y no le falta nada", () => {
-    const ranking = rankingDeAreas(AREAS, resumen({ fermentacion: { depositos: 8, participantes: 7 } }), "fermentacion");
-    expect(avanceIncentivo(CAMPANA, ranking)).toMatchObject({ participacion: 70, faltan: 0, cumplida: true });
+    const ranking = rankingDeAreas(
+      AREAS,
+      resumen({ fermentacion: { depositos: 21, participantes: 7, semanas: { [S1]: 7, [S2]: 7, [S3]: 7 }, gramos: 3000 } }),
+      "fermentacion"
+    );
+    expect(avanceIncentivo(CAMPANA, ranking)).toMatchObject({ puntaje: 82, faltan: 0, cumplida: true });
   });
 
   test("sin campaña, terminada o sin área, no hay tarjeta", () => {

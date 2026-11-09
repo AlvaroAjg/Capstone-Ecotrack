@@ -266,6 +266,8 @@ export interface ConteoArea {
   depositos: number;
   /** Personas distintas con al menos un depósito en el mes. */
   participantes: number;
+  semanas?: Record<string, number>;
+  gramos?: number;
 }
 
 /**
@@ -280,6 +282,7 @@ export interface ResumenMes {
   areas: Record<string, ConteoArea>;
   /** Último depósito que sumó: las reglas lo usan para comprobar cada suma. */
   ultimoRegistro: string;
+  ultimaSemana?: number;
 }
 
 /**
@@ -317,5 +320,9 @@ export interface FilaRanking {
   depositos: number;
   /** % de la dotación que reciclaron en el mes (participantes ÷ dotación). */
   participacion: number;
+  constancia: number;
+  kgPorPersona: number;
+  indiceKilos: number;
+  puntaje: number;
   esMiArea: boolean;
 }
