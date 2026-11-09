@@ -33,7 +33,7 @@ const ANCHO_DOS_COLUMNAS = 1280;
 const ESTADO_PUNTO: Record<EstadoRonda, { texto: string; tono: Tono; icono: NombreIcono } | null> = {
   conforme: { texto: "Conforme hoy", tono: "oliva", icono: "check" },
   observacion: { texto: "Con observación", tono: "ambar", icono: "alerta" },
-  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "alerta" },
+  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "cerrar" },
   pendiente: { texto: "Ronda pendiente", tono: "gris", icono: "reloj" },
   vacio: null,
 };

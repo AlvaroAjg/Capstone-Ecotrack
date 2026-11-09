@@ -128,3 +128,17 @@ export function esDeHoy(timestamp: number | null): boolean {
 export function diaYMes(timestamp: number): string {
   return new Date(timestamp).toLocaleDateString("es-CL", { day: "numeric", month: "long" });
 }
+
+/** Una duración en milisegundos como "2 min 50 s", "45 s" o "1 h 5 min". */
+export function formatDuracion(ms: number): string {
+  const segundos = Math.round(ms / 1000);
+  if (segundos < 60) return `${segundos} s`;
+  const minutos = Math.floor(segundos / 60);
+  if (minutos < 60) {
+    const resto = segundos % 60;
+    return resto > 0 ? `${minutos} min ${resto} s` : `${minutos} min`;
+  }
+  const horas = Math.floor(minutos / 60);
+  const restoMin = minutos % 60;
+  return restoMin > 0 ? `${horas} h ${restoMin} min` : `${horas} h`;
+}
