@@ -1,4 +1,5 @@
 import { Alert, Platform } from "react-native";
+import { mensajeError } from "./errores";
 
 /**
  * Diálogos que funcionan en el teléfono y en la web instalada.
@@ -60,8 +61,11 @@ export function confirmar(
   });
 }
 
-/** Texto legible de un error cualquiera, sin el prefijo "Error: ". */
+/**
+ * Texto legible de un error cualquiera, sin el prefijo "Error: ". Los de
+ * Firebase llegaban en inglés ("Missing or insufficient permissions"): se
+ * traducen con la misma tabla que el login.
+ */
 export function textoDeError(error: unknown): string {
-  if (error instanceof Error && error.message) return error.message;
-  return String(error);
+  return mensajeError(error);
 }
