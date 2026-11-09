@@ -1,5 +1,5 @@
 import "./global.css";
-import React, { useCallback, useState } from "react";
+import React, { useCallback } from "react";
 import { Platform, View, useWindowDimensions } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { SafeAreaProvider } from "react-native-safe-area-context";
@@ -20,6 +20,8 @@ import PerfilScreen from "./src/screens/PerfilScreen";
 import AvisosScreen from "./src/screens/AvisosScreen";
 import PanelAdmin from "./src/screens/panel/PanelAdmin";
 import AdminEnTelefono from "./src/screens/panel/AdminEnTelefono";
+import { useNavegacionWeb } from "./src/state/historial";
+import { direccion, opcionGuardada, pilaGuardada } from "./src/lib/navegacion";
 
 export type Pantalla =
   | "home"
@@ -66,31 +68,56 @@ const INICIO_POR_ROL: Record<Rol, Pantalla> = {
  */
 const PANTALLAS_TAB: Pantalla[] = ["home", "reciclados", "ranking"];
 
+const PANTALLAS: Pantalla[] = ["home", "validador", "escanear", "ranking", "reciclados", "deposito", "perfil", "avisos"];
+
+/** Lo que se ve en la barra de direcciones para cada pantalla. */
+const NOMBRE_EN_DIRECCION: Record<Pantalla, string> = {
+  home: "inicio",
+  validador: "validacion",
+  escanear: "escanear",
+  ranking: "ranking",
+  reciclados: "reciclados",
+  deposito: "deposito",
+  perfil: "cuenta",
+  avisos: "avisos",
+};
+
+function direccionDePila(pila: Ruta[]): string {
+  const actual = pila[pila.length - 1];
+  return direccion(NOMBRE_EN_DIRECCION[actual.pantalla], actual.params.registroId);
+}
+
 /**
  * Pila de navegación de la app autenticada.
  * Se monta con `key={usuario.id}` para reiniciarse al cambiar de cuenta.
  */
 function PilaApp({ rol }: { rol: Rol }) {
-  const [pila, setPila] = useState<Ruta[]>([
-    { pantalla: INICIO_POR_ROL[rol], params: {} },
-  ]);
+  // La pila vive también en el historial del navegador (ver state/historial.ts):
+  // Atrás vuelve a la pantalla anterior y recargar deja donde se estaba. Solo
+  // se restaura una pila que empiece en una raíz de este rol.
+  const raices = rol === "colaborador" ? PANTALLAS_TAB : [INICIO_POR_ROL[rol]];
+  const { valor: pila, ir: irA, atras } = useNavegacionWeb<Ruta[]>(
+    "pila",
+    () => [{ pantalla: INICIO_POR_ROL[rol], params: {} }],
+    (guardado) => pilaGuardada(guardado, PANTALLAS, raices) as Ruta[] | null,
+    direccionDePila
+  );
   const actual = pila[pila.length - 1];
 
   const ir = useCallback(
     (pantalla: Pantalla, params: ParamsPantalla = {}) => {
-      setPila((prev) => {
-        if (rol === "colaborador" && PANTALLAS_TAB.includes(pantalla)) {
-          return [{ pantalla, params }];
-        }
-        return [...prev, { pantalla, params }];
-      });
+      if (rol === "colaborador" && PANTALLAS_TAB.includes(pantalla)) {
+        irA([{ pantalla, params }]);
+      } else {
+        irA([...pila, { pantalla, params }]);
+      }
     },
-    [rol]
+    [rol, pila, irA]
   );
 
   const volver = useCallback(() => {
-    setPila((prev) => (prev.length > 1 ? prev.slice(0, -1) : prev));
-  }, []);
+    if (pila.length > 1) atras(pila.slice(0, -1));
+  }, [pila, atras]);
 
   const nav: Navegacion = { ir, volver, params: actual.params, raiz: pila.length === 1 };
 
@@ -148,7 +175,15 @@ function PilaApp({ rol }: { rol: Rol }) {
 
 /** Login y registro, para usuarios sin sesión. */
 function PilaAuth() {
-  const [pantalla, setPantalla] = useState<"login" | "register">("login");
+  // También en el historial: desde el registro, Atrás vuelve al login.
+  const { valor: pantalla, ir, atras } = useNavegacionWeb<"login" | "register">(
+    "acceso",
+    () => "login",
+    (guardado) => opcionGuardada(guardado, ["login", "register"] as const),
+    (p) => direccion(p === "register" ? "registro" : "ingreso"),
+    (hash) => (hash === direccion("registro") ? "register" : null)
+  );
+  const setPantalla = (p: "login" | "register") => (p === "login" ? atras("login") : ir(p));
   // Antes de entrar no se sabe el rol: en el computador se ve como una página
   // web normal, y al iniciar sesión cada rol vuelve a su formato.
   usePantallaCompleta();

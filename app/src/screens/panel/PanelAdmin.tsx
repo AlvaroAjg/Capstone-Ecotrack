@@ -11,6 +11,8 @@ import ResumenSeccion from "./ResumenSeccion";
 import CampanaPanel from "./CampanaPanel";
 import { inicioDeRonda, rondaDeHoy, rondaPorPunto } from "../../lib/resumenPanel";
 import { escucharPersonas } from "../../services/personas";
+import { useNavegacionWeb } from "../../state/historial";
+import { direccion, opcionGuardada } from "../../lib/navegacion";
 import { avanceAreas } from "../../lib/incentivo";
 import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales } from "./estilo";
 
@@ -22,14 +24,21 @@ export type SeccionPanel =
   | "incentivo"
   | "retiros";
 
-const SECCIONES: { id: SeccionPanel; etiqueta: string }[] = [
-  { id: "resumen", etiqueta: "Resumen" },
-  { id: "contenedores", etiqueta: "Puntos limpios" },
-  { id: "personas", etiqueta: "Personas y áreas" },
-  { id: "rondas", etiqueta: "Rondas" },
-  { id: "incentivo", etiqueta: "Campañas" },
-  { id: "retiros", etiqueta: "Retiros y reportes" },
+/** `direccion`: lo que se ve en la barra de direcciones del navegador. */
+const SECCIONES: { id: SeccionPanel; etiqueta: string; direccion: string }[] = [
+  { id: "resumen", etiqueta: "Resumen", direccion: "resumen" },
+  { id: "contenedores", etiqueta: "Puntos limpios", direccion: "puntos-limpios" },
+  { id: "personas", etiqueta: "Personas y áreas", direccion: "personas" },
+  { id: "rondas", etiqueta: "Rondas", direccion: "rondas" },
+  { id: "incentivo", etiqueta: "Campañas", direccion: "campanas" },
+  { id: "retiros", etiqueta: "Retiros y reportes", direccion: "retiros" },
 ];
+
+const IDS_SECCIONES = SECCIONES.map((s) => s.id);
+
+function direccionDeSeccion(seccion: SeccionPanel): string {
+  return direccion(SECCIONES.find((s) => s.id === seccion)?.direccion ?? seccion);
+}
 
 /**
  * Bajo este ancho la barra superior se compacta (sin el nombre de la planta
@@ -47,7 +56,16 @@ const ANCHO_AMPLIO = 1280;
  */
 export default function PanelAdmin() {
   const { errorDatos } = useEcoTrack();
-  const [seccion, setSeccion] = useState<SeccionPanel>("resumen");
+  // La sección vive también en el historial del navegador (ver
+  // state/historial.ts): Atrás vuelve a la sección anterior y recargar deja
+  // en la misma.
+  const { valor: seccion, ir: setSeccion } = useNavegacionWeb<SeccionPanel>(
+    "seccion",
+    () => "resumen",
+    (guardado) => opcionGuardada(guardado, IDS_SECCIONES),
+    direccionDeSeccion,
+    (hash) => SECCIONES.find((s) => direccion(s.direccion) === hash)?.id ?? null
+  );
   const { width } = useWindowDimensions();
   const amplio = width >= ANCHO_AMPLIO;
 
