@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { rankingDeAreas } from "../src/lib/derivados";
+import { porcentaje } from "../src/lib/formato";
 import {
   avanceAreas,
   fechaIso,
@@ -112,5 +113,15 @@ describe("personasQueFaltan", () => {
 
   test("las áreas que ya llegaron no suman", () => {
     expect(personasQueFaltan(50, [area(10, 7), area(4, 1)])).toBe(1);
+  });
+
+  test("un área cuyo porcentaje redondeado llega a la meta no suma, igual que en avanceAreas", () => {
+    const fila = { ...area(40, 11), participacion: porcentaje(11, 40) };
+    expect(avanceAreas(28, [fila])[0].cumple).toBe(true);
+    expect(personasQueFaltan(28, [fila])).toBe(0);
+  });
+
+  test("un área sin dotación no pide personas", () => {
+    expect(personasQueFaltan(60, [area(0, 0)])).toBe(0);
   });
 });
