@@ -118,10 +118,13 @@ describe("detalleRetiro", () => {
   });
 
   test("todos los materiales, o un guion si no hay depósitos", () => {
-    const registros = (["Papel/cartón", "Plástico", "Vidrio", "Metal"] as const).map((material) =>
+    const registros = (["Papel/cartón", "Plástico", "Vidrio", "Metal", "Aluminio"] as const).map((material) =>
       certificado({ retiroId: "RET-1", material })
     );
     expect(detalleRetiro(retiro({ contenedores: ["PLA111"] }), CONTENEDORES, registros).materiales).toBe("Todos");
+    expect(detalleRetiro(retiro({ contenedores: ["PLA111"] }), CONTENEDORES, registros.slice(0, 4)).materiales).toBe(
+      "Papel/cartón, plástico, vidrio y metal"
+    );
     expect(detalleRetiro(retiro({ contenedores: ["PLA111"] }), CONTENEDORES, []).materiales).toBe("—");
   });
 });

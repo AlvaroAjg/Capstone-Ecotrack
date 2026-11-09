@@ -349,7 +349,7 @@ describe("depositosPorPunto", () => {
     ];
     const [casino, bodega] = depositosPorPunto(registros, CONTENEDORES, "2026-09");
     expect(casino).toMatchObject({ punto: "Casino", total: 3 });
-    expect(casino.porMaterial).toEqual({ "Papel/cartón": 0, "Plástico": 2, "Vidrio": 0, "Metal": 1 });
+    expect(casino.porMaterial).toEqual({ "Papel/cartón": 0, "Plástico": 2, "Vidrio": 0, "Metal": 1, "Aluminio": 0 });
     expect(bodega).toMatchObject({ punto: "Bodega", total: 1 });
   });
 
