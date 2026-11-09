@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { EstadoRonda } from "../../lib/resumenPanel";
 import { etiquetaMes } from "../../lib/certificadoMensual";
@@ -374,6 +374,37 @@ export function mesLargo(mes: string): string {
   return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${anio}`;
 }
 
+/**
+ * Estado de un menú desplegable (el mes, los avisos, la cuenta) que se cierra
+ * como en cualquier página: al hacer clic fuera de él o con Escape. `ref` va
+ * en la vista que envuelve el botón y el menú, para que el clic en el propio
+ * botón siga alternándolo.
+ */
+export function useDesplegable() {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useRef<View>(null);
+
+  useEffect(() => {
+    if (!abierto || Platform.OS !== "web") return;
+    // En la web, la vista de react-native-web es un elemento del DOM.
+    const alTocar = (evento: PointerEvent) => {
+      const nodo = ref.current as unknown as HTMLElement | null;
+      if (nodo && !nodo.contains(evento.target as Node)) setAbierto(false);
+    };
+    const alTeclear = (evento: KeyboardEvent) => {
+      if (evento.key === "Escape") setAbierto(false);
+    };
+    document.addEventListener("pointerdown", alTocar);
+    document.addEventListener("keydown", alTeclear);
+    return () => {
+      document.removeEventListener("pointerdown", alTocar);
+      document.removeEventListener("keydown", alTeclear);
+    };
+  }, [abierto]);
+
+  return { abierto, setAbierto, ref };
+}
+
 /** Botón con el mes elegido que despliega los meses con actividad. */
 export function SelectorMes({
   meses,
@@ -384,11 +415,11 @@ export function SelectorMes({
   valor: string;
   alCambiar: (mes: string) => void;
 }) {
-  const [abierto, setAbierto] = useState(false);
+  const { abierto, setAbierto, ref } = useDesplegable();
   const varios = meses.length > 1;
 
   return (
-    <View className="relative">
+    <View ref={ref} className="relative">
       <TouchableOpacity
         onPress={() => setAbierto((v) => !v)}
         disabled={!varios}

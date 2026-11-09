@@ -14,7 +14,7 @@ import { escucharPersonas } from "../../services/personas";
 import { useNavegacionWeb } from "../../state/historial";
 import { direccion, opcionGuardada } from "../../lib/navegacion";
 import { avanceAreas } from "../../lib/incentivo";
-import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales } from "./estilo";
+import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales, useDesplegable } from "./estilo";
 
 export type SeccionPanel =
   | "resumen"
@@ -178,11 +178,11 @@ function BarraSuperior({
 /** El círculo con las iniciales del administrador: abre su nombre y Cerrar sesión. */
 function MenuCuenta() {
   const { usuario, miPlanta, cerrarSesion } = useEcoTrack();
-  const [abierto, setAbierto] = useState(false);
+  const { abierto, setAbierto, ref } = useDesplegable();
   const nombre = usuario?.nombre || "Administrador";
 
   return (
-    <View className="relative ml-2.5">
+    <View ref={ref} className="relative ml-2.5">
       <TouchableOpacity
         onPress={() => setAbierto((v) => !v)}
         accessibilityRole="button"
