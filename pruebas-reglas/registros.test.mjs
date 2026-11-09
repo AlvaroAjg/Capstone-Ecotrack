@@ -80,6 +80,15 @@ describe("registros: crear depósito", () => {
     await assertFails(crear("ana", deposito({ retiroId: "retiro-falso" })));
   });
 
+  test("aluminio en un contenedor mixto, con los kilos de su talla", async () => {
+    await assertSucceeds(crear("ana", deposito({ material: "Aluminio", talla: "M", kgDeclarado: 0.4 })));
+    await assertSucceeds(crear("ana", deposito({ material: "Aluminio", talla: "S", kgDeclarado: 0.15 })));
+  });
+
+  test("no aluminio con los kilos del metal", async () => {
+    await assertFails(crear("ana", deposito({ material: "Aluminio", talla: "M", kgDeclarado: 0.8 })));
+  });
+
   test("no con kilos inventados", async () => {
     await assertFails(crear("ana", deposito({ kgDeclarado: 50 })));
   });

@@ -54,6 +54,10 @@ describe("contenedores", () => {
     await assertSucceeds(setDoc(doc(como("carla"), "contenedores/PAPEL1"), nuevo()));
   });
 
+  test("y uno de aluminio", async () => {
+    await assertSucceeds(setDoc(doc(como("carla"), "contenedores/ALUMI1"), nuevo({ material: "Aluminio" })));
+  });
+
   test("y uno mixto", async () => {
     await assertSucceeds(setDoc(doc(como("carla"), "contenedores/MIXTO2"), nuevo({ material: null })));
   });
@@ -161,6 +165,10 @@ describe("incidencias", () => {
 
   test("la administradora también", async () => {
     await assertSucceeds(reportar("carla"));
+  });
+
+  test("aluminio también se puede reportar como lo que no corresponde", async () => {
+    await assertSucceeds(reportar("vale", { contaminante: "Aluminio" }));
   });
 
   test("un colaborador no reporta", async () => {

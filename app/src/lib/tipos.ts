@@ -1,7 +1,7 @@
 // Tipos compartidos de RecyTrack. Reflejan el modelo de datos en Firestore
 // (ver firestore.rules): una planta con áreas, y tres roles.
 
-export type Material = "Papel/cartón" | "Plástico" | "Vidrio" | "Metal";
+export type Material = "Papel/cartón" | "Plástico" | "Vidrio" | "Metal" | "Aluminio";
 /**
  * - colaborador: recicla desde el teléfono.
  * - validador: recorre el punto limpio una vez al día y valida los depósitos.
@@ -15,7 +15,8 @@ export const MATERIALES: { nombre: Material; emoji: string }[] = [
   { nombre: "Papel/cartón", emoji: "📄" },
   { nombre: "Plástico", emoji: "🥤" },
   { nombre: "Vidrio", emoji: "🍾" },
-  { nombre: "Metal", emoji: "🥫" },
+  { nombre: "Metal", emoji: "🔩" },
+  { nombre: "Aluminio", emoji: "🥫" },
 ];
 
 /**
@@ -33,6 +34,8 @@ export function colorMaterial(material: Material | null): string {
       return "#2F7F7A";
     case "Metal":
       return "#8A8F96";
+    case "Aluminio":
+      return "#9DB4C8";
     default:
       return "#3F6B2E";
   }
@@ -68,6 +71,7 @@ export const KG_POR_TALLA: Record<Material, Record<Talla, number>> = {
   // los factores de la EPA, las de acero pesan más del doble por volumen.
   "Metal": { S: 0.3, M: 0.8, L: 1.5, XL: 3 },
   "Vidrio": { S: 1.5, M: 4, L: 8, XL: 12 },
+  "Aluminio": { S: 0.15, M: 0.4, L: 0.8, XL: 1.6 },
 };
 
 export function kgEstimado(material: Material, talla: Talla): number {
@@ -143,6 +147,7 @@ export const CONTAMINANTES = [
   "Plástico",
   "Papel/cartón",
   "Metal",
+  "Aluminio",
   "Orgánico",
   "Basura común",
 ] as const;

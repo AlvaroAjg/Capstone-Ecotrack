@@ -246,7 +246,8 @@ service cloud.firestore {
         'Plástico':     {'S': 0.1, 'M': 0.4, 'L': 0.8, 'XL': 1.5},
         'Papel/cartón': {'S': 0.4, 'M': 1.2, 'L': 2.5, 'XL': 5},
         'Metal':        {'S': 0.3, 'M': 0.8, 'L': 1.5, 'XL': 3},
-        'Vidrio':       {'S': 1.5, 'M': 4,   'L': 8,   'XL': 12}
+        'Vidrio':       {'S': 1.5, 'M': 4,   'L': 8,   'XL': 12},
+        'Aluminio':     {'S': 0.15, 'M': 0.4, 'L': 0.8, 'XL': 1.6}
       };
     }
 
@@ -315,7 +316,7 @@ service cloud.firestore {
                     && request.resource.data.atendidaEn == null
                     && request.resource.data.retiroId == null
                     && request.resource.data.contaminante in
-                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Orgánico', 'Basura común']
+                       ['Vidrio', 'Plástico', 'Papel/cartón', 'Metal', 'Aluminio', 'Orgánico', 'Basura común']
                     && exists(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor))
                     && get(/databases/$(database)/documents/contenedores/$(request.resource.data.contenedor)).data.plantaId
                        == request.resource.data.plantaId;
