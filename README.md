@@ -28,7 +28,7 @@ Quien retira el material no es usuario del sistema: el retiro lo registra el adm
 **Principios del producto:**
 - *Solo cuenta lo validado*: un depósito declarado y no revisado no suma a ningún indicador.
 - *La estimación se rotula como estimación*: los kilos salen de la talla de la bolsa; solo un retiro con peso informado es un dato medido.
-- *El incentivo es colectivo y nunca en kilos*: se compite por área y por participación, porque premiar kilos invita a inflarlos.
+- *El incentivo es colectivo y premia la constancia*: se compite por área con un puntaje de 60 % constancia semanal (cuánta gente del área recicla cada semana) y 40 % kilos por persona. Los kilos tienen un tope de 5 kg por persona a la semana, para que inflarlos no sirva.
 - *Privacidad entre compañeros*: nadie ve lo que registró otra persona; los nombres solo los ve el administrador.
 - *Costo cero para la viña*: los celulares de los colaboradores, QR impresos y el plan gratuito de Firebase. Sin balanzas ni sensores.
 
@@ -53,7 +53,7 @@ Esto es lo que funciona hoy, contra Firebase real, no simulado:
 | 3 — Ronda diaria de validación | ✅ Implementado | El validador valida contenedor por contenedor, no persona por persona: ve cuántos depósitos se declararon en cada uno y de qué tallas, y lo compara con lo que hay adentro. Cada contenedor queda *conforme*, *con observación* (se registra el contaminante: los depósitos se validan igual, porque no se sabe quién fue, y se avisa al administrador y a la planta) o *sin material* (se rechazan sus depósitos). "Validar la tanda del día" valida todo de una vez. Rechazar un depósito suelto queda para excepciones. Cada acción es una sola operación atómica: o se guarda completa o no se guarda nada. |
 | 4 — Retiro y certificación | ✅ Implementado | Desde el panel, el administrador elige los contenedores que salieron, la fecha, quién retiró, el N° de guía y el peso (opcionales). Antes de registrar ve las advertencias de los contenedores contaminados. El retiro certifica en un solo lote los depósitos validados de esos contenedores y no se puede editar ni borrar. |
 | 5 — Certificado y reporte mensual | ✅ Implementado | **Certificado mensual** por colaborador (no uno por depósito, que no tenía sentido para una botella suelta): kilos certificados del mes, desglose por material, código único y cada depósito con sus fechas de depósito, validación y retiro. **Reporte mensual** de la planta para el administrador: kilos certificados, participación comparada con la meta de 60 %, depósitos por estado, participación por área, retiros, contenedores contaminados y tiempo de la cadena comparado con la meta de 48 horas. Ambos se descargan en PDF en la versión web; en el teléfono nativo todavía no. |
-| 6 — Campañas y ranking por área | ✅ Implementado | Ranking del mes entre las áreas de la planta por **participación** (el % de la dotación del área que recicló), con podio. Campaña de la planta con meta de participación, incentivo y fecha de término, editable por el administrador. Además, una misión semanal del sistema con EcoPuntos en el Inicio del colaborador. |
+| 6 — Campañas y ranking por área | ✅ Implementado | Ranking del mes entre las áreas por **puntaje**: 60 % constancia semanal y 40 % kilos por persona (con tope de 5 kg por persona a la semana), con podio. Campaña con meta de puntaje, incentivo y fecha de término, editable por el administrador. Además, una misión semanal del sistema con EcoPuntos en el Inicio del colaborador. |
 | 7 — Panel web del administrador | ✅ Implementado | Seis secciones: **Resumen** (analítica del mes), **Puntos limpios** (contenedores, impresión de sus QR y cambio de código si se filtra), **Personas y áreas** (crear áreas con su código y dotación, buscar personas, cambiarlas de área y nombrar al validador), **Rondas** (el estado de la ronda en cada día del mes), **Campañas** y **Retiros y reportes**. En un teléfono se le pide abrirlo en el computador, porque las tablas no caben. |
 | Avisos | 🔶 Parcial | Avisos de avance dentro de la app, con un banner cuando ocurre el evento y una 🔔 con contador: al colaborador cuando su depósito se valida, se rechaza o se certifica; al validador por cada depósito por validar; al administrador por cada contenedor listo para retiro o contaminado. Faltan las notificaciones push con la app cerrada, que requieren el plan Blaze de Firebase. |
 
@@ -82,9 +82,9 @@ El administrador registra desde el panel cada retiro de material, con su guía o
 Certificado mensual en PDF para cada colaborador, con código único, y reporte mensual en PDF de la planta, generados sin intervención manual.
 
 ### Módulo 6 — Campañas y ranking por área
-Competencia entre áreas por participación, no por kilos. Incluye:
-- Ranking del mes entre áreas, actualizado con cada depósito.
-- Campaña de la planta con meta de participación e incentivo colectivo definidos por el administrador.
+Competencia entre áreas por un puntaje que pondera la constancia y los kilos. Incluye:
+- Ranking del mes entre áreas, actualizado con cada depósito. Puntaje = 60 % constancia (en cada semana del mes, el % de la dotación que recicló, ponderado por los días hábiles de la semana) + 40 % kilos por persona (comparados con el área que va primera, con tope de 5 kg por persona a la semana). Así no gana un área que recicla toda un solo día, y los kilos suman sin decidir solos.
+- Campaña con meta de puntaje e incentivo colectivo definidos por el administrador.
 - Misión semanal del sistema, individual y alcanzable, en una tarjeta de Inicio:
   - **Una por semana** (lunes a domingo), que rota entre reciclar al menos una vez, reciclar 2 materiales distintos o juntar 3 kg. Cada una se cumple con una o dos bajadas al contenedor.
   - Es semanal y no diaria a propósito: la gente no tiene residuos para reciclar todos los días. Tampoco depende de cuándo se retira el contenedor, porque un depósito cuenta desde que se registra.
