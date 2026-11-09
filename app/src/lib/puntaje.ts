@@ -32,12 +32,12 @@ export interface SemanaDelMes {
 export function semanasDelMes(mes: string, ahora: number = Date.now()): SemanaDelMes[] {
   const [anio, numero] = mes.split("-").map(Number);
   const dias = new Date(anio, numero, 0).getDate();
-  const hasta = semanaDe(ahora);
+  const hoy = diaLocal(ahora);
   const porSemana = new Map<number, number>();
   for (let d = 1; d <= dias; d++) {
     const mediodia = new Date(anio, numero - 1, d, 12).getTime();
+    if (diaLocal(mediodia) > hoy) break;
     const semana = semanaDe(mediodia);
-    if (semana > hasta) continue;
     porSemana.set(semana, (porSemana.get(semana) ?? 0) + (esDiaHabil(mediodia) ? 1 : 0));
   }
   return [...porSemana.entries()]

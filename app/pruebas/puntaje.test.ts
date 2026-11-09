@@ -34,12 +34,17 @@ describe("gramosConTope", () => {
 });
 
 describe("semanasDelMes", () => {
-  test("las semanas que ya empezaron, con sus días hábiles (sin el feriado del 18)", () => {
+  test("las semanas hasta hoy, con los días hábiles que ya pasaron (sin el feriado del 18)", () => {
     expect(semanasDelMes("2026-09", fecha(2026, 9, 16))).toEqual([
       { semana: S1, habiles: 4 },
       { semana: S2, habiles: 5 },
-      { semana: S3, habiles: 4 },
+      { semana: S3, habiles: 3 },
     ]);
+  });
+
+  test("el lunes, la semana en curso pesa un solo día", () => {
+    const lunes = semanasDelMes("2026-11", fecha(2026, 11, 9, 9));
+    expect(lunes.map((s) => s.habiles)).toEqual([5, 1]);
   });
 
   test("un mes terminado trae todas sus semanas; un domingo suelto no cuenta", () => {
@@ -53,7 +58,7 @@ describe("constancia", () => {
   const SEPTIEMBRE = semanasDelMes("2026-09", fecha(2026, 9, 16));
 
   test("promedia la participación de cada semana, ponderada por días hábiles", () => {
-    expect(constancia({ [S1]: 10 }, 10, SEPTIEMBRE)).toBeCloseTo((4 / 13) * 100);
+    expect(constancia({ [S1]: 10 }, 10, SEPTIEMBRE)).toBeCloseTo((4 / 12) * 100);
     expect(constancia({ [S1]: 5, [S2]: 5, [S3]: 5 }, 10, SEPTIEMBRE)).toBeCloseTo(50);
   });
 
@@ -78,7 +83,7 @@ describe("puntajesDeAreas", () => {
       ],
       SEPTIEMBRE
     );
-    expect(puntajes.get("todosElPrimerDia")).toEqual({ constancia: 31, kgPorPersona: 1.5, indiceKilos: 38, puntaje: 33 });
+    expect(puntajes.get("todosElPrimerDia")).toEqual({ constancia: 33, kgPorPersona: 1.5, indiceKilos: 38, puntaje: 35 });
     expect(puntajes.get("constante")).toEqual({ constancia: 60, kgPorPersona: 4, indiceKilos: 100, puntaje: 76 });
   });
 

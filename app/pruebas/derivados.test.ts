@@ -71,7 +71,7 @@ describe("rankingDeAreas", () => {
     );
     expect(ranking.map((f) => [f.areaId, f.participacion, f.puntaje])).toEqual([
       ["embotellado", 60, 76],
-      ["fermentacion", 100, 33],
+      ["fermentacion", 100, 35],
     ]);
   });
 
