@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Usuario } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
@@ -68,6 +68,18 @@ export default function PanelAdmin() {
   );
   const { width } = useWindowDimensions();
   const amplio = width >= ANCHO_AMPLIO;
+
+  // El título de la pestaña dice la sección, para distinguirlas en el
+  // historial del navegador y entre pestañas abiertas. Al salir del panel
+  // vuelve a ser "RecyTrack".
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const etiqueta = SECCIONES.find((s) => s.id === seccion)?.etiqueta;
+    document.title = etiqueta ? `${etiqueta} · RecyTrack` : "RecyTrack";
+    return () => {
+      document.title = "RecyTrack";
+    };
+  }, [seccion]);
 
   // El panel necesita la pantalla completa del computador, no el ancho de un teléfono.
   usePantallaCompleta();
