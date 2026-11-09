@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { Navegacion } from "../../App";
 import { useEcoTrack, type FilaRanking } from "../state/EcoTrack";
 import { etiquetaMes, mesDe } from "../lib/certificadoMensual";
+import { formatKg } from "../lib/formato";
 import { Barra, Cuerpo, Encabezado, Tarjeta, TituloEncabezado, Vacio } from "../components/ui";
 
 const MEDALLAS = ["🥇", "🥈", "🥉"];
@@ -10,9 +11,8 @@ const MEDALLAS = ["🥇", "🥈", "🥉"];
 const ALTO_PODIO = [96, 68, 48];
 
 /**
- * Ranking del mes entre las áreas de la planta, por participación: el % de
- * las personas de cada área que reciclaron. Sale del resumen del mes, así que
- * no muestra ni descarga los depósitos de nadie.
+ * Ranking del mes entre las áreas, por puntaje (ver lib/puntaje.ts). Sale del
+ * resumen del mes, así que no muestra ni descarga los depósitos de nadie.
  */
 export default function RankingScreen({ nav }: { nav: Navegacion }) {
   const { ranking } = useEcoTrack();
@@ -24,7 +24,7 @@ export default function RankingScreen({ nav }: { nav: Navegacion }) {
       <Encabezado>
         <TituloEncabezado
           titulo="Ranking del mes"
-          subtitulo={`Participación por área en ${mes} · se actualiza con cada depósito`}
+          subtitulo={`Puntaje por área en ${mes} · se actualiza con cada depósito`}
           alVolver={nav.raiz ? undefined : nav.volver}
         />
       </Encabezado>
@@ -49,6 +49,10 @@ export default function RankingScreen({ nav }: { nav: Navegacion }) {
               ))}
             </View>
           ) : null}
+
+          <View className="px-6 mt-1 mb-6">
+            <ComoSeCalcula />
+          </View>
         </>
       )}
     </Cuerpo>
@@ -75,7 +79,7 @@ function Podio({ filas }: { filas: FilaRanking[] }) {
             {a.esMiArea ? (
               <Text className="text-green-600 text-[10px] font-semibold">Tu área</Text>
             ) : null}
-            <Text className="text-gray-500 text-xs mb-1">{a.participacion}%</Text>
+            <Text className="text-gray-500 text-xs mb-1">{a.puntaje} pts</Text>
             <View
               className={`w-full rounded-t-xl items-center justify-center ${
                 a.esMiArea ? "bg-green-600" : "bg-gray-200"
@@ -87,7 +91,7 @@ function Podio({ filas }: { filas: FilaRanking[] }) {
               </Text>
             </View>
             <Text className="text-gray-400 text-[10px] mt-1 text-center">
-              {a.participantes} de {a.dotacion} personas
+              {a.constancia}% · {formatKg(a.kgPorPersona)}/p.
             </Text>
           </View>
         );
@@ -101,25 +105,23 @@ function Brecha({ ranking, miIndice }: { ranking: FilaRanking[]; miIndice: numbe
   if (miIndice < 0 || ranking.length < 2) return null;
   const mia = ranking[miIndice];
 
-  // La brecha va en puntos de participación: las áreas tienen dotaciones
-  // distintas, así que en personas no se pueden comparar.
   let texto: string;
-  if (ranking.every((a) => a.participacion === 0)) {
+  if (ranking.every((a) => a.puntaje === 0)) {
     texto = "El mes recién parte: el primer depósito define quién va arriba.";
   } else if (miIndice === 0) {
     const segunda = ranking[1];
-    const margen = mia.participacion - segunda.participacion;
+    const margen = mia.puntaje - segunda.puntaje;
     texto =
       margen === 0
         ? `¡Van empatados con ${segunda.nombre}! El próximo depósito desempata.`
         : `🔥 Van primeros, pero ${segunda.nombre} está a ${margen} puntos de alcanzarlos.`;
   } else {
     const arriba = ranking[miIndice - 1];
-    const falta = arriba.participacion - mia.participacion;
+    const falta = arriba.puntaje - mia.puntaje;
     texto =
       falta === 0
         ? `¡Van empatados con ${arriba.nombre}! El próximo depósito desempata.`
-        : `⚔️ Les faltan ${falta} puntos de participación para pasar a ${arriba.nombre}.`;
+        : `⚔️ Les faltan ${falta} puntos para pasar a ${arriba.nombre}.`;
   }
 
   return (
@@ -137,9 +139,24 @@ function FilaArea({ fila, posicion }: { fila: FilaRanking; posicion: number }) {
           {posicion}° {fila.nombre}
           {fila.esMiArea ? " · Tu área" : ""}
         </Text>
-        <Text className="text-green-700 font-bold">{fila.participacion}%</Text>
+        <Text className="text-green-700 font-bold">{fila.puntaje} pts</Text>
       </View>
-      <Barra avance={fila.participacion} color={fila.esMiArea ? "bg-green-600" : "bg-gray-300"} />
+      <Barra avance={fila.puntaje} color={fila.esMiArea ? "bg-green-600" : "bg-gray-300"} />
+      <Text className="text-gray-400 text-xs mt-2">
+        Constancia {fila.constancia}% · {formatKg(fila.kgPorPersona)} por persona
+      </Text>
     </Tarjeta>
+  );
+}
+
+function ComoSeCalcula() {
+  return (
+    <View className="bg-green-50 border border-green-100 rounded-2xl px-4 py-3">
+      <Text className="text-green-900 font-semibold text-sm mb-1">¿Cómo se calcula el puntaje?</Text>
+      <Text className="text-green-900 text-xs leading-5">
+        60 % constancia: cuánta gente de tu área recicla cada semana del mes.{"\n"}
+        40 % kilos por persona, comparados con el área que va primera (hasta 5 kg por persona a la semana).
+      </Text>
+    </View>
   );
 }

@@ -177,7 +177,7 @@ function TarjetaMiArea({
         onPress={alAbrir}
         activeOpacity={0.8}
         accessibilityRole="button"
-        accessibilityLabel={`Tu área, ${fila.nombre}: lugar ${posicion} de ${total}, ${fila.participacion}% de participación. Ver el ranking.`}
+        accessibilityLabel={`Tu área, ${fila.nombre}: lugar ${posicion} de ${total}, ${fila.puntaje} puntos. Ver el ranking.`}
       >
         <Tarjeta>
           <View className="flex-row justify-between items-center mb-3">
@@ -187,11 +187,11 @@ function TarjetaMiArea({
                 {fila.nombre} · {posicion}° de {total}
               </Text>
             </View>
-            <Text className="text-green-700 font-bold text-lg">{fila.participacion}%</Text>
+            <Text className="text-green-700 font-bold text-lg">{fila.puntaje} pts</Text>
           </View>
-          <Barra avance={fila.participacion} />
+          <Barra avance={fila.puntaje} />
           <Text className="text-gray-400 text-xs mt-2">
-            {fila.participantes} de {fila.dotacion} personas reciclaron este mes
+            Constancia {fila.constancia}% · {formatKg(fila.kgPorPersona)} por persona
           </Text>
         </Tarjeta>
       </TouchableOpacity>
@@ -209,14 +209,14 @@ function TarjetaIncentivo({ avance }: { avance: AvanceIncentivo }) {
           <Text className="text-amber-700 text-xs">Termina el {diaYMes(avance.terminaEn)}</Text>
         </View>
         <Text className="text-amber-800 text-sm mb-3">
-          Si tu área llega al {avance.meta}% de participación: {avance.incentivo}
+          Si tu área llega a {avance.meta} puntos: {avance.incentivo}
         </Text>
         {/* La barra es el avance hacia la meta, no hacia el 100 %. */}
-        <Barra avance={porcentaje(avance.participacion, avance.meta)} color="bg-amber-500" />
+        <Barra avance={porcentaje(avance.puntaje, avance.meta)} color="bg-amber-500" />
         <Text className="text-amber-800 text-xs mt-2">
           {avance.cumplida
-            ? `¡Meta cumplida! Tu área lleva ${avance.participacion}%.`
-            : `Tu área lleva ${avance.participacion}%: falta un ${avance.faltan}% más para la meta.`}
+            ? `¡Meta cumplida! Tu área lleva ${avance.puntaje} puntos.`
+            : `Tu área lleva ${avance.puntaje} puntos: le faltan ${avance.faltan} para la meta.`}
         </Text>
       </View>
     </View>
