@@ -4,31 +4,32 @@ import {
   ALTO,
   ALTO_FILA,
   ANCHO,
-  FONDO_FILA,
-  GRIS,
-  GRIS_CLARO,
-  GRIS_SUAVE,
+  BLANCO,
   LIMITE_INFERIOR,
+  MARCA,
   MARGEN,
-  TEXTO,
-  VERDE,
+  anchoTexto,
   centrado,
+  centradoEn,
+  derecha,
   entregarPdf,
-  franjaMarca,
+  hex,
   izquierda,
-  linea,
+  logo,
   nuevoDocumento,
   piesDePagina,
+  tamanoQueCabe,
   type Pincel,
   type ResultadoDescarga,
 } from "./pdfComun";
-import { kgEfectivo, type Registro } from "./tipos";
+import { colorMaterial, kgEfectivo, type Registro } from "./tipos";
 
 /**
  * Certificado mensual de reciclaje en PDF, generado en el dispositivo (ver
- * pdfComun.ts). La primera página resume el mes; después viene el detalle de
- * cada depósito con las fechas de su paso por la cadena, en tantas páginas
- * como haga falta.
+ * pdfComun.ts). La primera página es un diploma para imprimir y guardar: el
+ * nombre, los kilos del mes, cuánto de cada material, el código y el sello.
+ * Desde la segunda viene el detalle de cada depósito con las fechas de su
+ * paso por la cadena, en tantas páginas como haga falta.
  */
 
 export const certificadoPdfDisponible = true;
@@ -65,9 +66,14 @@ const COLUMNAS: [string, number][] = [
 
 function encabezadoTabla(p: Pincel, arriba: number) {
   for (const [titulo, x] of COLUMNAS) {
-    izquierda(p, titulo, x, arriba, 7, { negrita: true, color: GRIS });
+    izquierda(p, titulo, x, arriba, 7, { negrita: true, color: MARCA.tintaSuave });
   }
-  linea(p, arriba + 6);
+  p.pagina.drawLine({
+    start: { x: MARGEN, y: ALTO - arriba - 6 },
+    end: { x: ANCHO - MARGEN, y: ALTO - arriba - 6 },
+    thickness: 1.2,
+    color: MARCA.vino,
+  });
 }
 
 function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
@@ -77,11 +83,11 @@ function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
       y: ALTO - arriba - 5,
       width: ANCHO - 2 * MARGEN + 8,
       height: ALTO_FILA,
-      color: FONDO_FILA,
+      color: MARCA.piedra,
     });
   }
-  // Lo que no suma al total (en proceso o rechazado) va en gris.
-  const color = r.estado === "certificado" ? TEXTO : GRIS_SUAVE;
+  // Lo que no suma al total (en proceso o rechazado) va más tenue.
+  const color = r.estado === "certificado" ? MARCA.tinta : MARCA.tintaSuave;
   const celdas = [
     fechaCorta(r.creadoEn),
     r.material,
@@ -96,110 +102,150 @@ function filaTabla(p: Pincel, r: Registro, arriba: number, sombreada: boolean) {
   });
 }
 
+/** Marco doble del diploma: uno vino y, adentro, uno más fino. */
+function marco(p: Pincel) {
+  p.pagina.drawRectangle({ x: 0, y: 0, width: ANCHO, height: ALTO, color: MARCA.marfil });
+  // Cerca del borde de la hoja, para que el pie de página quede adentro.
+  p.pagina.drawRectangle({
+    x: 14,
+    y: 14,
+    width: ANCHO - 28,
+    height: ALTO - 28,
+    borderColor: MARCA.vino,
+    borderWidth: 1.5,
+  });
+  p.pagina.drawRectangle({
+    x: 19,
+    y: 19,
+    width: ANCHO - 38,
+    height: ALTO - 38,
+    borderColor: MARCA.vinoSuave,
+    borderWidth: 0.6,
+  });
+}
+
+/** Sello "Verificado por RecyTrack", centrado en (x, centroArriba). */
+function sello(p: Pincel, x: number, centroArriba: number) {
+  const y = ALTO - centroArriba;
+  p.pagina.drawCircle({ x, y, size: 46, borderColor: MARCA.ambar, borderWidth: 1.4, borderDashArray: [3, 3] });
+  p.pagina.drawCircle({ x, y, size: 38, color: MARCA.ambarClaro });
+  p.pagina.drawSvgPath("M -7 0 L -2 5 L 8 -6", {
+    x,
+    y: y + 12,
+    borderColor: MARCA.ambarOscuro,
+    borderWidth: 2,
+  });
+  centradoEn(p, "VERIFICADO", x, centroArriba + 4, 7.5, { negrita: true, color: MARCA.ambarOscuro });
+  centradoEn(p, "por RecyTrack", x, centroArriba + 14, 6.5, { color: MARCA.ambarOscuro });
+}
+
 export async function generarCertificadoPdf(c: CertificadoMensual): Promise<Uint8Array> {
-  const { doc, normal, negrita, nuevaPagina } = await nuevoDocumento({
+  const { doc, normal, negrita, serif, nuevaPagina } = await nuevoDocumento({
     titulo: `Certificado RecyTrack ${c.codigo}`,
     asunto: `Certificado mensual de reciclaje, ${c.etiqueta}`,
   });
-
-  // ------------------------------------------------------------ página 1
-  let p = nuevaPagina();
   const titulo = c.etiqueta.charAt(0).toUpperCase() + c.etiqueta.slice(1);
 
-  franjaMarca(p);
+  // ================================================================ página 1: diploma
+  const p = nuevaPagina();
+  marco(p);
+  logo(p, (ANCHO - 46) / 2, 62, 46, MARCA.olivaHoja);
+  centrado(p, "CERTIFICADO MENSUAL DE RECICLAJE", 132, 9.5, { negrita: true, color: MARCA.ambarOscuro });
+  centrado(p, titulo, 152, 17, { serif: true, color: MARCA.vino });
 
-  centrado(p, "CERTIFICADO MENSUAL DE RECICLAJE", 148, 16, { negrita: true });
-  centrado(p, titulo, 168, 12, { negrita: true, color: VERDE });
+  centrado(p, "Se certifica que", 212, 10, { color: MARCA.tintaSuave });
+  centrado(p, c.nombre, 252, tamanoQueCabe(serif, c.nombre, 440, 38, 18), { serif: true, color: MARCA.vino });
+  centrado(p, c.area, 272, 10, { color: MARCA.tintaMedia });
 
-  centrado(p, "Se certifica que", 202, 10, { color: GRIS });
-  centrado(p, c.nombre, 226, 20, { negrita: true });
-  centrado(p, c.area, 244, 10, { color: GRIS });
-
-  centrado(p, "recicló de forma verificada", 274, 10, { color: GRIS });
-  const total = formatKg(c.kgCertificados);
-  centrado(p, tieneEstimados(c) ? `aprox. ${total}` : total, 310, 32, {
-    negrita: true,
-    color: VERDE,
-  });
+  centrado(p, "recicló de forma verificada", 306, 10, { color: MARCA.tintaSuave });
+  // El total, en grande: «aprox.» delante si hay kilos estimados por talla.
+  const numero = formatKg(c.kgCertificados).replace(" kg", "");
+  const prefijo = tieneEstimados(c) ? "aprox. " : "";
+  const anchoPrefijo = anchoTexto(p, prefijo, 18, { serif: true });
+  const anchoNumero = anchoTexto(p, numero, 64, { serif: true });
+  const anchoUnidad = anchoTexto(p, " kg", 26, { serif: true });
+  let x = (ANCHO - anchoPrefijo - anchoNumero - anchoUnidad) / 2;
+  if (prefijo) izquierda(p, prefijo, x, 370, 18, { serif: true, color: MARCA.oliva });
+  x += anchoPrefijo;
+  izquierda(p, numero, x, 370, 64, { serif: true, color: MARCA.oliva });
+  izquierda(p, " kg", x + anchoNumero, 370, 26, { serif: true, color: MARCA.oliva });
   centrado(
     p,
-    `en ${c.certificados.length} depósito${c.certificados.length === 1 ? "" : "s"} que completaron la cadena de verificación`,
-    328,
-    10,
-    { color: GRIS }
+    `en ${c.certificados.length} depósito${c.certificados.length === 1 ? "" : "s"} que completaron la cadena: registrados, validados en ronda y retirados`,
+    392,
+    8.5,
+    { color: MARCA.tintaSuave }
   );
-  centrado(
-    p,
-    c.porMaterial
-      .map((m) => `${m.material}: ${formatKg(m.kg)} (${m.depositos})`)
-      .join("   ·   "),
-    348,
-    9,
-    { negrita: true }
-  );
-
-  // Código del certificado
-  const cajaAncho = 260;
-  p.pagina.drawRectangle({
-    x: (ANCHO - cajaAncho) / 2,
-    y: ALTO - 418,
-    width: cajaAncho,
-    height: 50,
-    color: FONDO_FILA,
-    borderColor: GRIS_CLARO,
-    borderWidth: 1,
-  });
-  centrado(p, "CÓDIGO DEL CERTIFICADO", 385, 8, { color: GRIS });
-  centrado(p, c.codigo, 406, 18, { negrita: true });
-
   if (c.enCurso) {
-    centrado(
-      p,
-      `Mes en curso: este certificado se completa con cada retiro. Estado al ${fechaLarga(Date.now())}`,
-      436,
-      8.5,
-      { color: GRIS }
-    );
+    centrado(p, `Mes en curso: se completa con cada retiro. Estado al ${fechaLarga(Date.now())}.`, 406, 8, {
+      color: MARCA.ambarOscuro,
+    });
   }
 
-  // ------------------------------------------------------------ detalle
-  let arriba = 470;
-  izquierda(p, "DETALLE DE DEPÓSITOS DEL MES", MARGEN, arriba, 9, { negrita: true, color: GRIS });
+  // Un medallón por material, centrados.
+  const separacion = 112;
+  const primero = ANCHO / 2 - ((c.porMaterial.length - 1) * separacion) / 2;
+  c.porMaterial.forEach((m, i) => {
+    const centro = primero + i * separacion;
+    p.pagina.drawCircle({
+      x: centro,
+      y: ALTO - 470,
+      size: 25,
+      color: BLANCO,
+      borderColor: hex(colorMaterial(m.material)),
+      borderWidth: 1.8,
+    });
+    centradoEn(p, formatKg(m.kg).replace(" kg", ""), centro, 474, 13, { serif: true, color: MARCA.tinta });
+    centradoEn(p, m.material, centro, 510, 8, { negrita: true, color: MARCA.tintaMedia });
+    centradoEn(p, `${m.depositos} depósito${m.depositos === 1 ? "" : "s"}`, centro, 521, 7, { color: MARCA.tintaSuave });
+  });
+
+  // Código, abajo a la izquierda, y el sello a la derecha.
+  izquierda(p, "CÓDIGO DEL CERTIFICADO", 66, 690, 6.5, { negrita: true, color: MARCA.tintaSuave });
+  izquierda(p, c.codigo, 66, 712, 18, { serif: true, color: MARCA.vino });
+  izquierda(p, "El detalle de cada depósito, con su código", 66, 728, 7, { color: MARCA.tintaSuave });
+  izquierda(p, "y el de su retiro, está en la página 2.", 66, 738, 7, { color: MARCA.tintaSuave });
+  sello(p, ANCHO - 66 - 46, 700);
+
+  // ================================================================ detalle
+  let hoja = nuevaPagina();
+  let arriba = 0;
+  const cabecera = () => {
+    hoja.pagina.drawRectangle({ x: 0, y: ALTO - 40, width: ANCHO, height: 40, color: MARCA.vino });
+    logo(hoja, MARGEN, 8, 24);
+    izquierda(hoja, "Detalle de depósitos", MARGEN + 30, 25, 13, { serif: true, color: MARCA.vinoTexto });
+    derecha(hoja, `${c.nombre} · ${titulo} · ${c.codigo}`, ANCHO - MARGEN, 25, 8, { color: MARCA.vinoSuave });
+    arriba = 70;
+  };
+  cabecera();
   izquierda(
-    p,
+    hoja,
     "Fecha de cada etapa: depósito, validación en el punto limpio y retiro del contenedor.",
     MARGEN,
-    arriba + 13,
+    arriba,
     8,
-    { color: GRIS }
+    { color: MARCA.tintaSuave }
   );
-  arriba += 34;
-  encabezadoTabla(p, arriba);
+  arriba += 22;
+  encabezadoTabla(hoja, arriba);
   arriba += ALTO_FILA + 4;
 
   c.registros.forEach((r, i) => {
     if (arriba > LIMITE_INFERIOR) {
-      p = nuevaPagina();
-      izquierda(p, `RecyTrack · Certificado mensual · ${titulo} · ${c.codigo}`, MARGEN, 50, 9, {
-        negrita: true,
-        color: GRIS,
-      });
-      izquierda(p, `${c.nombre} · ${c.area}`, MARGEN, 63, 8.5, {
-        color: GRIS,
-      });
-      arriba = 92;
-      encabezadoTabla(p, arriba);
+      hoja = nuevaPagina();
+      cabecera();
+      encabezadoTabla(hoja, arriba);
       arriba += ALTO_FILA + 4;
     }
-    filaTabla(p, r, arriba, i % 2 === 0);
+    filaTabla(hoja, r, arriba, i % 2 === 0);
     arriba += ALTO_FILA;
   });
 
   piesDePagina(
     doc,
-    { normal, negrita },
+    { normal, negrita, serif },
     `Certificado ${c.codigo}`,
-    "Solo suman al total los depósitos certificados; en gris, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada."
+    "Solo suman al total los depósitos certificados; más tenues, los que siguen en proceso o fueron rechazados. \"aprox.\": kilos estimados según la talla declarada."
   );
 
   return doc.save();
