@@ -3,7 +3,7 @@
 // registra el retiro está en services/retiros.ts.
 
 import { leerFechaTermino } from "./incentivo";
-import type { Retiro } from "./tipos";
+import { MATERIALES, type Contenedor, type Registro, type Retiro } from "./tipos";
 
 const DIA = 24 * 60 * 60 * 1000;
 
@@ -70,4 +70,62 @@ export function retirosDelMes(
     .filter((r) => r.fecha >= desde && r.fecha <= ahora)
     .sort((a, b) => b.fecha - a.fecha)
     .map((r) => ({ ...r, verificado: r.pesoKg !== null }));
+}
+
+/** "A", "A y B", "A, B y C". */
+function enLista(partes: string[]): string {
+  if (partes.length <= 1) return partes.join("");
+  return `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
+}
+
+export interface DetalleRetiro {
+  /** "Casino y Bodega", o "Los 4 puntos" si pasó por todos los de la planta. */
+  puntos: string;
+  /** "Plástico, papel/cartón y metal", "Todos" o "—" si no se sabe. */
+  materiales: string;
+}
+
+/**
+ * De dónde salió y qué se llevó un retiro, para la tabla del panel. Los
+ * puntos salen de sus contenedores (también de los ya desactivados) y los
+ * materiales, de los depósitos que certificó: en un contenedor mixto el
+ * material lo declara cada persona.
+ */
+export function detalleRetiro(retiro: Retiro, contenedores: Contenedor[], registros: Registro[]): DetalleRetiro {
+  const puntoDe = new Map(contenedores.map((c) => [c.codigo, c.punto || "Sin punto"]));
+  const puntos = [...new Set(retiro.contenedores.map((codigo) => puntoDe.get(codigo) ?? "Sin punto"))];
+  const puntosPlanta = new Set(contenedores.filter((c) => c.activo).map((c) => c.punto));
+  const todosLosPuntos = puntos.length > 1 && puntos.length >= puntosPlanta.size && puntos.every((p) => puntosPlanta.has(p));
+
+  const llevados = new Set(registros.filter((r) => r.retiroId === retiro.id).map((r) => r.material));
+  const materiales = MATERIALES.map((m) => m.nombre).filter((m) => llevados.has(m));
+  let textoMateriales = "—";
+  if (materiales.length === MATERIALES.length) textoMateriales = "Todos";
+  else if (materiales.length > 0) {
+    const texto = enLista(materiales.map((m) => m.toLowerCase()));
+    textoMateriales = texto.charAt(0).toUpperCase() + texto.slice(1);
+  }
+
+  return {
+    puntos: todosLosPuntos ? `Los ${puntos.length} puntos` : enLista(puntos),
+    materiales: textoMateriales,
+  };
+}
+
+/**
+ * Quiénes han retirado antes, del más reciente al más antiguo y sin repetir,
+ * para elegirlos en el formulario sin volver a escribirlos.
+ */
+export function quienesRetiraron(retiros: Retiro[], maximo = 5): string[] {
+  const vistos = new Set<string>();
+  const nombres: string[] = [];
+  for (const r of [...retiros].sort((a, b) => b.fecha - a.fecha)) {
+    const nombre = r.quienRetira.trim();
+    const clave = nombre.toLowerCase();
+    if (!nombre || vistos.has(clave)) continue;
+    vistos.add(clave);
+    nombres.push(nombre);
+    if (nombres.length === maximo) break;
+  }
+  return nombres;
 }

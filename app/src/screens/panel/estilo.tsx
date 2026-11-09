@@ -266,6 +266,51 @@ export function CampoPanel({
   );
 }
 
+/**
+ * Campo de fecha con el calendario del navegador. El valor va como
+ * "2026-11-08", que es lo que entrega el navegador. Solo existe en la web,
+ * como el resto del panel.
+ */
+export function CampoFecha({
+  etiqueta,
+  valor,
+  alCambiar,
+  maximo,
+  className = "",
+}: {
+  etiqueta: string;
+  valor: string;
+  alCambiar: (valor: string) => void;
+  /** La última fecha que se puede elegir, en el mismo formato. */
+  maximo?: string;
+  className?: string;
+}) {
+  if (Platform.OS !== "web") return null;
+  return (
+    <View className={`mb-4 ${className}`}>
+      <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">{etiqueta}</Texto>
+      <input
+        type="date"
+        aria-label={etiqueta}
+        value={valor}
+        max={maximo}
+        onChange={(e) => alCambiar(e.target.value)}
+        style={{
+          height: 44,
+          boxSizing: "border-box",
+          padding: "0 12px",
+          background: "#F7F8F5",
+          border: "1px solid #CFD2CA",
+          borderRadius: 10,
+          color: "#221C20",
+          fontFamily: FUENTE.cuerpo,
+          fontSize: 14,
+        }}
+      />
+    </View>
+  );
+}
+
 /** Texto tocable para acciones secundarias dentro de una fila o tarjeta. */
 export function Enlace({
   texto,
