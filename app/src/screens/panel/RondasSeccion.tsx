@@ -34,6 +34,7 @@ const ASPECTO_DIA: Record<EstadoDia, { caja: string; texto: string; etiqueta: st
   enCurso: { caja: "bg-white border-ambar", texto: "text-ambar-oscuro", etiqueta: "Hoy, pendiente" },
   sinDepositos: { caja: "bg-piedra-linea border-piedra-linea", texto: "text-tinta-suave", etiqueta: "Sin depósitos" },
   finDeSemana: { caja: "bg-piedra-linea border-piedra-linea", texto: "text-tinta-suave", etiqueta: "Fin de semana" },
+  feriado: { caja: "bg-piedra-linea border-piedra-linea", texto: "text-tinta-suave", etiqueta: "Feriado" },
   futuro: { caja: "bg-white border-piedra-control", texto: "text-tinta-suave", etiqueta: "Próxima" },
 };
 
@@ -177,7 +178,7 @@ function Calendario({ dias, mes }: { dias: DiaRonda[]; mes: string }) {
           return (
             <View key={d.dia} style={{ width: `${100 / 7}%` }} className="p-1">
               <View
-                accessibilityLabel={`${new Date(d.dia).getDate()}: ${esHoy ? "hoy, " : ""}${aspecto.etiqueta}`}
+                accessibilityLabel={`${new Date(d.dia).getDate()}: ${esHoy ? "hoy, " : ""}${d.feriado ?? aspecto.etiqueta}`}
                 className={`h-11 rounded-[10px] border items-center justify-center ${aspecto.caja}`}
                 // Hoy lleva siempre el anillo ámbar, aunque la ronda ya esté hecha. Va en
                 // style y no en className: dos colores de borde en className chocan.
@@ -194,7 +195,7 @@ function Calendario({ dias, mes }: { dias: DiaRonda[]; mes: string }) {
           { caja: ASPECTO_DIA.completada.caja, texto: "Completada" },
           { caja: ASPECTO_DIA.noRealizada.caja, texto: "No realizada" },
           { caja: "bg-white border-ambar border-2", texto: "Hoy" },
-          { caja: ASPECTO_DIA.finDeSemana.caja, texto: "Sin ronda: fin de semana o sin depósitos" },
+          { caja: ASPECTO_DIA.finDeSemana.caja, texto: "Sin ronda: fin de semana, feriado o sin depósitos" },
         ].map((l) => (
           <View key={l.texto} className="flex-row items-center mr-4 mt-1">
             <View className={`w-3 h-3 rounded-[4px] border mr-1.5 ${l.caja}`} />
