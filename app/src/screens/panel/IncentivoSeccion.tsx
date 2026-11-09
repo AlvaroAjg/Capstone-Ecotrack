@@ -118,7 +118,7 @@ function TarjetaCampana({
             Áreas que llegan a la meta de {campana.metaParticipacion}%: que esa parte de su gente recicle al menos
             una vez en el mes.{" "}
             {faltan > 0
-              ? `Faltan ${faltan} persona${faltan === 1 ? "" : "s"} para que lleguen todas.`
+              ? `${faltan === 1 ? "Falta 1 persona" : `Faltan ${faltan} personas`} para que lleguen todas.`
               : "Todas llegan a la meta."}
           </Texto>
           <View className="h-2.5 bg-piedra-linea rounded-full overflow-hidden mt-2">
