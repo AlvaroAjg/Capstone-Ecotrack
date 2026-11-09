@@ -21,6 +21,7 @@ export function escucharResumen(
       mes: d.mes ?? mes,
       areas: d.areas ?? {},
       ultimoRegistro: d.ultimoRegistro ?? "",
+      ultimaSemana: d.ultimaSemana,
     });
   });
 }

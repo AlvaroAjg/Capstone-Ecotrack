@@ -13,7 +13,8 @@ import {
 import { mesDe } from "../lib/certificadoMensual";
 import { unirRegistros } from "../lib/derivados";
 import { db } from "../lib/firebase";
-import { idParticipacion, idResumen } from "../lib/resumenMes";
+import { gramosConTope, semanaDe } from "../lib/puntaje";
+import { idConstancia, idParticipacion, idResumen } from "../lib/resumenMes";
 import {
   kgEstimado,
   type Material,
@@ -128,13 +129,27 @@ export async function crearRegistro(
 
   const ahora = Date.now();
   const mes = mesDe(ahora);
+  const semana = semanaDe(ahora);
   const deposito = doc(collection(db, "registros"));
   const participacion = doc(db, "participaciones", idParticipacion(mes, usuario.id));
+  const constancia = doc(db, "constancias", idConstancia(mes, semana, usuario.id));
+  const kg = kgEstimado(material, talla);
 
   // Si ya existe, ya se le contó como participante este mes. Si dos depósitos
   // suyos llegaran a la vez, el segundo lote intentaría crearlo de nuevo y las
   // reglas lo rechazarían: basta con volver a intentarlo.
-  const primeroDelMes = !(await getDoc(participacion)).exists();
+  const [marcaMes, marcaSemana] = await Promise.all([getDoc(participacion), getDoc(constancia)]);
+  const primeroDelMes = !marcaMes.exists();
+  const primeroDeLaSemana = !marcaSemana.exists();
+  const gramosAntes = primeroDeLaSemana ? 0 : Number(marcaSemana.data()?.gramos ?? 0);
+  const gramos = gramosConTope(gramosAntes, kg);
+
+  const conteo: Record<string, unknown> = {
+    depositos: increment(1),
+    gramos: increment(gramos - gramosAntes),
+  };
+  if (primeroDelMes) conteo.participantes = increment(1);
+  if (primeroDeLaSemana) conteo.semanas = { [String(semana)]: increment(1) };
 
   const lote = writeBatch(db);
 
@@ -148,7 +163,7 @@ export async function crearRegistro(
     talla,
     // Los kilos salen de la tabla, nunca de lo que escriba el usuario: las
     // reglas de Firestore rechazan cualquier otro valor.
-    kgDeclarado: kgEstimado(material, talla),
+    kgDeclarado: kg,
     kgConfirmado: null,
     contenedor,
     estado: "pendiente",
@@ -168,12 +183,9 @@ export async function crearRegistro(
     {
       plantaId: usuario.plantaId,
       mes,
-      areas: {
-        [usuario.areaId]: primeroDelMes
-          ? { depositos: increment(1), participantes: increment(1) }
-          : { depositos: increment(1) },
-      },
+      areas: { [usuario.areaId]: conteo },
       ultimoRegistro: deposito.id,
+      ultimaSemana: semana,
     },
     { merge: true }
   );
@@ -181,6 +193,7 @@ export async function crearRegistro(
   if (primeroDelMes) {
     lote.set(participacion, { uid: usuario.id, mes });
   }
+  lote.set(constancia, { uid: usuario.id, mes, semana, gramos, ultimoRegistro: deposito.id });
 
   await lote.commit();
   return deposito.id;
