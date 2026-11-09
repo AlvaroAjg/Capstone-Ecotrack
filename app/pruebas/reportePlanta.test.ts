@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { mesesDelResumen, mesesReportables, reporteDePlanta } from "../src/lib/reportePlanta";
+import { indicadoresDelMes } from "../src/lib/resumenPanel";
 import type { Incidencia, Registro, Retiro } from "../src/lib/tipos";
 import {
   EMBOTELLADO,
@@ -245,5 +246,16 @@ describe("mesesDelResumen", () => {
 
   test("sin meses reportables, solo el último", () => {
     expect(mesesDelResumen([], "2026-12")).toEqual(["2026-12"]);
+  });
+});
+
+describe("reporteDePlanta, lo mismo que el Resumen", () => {
+  test("trae los indicadores, semanas y materiales del Resumen, solo de su planta", () => {
+    const propios = [validado({ validadoEn: fecha(2026, 9, 3) }), validado({ validadoEn: fecha(2026, 9, 10), material: "Vidrio" })];
+    const ajeno = validado({ plantaId: "otra", validadoEn: fecha(2026, 9, 3) });
+    const r = reporteDePlanta(PLANTA, AREAS, "2026-09", [...propios, ajeno], []);
+    expect(r.indicadores).toEqual(indicadoresDelMes(propios, [], "2026-09"));
+    expect(r.semanas.reduce((t, s) => t + s.validados, 0)).toBe(2);
+    expect(r.materialesEstimados.map((m) => m.material).sort()).toEqual(["Plástico", "Vidrio"]);
   });
 });

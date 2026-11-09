@@ -1,6 +1,7 @@
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Platform, Text, TextInput, TouchableOpacity, View } from "react-native";
 import type { EstadoRonda } from "../../lib/resumenPanel";
+import { etiquetaMes } from "../../lib/certificadoMensual";
 
 /**
  * Piezas visuales del panel del administrador, según su diseño: títulos con
@@ -247,19 +248,72 @@ export function Desplegable<T extends string | null>({
 /** Campo de formulario del panel: etiqueta arriba y caja de 44 px. */
 export function CampoPanel({
   etiqueta,
+  ayuda,
   className = "",
   style,
+  multiline,
   ...props
-}: React.ComponentProps<typeof TextInput> & { etiqueta: string }) {
+}: React.ComponentProps<typeof TextInput> & {
+  etiqueta: string;
+  /** Una línea bajo el campo que explica qué poner. */
+  ayuda?: string;
+}) {
   return (
     <View className={`mb-4 ${className}`}>
       <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">{etiqueta}</Texto>
       <TextInput
         placeholderTextColor="#8B8589"
         accessibilityLabel={etiqueta}
-        className="h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] text-tinta text-sm"
-        style={[{ fontFamily: FUENTE.cuerpo }, style]}
+        multiline={multiline}
+        className={`${multiline ? "min-h-[64px] py-2.5" : "h-11"} px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] text-tinta text-sm`}
+        style={[{ fontFamily: FUENTE.cuerpo, textAlignVertical: multiline ? "top" : "center" }, style]}
         {...props}
+      />
+      {ayuda ? <Texto className="text-tinta-suave text-xs mt-1">{ayuda}</Texto> : null}
+    </View>
+  );
+}
+
+/**
+ * Campo de fecha con el calendario del navegador. El valor va como
+ * "2026-11-08", que es lo que entrega el navegador. Solo existe en la web,
+ * como el resto del panel.
+ */
+export function CampoFecha({
+  etiqueta,
+  valor,
+  alCambiar,
+  maximo,
+  className = "",
+}: {
+  etiqueta: string;
+  valor: string;
+  alCambiar: (valor: string) => void;
+  /** La última fecha que se puede elegir, en el mismo formato. */
+  maximo?: string;
+  className?: string;
+}) {
+  if (Platform.OS !== "web") return null;
+  return (
+    <View className={`mb-4 ${className}`}>
+      <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">{etiqueta}</Texto>
+      <input
+        type="date"
+        aria-label={etiqueta}
+        value={valor}
+        max={maximo}
+        onChange={(e) => alCambiar(e.target.value)}
+        style={{
+          height: 44,
+          boxSizing: "border-box",
+          padding: "0 12px",
+          background: "#F7F8F5",
+          border: "1px solid #CFD2CA",
+          borderRadius: 10,
+          color: "#221C20",
+          fontFamily: FUENTE.cuerpo,
+          fontSize: 14,
+        }}
       />
     </View>
   );
@@ -306,13 +360,77 @@ export function Enlace({
 export const ESTADO_RONDA: Record<EstadoRonda, { texto: string; tono: Tono; icono: NombreIcono }> = {
   conforme: { texto: "Conforme", tono: "oliva", icono: "check" },
   observacion: { texto: "Con observación", tono: "ambar", icono: "alerta" },
-  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "alerta" },
+  sinMaterial: { texto: "Sin material", tono: "rojo", icono: "cerrar" },
   pendiente: { texto: "Pendiente", tono: "gris", icono: "reloj" },
   vacio: { texto: "Sin depósitos", tono: "gris", icono: "reloj" },
 };
 
 /** También lo usan las etiquetas QR impresas (lib/etiquetaQr.ts). */
 export { colorMaterial } from "../../lib/tipos";
+
+/** "2026-10" → "Octubre 2026", para el selector de meses. */
+export function mesLargo(mes: string): string {
+  const [nombre, , anio] = etiquetaMes(mes).split(" ");
+  return `${nombre.charAt(0).toUpperCase()}${nombre.slice(1)} ${anio}`;
+}
+
+/** Botón con el mes elegido que despliega los meses con actividad. */
+export function SelectorMes({
+  meses,
+  valor,
+  alCambiar,
+}: {
+  meses: string[];
+  valor: string;
+  alCambiar: (mes: string) => void;
+}) {
+  const [abierto, setAbierto] = useState(false);
+  const varios = meses.length > 1;
+
+  return (
+    <View className="relative">
+      <TouchableOpacity
+        onPress={() => setAbierto((v) => !v)}
+        disabled={!varios}
+        accessibilityRole="button"
+        accessibilityLabel={`Mes: ${mesLargo(valor)}`}
+        accessibilityState={{ expanded: abierto, disabled: !varios }}
+        className="h-11 flex-row items-center px-4 bg-white border border-piedra-control rounded-[10px]"
+      >
+        <Icono nombre="calendario" tamano={18} color="#221C20" />
+        <Texto className="text-tinta text-sm font-medium mx-2">{mesLargo(valor)}</Texto>
+        {varios ? <Icono nombre="abajo" tamano={16} color="#221C20" /> : null}
+      </TouchableOpacity>
+
+      {abierto ? (
+        <View
+          className="absolute right-0 top-[52px] w-[200px] bg-white rounded-2xl border border-piedra-borde py-1.5"
+          style={{ shadowColor: "#2B1424", shadowOpacity: 0.16, shadowRadius: 24, shadowOffset: { width: 0, height: 8 } }}
+        >
+          {meses.map((m) => {
+            const elegido = m === valor;
+            return (
+              <TouchableOpacity
+                key={m}
+                onPress={() => {
+                  alCambiar(m);
+                  setAbierto(false);
+                }}
+                accessibilityRole="button"
+                accessibilityState={{ selected: elegido }}
+                className={`px-4 py-2.5 ${elegido ? "bg-oliva-claro" : ""}`}
+              >
+                <Texto className={`text-sm ${elegido ? "text-oliva-oscuro font-bold" : "text-tinta"}`}>
+                  {mesLargo(m)}
+                </Texto>
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      ) : null}
+    </View>
+  );
+}
 
 /** Iniciales para el círculo de una persona: "Rosa Muñoz" → "RM". */
 export function iniciales(nombre: string): string {

@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { certificadoDelMes } from "../src/lib/certificadoMensual";
 import { generarCertificadoPdf } from "../src/lib/certificadoPdf.web";
 import { generarReportePdf } from "../src/lib/reportePdf.web";
+import { seguro } from "../src/lib/pdfComun";
 import { reporteDePlanta } from "../src/lib/reportePlanta";
 import type { Area, Retiro } from "../src/lib/tipos";
 import {
@@ -35,10 +36,10 @@ async function abrir(bytes: Uint8Array) {
 }
 
 describe("certificado mensual", () => {
-  test("una página con pocos depósitos", async () => {
+  test("con pocos depósitos: el diploma y una página de detalle", async () => {
     const c = certificadoDelMes([certificado({ creadoEn: fecha(2026, 9, 5) })], "2026-09", ANA)!;
     const pdf = await abrir(await generarCertificadoPdf(c));
-    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getPageCount()).toBe(2);
     expect(pdf.getTitle()).toBe(`Certificado RecyTrack ${c.codigo}`);
   });
 
@@ -53,9 +54,9 @@ describe("certificado mensual", () => {
 });
 
 describe("reporte mensual de la planta", () => {
-  test("se genera con un mes vacío", async () => {
+  test("se genera con un mes vacío: el tablero y una página de detalle", async () => {
     const pdf = await abrir(await generarReportePdf(reporteDePlanta(PLANTA, [EMBOTELLADO], "2026-09", [], [])));
-    expect(pdf.getPageCount()).toBe(1);
+    expect(pdf.getPageCount()).toBe(2);
     expect(pdf.getTitle()).toBe("Reporte RecyTrack Planta Piloto 2026-09");
   });
 
@@ -93,5 +94,15 @@ describe("reporte mensual de la planta", () => {
     const r = reporteDePlanta(PLANTA, areas, "2026-09", registros, incidencias, retiros);
     const pdf = await abrir(await generarReportePdf(r));
     expect(pdf.getPageCount()).toBeGreaterThan(1);
+  });
+});
+
+describe("seguro", () => {
+  test("guiones, comillas y puntos suspensivos tipográficos pasan a los simples", () => {
+    expect(seguro("1–4 oct — “Casino” … ‘a’")).toBe("1-4 oct - \"Casino\" ... 'a'");
+  });
+
+  test("tildes y eñes se conservan; lo que la fuente no tiene, no", () => {
+    expect(seguro("Ñuñoa, Fermentación ♻️")).toBe("Ñuñoa, Fermentación ??");
   });
 });

@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import {
   depositosPorPunto,
+  duracionPromedioRonda,
   indicadoresDelMes,
   inicioDeRonda,
   kilosPorMaterial,
@@ -76,7 +77,11 @@ describe("indicadoresDelMes", () => {
       registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 7) }),
       registro({ contenedor: "PLA111", estado: "rechazado", validadoEn: fecha(2026, 9, 7) }),
     ];
-    expect(indicadoresDelMes(registros, [], "2026-09")).toMatchObject({ lotesRevisados: 3, sinMaterial: 1 });
+    expect(indicadoresDelMes(registros, [], "2026-09")).toMatchObject({
+      lotesRevisados: 3,
+      sinMaterial: 1,
+      rechazados: 2,
+    });
   });
 });
 
@@ -94,11 +99,11 @@ describe("validadosPorSemana", () => {
     );
     // Septiembre de 2026 parte un martes.
     expect(semanas).toEqual([
-      { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false },
-      { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false },
-      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false },
-      { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true },
-      { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true },
+      { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false, feriados: [] },
+      { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false, feriados: [] },
+      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false, feriados: [] },
+      { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
+      { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
     ]);
   });
 });
@@ -180,6 +185,7 @@ describe("rondaPorPunto", () => {
     revisados: 0,
     pendientes: 0,
     revisadoEn: null,
+    contaminantes: [],
     ...cambios,
   });
 
@@ -190,9 +196,9 @@ describe("rondaPorPunto", () => {
       fila({ codigo: "C", punto: "Casino", estado: "vacio" }),
       fila({ codigo: "D", punto: "Patio", estado: "vacio" }),
     ]);
-    expect(puntos).toEqual([
-      { punto: "Bodega", estado: "conforme", contenedores: 1, pendientes: 0 },
-      { punto: "Casino", estado: "conforme", contenedores: 1, pendientes: 0 },
+    expect(puntos.map((p) => [p.punto, p.estado, p.contenedores, p.pendientes])).toEqual([
+      ["Bodega", "conforme", 1, 0],
+      ["Casino", "conforme", 1, 0],
     ]);
   });
 
@@ -215,6 +221,67 @@ describe("rondaPorPunto", () => {
 
   test("un contenedor sin punto se agrupa como Sin punto", () => {
     expect(rondaPorPunto([fila({ punto: "", estado: "pendiente" })])[0].punto).toBe("Sin punto");
+  });
+});
+
+describe("rondaPorPunto, detalle", () => {
+  const fila = (cambios: Partial<FilaRonda>): FilaRonda => ({
+    codigo: "K7QM9X",
+    nombre: "Contenedor mixto",
+    punto: "Casino",
+    estado: "conforme",
+    revisados: 0,
+    pendientes: 0,
+    revisadoEn: null,
+    contaminantes: [],
+    ...cambios,
+  });
+
+  test("suma lo revisado, toma la última hora y junta lo reportado sin repetir", () => {
+    const [casino] = rondaPorPunto([
+      fila({ codigo: "A", revisados: 3, revisadoEn: fecha(2026, 9, 16, 8), contaminantes: ["Vidrio"] }),
+      fila({ codigo: "B", estado: "observacion", revisados: 2, revisadoEn: fecha(2026, 9, 16, 9), contaminantes: ["Vidrio", "Metal"] }),
+    ]);
+    expect(casino).toMatchObject({ revisados: 5, revisadoEn: fecha(2026, 9, 16, 9), contaminantes: ["Vidrio", "Metal"] });
+  });
+});
+
+describe("rondaDeHoy, lo reportado", () => {
+  test("cada contenedor trae lo que se reportó en él hoy", () => {
+    const fila = rondaDeHoy(
+      [],
+      [
+        incidencia({ contenedor: "PLA111", contaminante: "Vidrio", reportadoEn: fecha(2026, 9, 16, 8) }),
+        incidencia({ contenedor: "PLA111", contaminante: "Metal", reportadoEn: fecha(2026, 9, 15, 8) }),
+      ],
+      [contenedor({ codigo: "PLA111" })]
+    )[0];
+    expect(fila.contaminantes).toEqual(["Vidrio"]);
+  });
+});
+
+describe("duracionPromedioRonda", () => {
+  test("null si en el mes no hubo rondas", () => {
+    expect(duracionPromedioRonda([registro()], [], "2026-09")).toBeNull();
+  });
+
+  test("promedia, por día, el tiempo entre la primera y la última revisión", () => {
+    const MIN = 60_000;
+    const registros = [
+      validado({ validadoEn: fecha(2026, 9, 14, 8) }),
+      validado({ validadoEn: fecha(2026, 9, 14, 8) + 4 * MIN }),
+      validado({ validadoEn: fecha(2026, 9, 15, 8) }),
+      registro({ estado: "rechazado", validadoEn: fecha(2026, 9, 15, 8) + 1 * MIN }),
+    ];
+    const incidencias = [incidencia({ reportadoEn: fecha(2026, 9, 15, 8) + 2 * MIN })];
+    // El 14: 4 min. El 15: 2 min (el reporte es lo último). Promedio: 3 min.
+    expect(duracionPromedioRonda(registros, incidencias, "2026-09")).toBe(3 * MIN);
+  });
+
+  test("solo cuenta el mes pedido", () => {
+    const registros = [validado({ validadoEn: fecha(2026, 8, 20, 8) }), validado({ validadoEn: fecha(2026, 8, 20, 9) })];
+    expect(duracionPromedioRonda(registros, [], "2026-09")).toBeNull();
+    expect(duracionPromedioRonda(registros, [], "2026-08")).toBe(60 * 60_000);
   });
 });
 
@@ -292,5 +359,23 @@ describe("depositosPorPunto", () => {
   test("un depósito en un contenedor que ya no existe va a Sin punto", () => {
     const registros = [validado({ contenedor: "NOEXISTE", validadoEn: fecha(2026, 9, 2) })];
     expect(depositosPorPunto(registros, CONTENEDORES, "2026-09")[0].punto).toBe("Sin punto");
+  });
+});
+
+describe("feriados en el Resumen", () => {
+  const ENERO = fecha(2027, 1, 5);
+
+  test("los días hábiles de diciembre no cuentan sus dos feriados", () => {
+    // Diciembre de 2026 tiene 23 días de lunes a viernes; el 8 y el 25 son feriados.
+    expect(indicadoresDelMes([], [], "2026-12", ENERO).diasHabiles).toBe(21);
+  });
+
+  test("cada semana trae los nombres de sus feriados", () => {
+    const semanas = validadosPorSemana([], "2026-12", ENERO);
+    const conFeriado = semanas.filter((s) => s.feriados.length > 0);
+    expect(conFeriado.map((s) => [s.etiqueta, s.feriados])).toEqual([
+      ["7–13 dic", ["Inmaculada Concepción"]],
+      ["21–27 dic", ["Navidad"]],
+    ]);
   });
 });
