@@ -101,7 +101,13 @@ describe("validadosPorSemana", () => {
     expect(semanas).toEqual([
       { etiqueta: "1–6 sep", validados: 2, enCurso: false, futura: false, feriados: [] },
       { etiqueta: "7–13 sep", validados: 0, enCurso: false, futura: false, feriados: [] },
-      { etiqueta: "14–20 sep", validados: 1, enCurso: true, futura: false, feriados: [] },
+      {
+        etiqueta: "14–20 sep",
+        validados: 1,
+        enCurso: true,
+        futura: false,
+        feriados: ["Independencia Nacional", "Glorias del Ejército"],
+      },
       { etiqueta: "21–27 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
       { etiqueta: "28–30 sep", validados: 0, enCurso: false, futura: true, feriados: [] },
     ]);
