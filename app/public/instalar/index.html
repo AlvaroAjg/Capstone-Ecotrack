@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Instala RecyTrack</title>
+  <meta name="theme-color" content="#2B1424">
+  <link rel="icon" href="/icons/icon-192.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Gloock&family=Hanken+Grotesk:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { min-height: 100vh; background: #2B1424; color: #F6EFF3; font-family: 'Hanken Grotesk', system-ui, sans-serif; }
+    main { max-width: 760px; margin: 0 auto; padding: 28px 18px 40px; }
+    .marca { display: flex; align-items: center; gap: 10px; font-family: Gloock, serif; font-size: 24px; }
+    .marca img { width: 34px; height: 34px; border-radius: 9px; }
+    .etiqueta { display: inline-block; margin-top: 26px; padding: 6px 14px; border-radius: 999px; background: rgba(169, 201, 143, .16); color: #CFE3BE; font-size: 13px; font-weight: 700; letter-spacing: 1.5px; }
+    h1 { font-family: Gloock, serif; font-weight: 400; font-size: clamp(32px, 8vw, 46px); line-height: 1.05; margin-top: 12px; }
+    p { color: #DCCDD6; font-size: 17px; line-height: 1.5; margin-top: 10px; }
+    video { width: 100%; margin-top: 22px; border-radius: 16px; background: #000; box-shadow: 0 18px 40px rgba(0, 0, 0, .45); }
+    .pasos { display: grid; gap: 12px; margin-top: 24px; }
+    .tarjeta { background: rgba(255, 255, 255, .06); border-radius: 16px; padding: 16px 18px; }
+    .tarjeta h2 { font-size: 18px; font-weight: 700; color: #fff; }
+    .tarjeta ol { margin: 10px 0 0 20px; color: #DCCDD6; font-size: 16px; line-height: 1.55; }
+    a.boton { display: block; margin-top: 22px; text-align: center; text-decoration: none; padding: 16px; border-radius: 14px; font-weight: 700; font-size: 17px; background: #8DB574; color: #2B1424; }
+    a.enlace { display: block; margin-top: 14px; text-align: center; color: #CFE3BE; font-size: 15px; }
+    footer { margin-top: 30px; font-size: 13px; color: #9A8191; text-align: center; }
+  </style>
+</head>
+<body>
+  <main>
+    <div class="marca"><img src="/icons/icon-192.png" alt="">RecyTrack</div>
+    <span class="etiqueta">INSTALACIÓN · 1 MINUTO</span>
+    <h1>Instala RecyTrack en tu celular</h1>
+    <p>No se descarga de ninguna tienda: se agrega desde el navegador y queda en tu pantalla de inicio.</p>
+    <video controls playsinline preload="metadata" poster="portada.jpg">
+      <source src="instalar.mp4" type="video/mp4">
+    </video>
+    <div class="pasos">
+      <div class="tarjeta">
+        <h2>iPhone (Safari)</h2>
+        <ol>
+          <li>Abre la app en Safari.</li>
+          <li>Toca Compartir (si no lo ves, está en el botón de los tres puntos).</li>
+          <li>Toca «Agregar a inicio» y después «Agregar».</li>
+        </ol>
+      </div>
+      <div class="tarjeta">
+        <h2>Android (Chrome)</h2>
+        <ol>
+          <li>Abre la app en Chrome.</li>
+          <li>Toca los tres puntos, arriba a la derecha.</li>
+          <li>Elige «Instalar aplicación» o «Agregar a la pantalla principal».</li>
+        </ol>
+      </div>
+    </div>
+    <a class="boton" href="/">Abrir RecyTrack</a>
+    <a class="enlace" href="/tutorial/">Ver cómo se usa (3 minutos)</a>
+    <footer>Piloto en las oficinas de Viñedos Familia Chadwick · Proyecto de título Duoc UC</footer>
+  </main>
+</body>
+</html>
