@@ -248,20 +248,28 @@ export function Desplegable<T extends string | null>({
 /** Campo de formulario del panel: etiqueta arriba y caja de 44 px. */
 export function CampoPanel({
   etiqueta,
+  ayuda,
   className = "",
   style,
+  multiline,
   ...props
-}: React.ComponentProps<typeof TextInput> & { etiqueta: string }) {
+}: React.ComponentProps<typeof TextInput> & {
+  etiqueta: string;
+  /** Una línea bajo el campo que explica qué poner. */
+  ayuda?: string;
+}) {
   return (
     <View className={`mb-4 ${className}`}>
       <Texto className="text-tinta-media text-[13px] font-semibold mb-1.5">{etiqueta}</Texto>
       <TextInput
         placeholderTextColor="#8B8589"
         accessibilityLabel={etiqueta}
-        className="h-11 px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] text-tinta text-sm"
-        style={[{ fontFamily: FUENTE.cuerpo }, style]}
+        multiline={multiline}
+        className={`${multiline ? "min-h-[64px] py-2.5" : "h-11"} px-3.5 bg-piedra-campo border border-piedra-control rounded-[10px] text-tinta text-sm`}
+        style={[{ fontFamily: FUENTE.cuerpo, textAlignVertical: multiline ? "top" : "center" }, style]}
         {...props}
       />
+      {ayuda ? <Texto className="text-tinta-suave text-xs mt-1">{ayuda}</Texto> : null}
     </View>
   );
 }

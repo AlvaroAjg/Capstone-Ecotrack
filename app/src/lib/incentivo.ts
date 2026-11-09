@@ -25,6 +25,19 @@ export function textoFecha(instante: number): string {
   return `${dos(f.getDate())}-${dos(f.getMonth() + 1)}-${f.getFullYear()}`;
 }
 
+/** «2026-11-08», el formato del calendario del navegador. */
+export function fechaIso(instante: number): string {
+  const f = new Date(instante);
+  const dos = (n: number) => String(n).padStart(2, "0");
+  return `${f.getFullYear()}-${dos(f.getMonth() + 1)}-${dos(f.getDate())}`;
+}
+
+/** «2026-11-08» → «08-11-2026», lo que leen validarCampana y validarRetiro. "" si no hay fecha. */
+export function isoATexto(iso: string): string {
+  const partes = iso.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return partes ? `${partes[3]}-${partes[2]}-${partes[1]}` : "";
+}
+
 export interface DatosCampana {
   nombre: string;
   metaParticipacion: number;
@@ -81,4 +94,16 @@ export function avanceAreas(meta: number, ranking: FilaRanking[]): AvanceArea[] 
       cumple: faltan === 0,
     };
   });
+}
+
+/**
+ * Cuántas personas más tendrían que reciclar en el mes para que todas las
+ * áreas lleguen a la meta: en cada área, las que le faltan para llegar al %
+ * de su dotación. Las áreas que ya llegaron no suman.
+ */
+export function personasQueFaltan(meta: number, ranking: FilaRanking[]): number {
+  return ranking.reduce(
+    (total, f) => total + Math.max(0, Math.ceil((meta * f.dotacion) / 100) - f.participantes),
+    0
+  );
 }

@@ -1,6 +1,14 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { rankingDeAreas } from "../src/lib/derivados";
-import { avanceAreas, leerFechaTermino, textoFecha, validarCampana } from "../src/lib/incentivo";
+import {
+  avanceAreas,
+  fechaIso,
+  isoATexto,
+  leerFechaTermino,
+  personasQueFaltan,
+  textoFecha,
+  validarCampana,
+} from "../src/lib/incentivo";
 import { EMBOTELLADO, FERMENTACION, fecha, fijarAhora, resumen } from "./fabrica";
 
 beforeEach(() => {
@@ -77,5 +85,32 @@ describe("avanceAreas", () => {
       { areaId: "fermentacion", nombre: "Fermentación", participacion: 70, faltan: 0, cumple: true },
       { areaId: "embotellado", nombre: "Embotellado", participacion: 30, faltan: 20, cumple: false },
     ]);
+  });
+});
+
+describe("fechas del calendario", () => {
+  test("fechaIso y isoATexto van y vuelven", () => {
+    expect(fechaIso(new Date(2026, 10, 8, 15).getTime())).toBe("2026-11-08");
+    expect(isoATexto("2026-11-08")).toBe("08-11-2026");
+    expect(leerFechaTermino(isoATexto("2026-11-08"))).not.toBeNull();
+  });
+
+  test("sin fecha o mal escrita, isoATexto queda vacío", () => {
+    expect(isoATexto("")).toBe("");
+    expect(isoATexto("8-11-2026")).toBe("");
+  });
+});
+
+describe("personasQueFaltan", () => {
+  const area = (dotacion: number, participantes: number) =>
+    ({ areaId: "a", nombre: "A", dotacion, participantes, depositos: 0, participacion: 0, esMiArea: false });
+
+  test("suma lo que le falta a cada área para llegar a su meta", () => {
+    // 60 % de 20 son 12 (faltan 7); 60 % de 8 son 4,8 → 5 (falta 1).
+    expect(personasQueFaltan(60, [area(20, 5), area(8, 4)])).toBe(8);
+  });
+
+  test("las áreas que ya llegaron no suman", () => {
+    expect(personasQueFaltan(50, [area(10, 7), area(4, 1)])).toBe(1);
   });
 });
