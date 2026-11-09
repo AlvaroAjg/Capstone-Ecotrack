@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -55,6 +56,8 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [conectando, setConectando] = useState<ProveedorExterno | null>(null);
+  // Enter en el correo pasa a la contraseña; en la contraseña, entra.
+  const campoPassword = useRef<TextInput>(null);
 
   async function handleLogin() {
     const nuevosErrores: typeof errores = {};
@@ -157,9 +160,14 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoPassword.current?.focus()}
             />
 
             <Campo
+              ref={campoPassword}
               etiqueta="Contraseña"
               placeholder="••••••••"
               secureTextEntry
@@ -167,6 +175,9 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               onChangeText={setPassword}
               onFocus={() => setErrores((e) => ({ ...e, password: undefined }))}
               error={errores.password}
+              autoComplete="current-password"
+              returnKeyType="go"
+              onSubmitEditing={() => !cargando && handleLogin()}
             />
 
             <Boton

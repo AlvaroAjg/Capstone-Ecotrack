@@ -350,13 +350,11 @@ function Ojo({ tachado }: { tachado: boolean }) {
   );
 }
 
-export function Campo({
-  etiqueta,
-  error,
-  className = "",
-  secureTextEntry,
-  ...props
-}: React.ComponentProps<typeof TextInput> & { etiqueta: string; error?: string }) {
+// Recibe una ref para que un formulario pase al campo siguiente con Enter.
+export const Campo = React.forwardRef<
+  TextInput,
+  React.ComponentProps<typeof TextInput> & { etiqueta: string; error?: string }
+>(function Campo({ etiqueta, error, className = "", secureTextEntry, ...props }, ref) {
   // Las contraseñas llevan un ojo para mostrarlas: así se revisa lo escrito
   // antes de enviarlo, sobre todo en el teléfono, donde es fácil equivocarse.
   const [visible, setVisible] = useState(false);
@@ -367,6 +365,7 @@ export function Campo({
       <Text className="text-gray-500 text-xs mb-1 ml-1">{etiqueta}</Text>
       <View className="justify-center">
         <TextInput
+          ref={ref}
           placeholderTextColor="#B0B0B0"
           accessibilityLabel={etiqueta}
           secureTextEntry={esContrasena && !visible}
@@ -390,7 +389,7 @@ export function Campo({
       {error ? <Text className="text-red-500 text-xs mt-1 ml-1">{error}</Text> : null}
     </View>
   );
-}
+});
 
 export function Segmentado<T extends string>({
   opciones,
