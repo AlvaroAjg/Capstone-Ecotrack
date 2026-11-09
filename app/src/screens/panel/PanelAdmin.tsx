@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
+import { Platform, ScrollView, TouchableOpacity, View, useWindowDimensions } from "react-native";
 import { useEcoTrack, type Usuario } from "../../state/EcoTrack";
 import ContenedoresSeccion from "./ContenedoresSeccion";
 import PersonasSeccion from "./PersonasSeccion";
@@ -14,7 +14,7 @@ import { escucharPersonas } from "../../services/personas";
 import { useNavegacionWeb } from "../../state/historial";
 import { direccion, opcionGuardada } from "../../lib/navegacion";
 import { avanceAreas } from "../../lib/incentivo";
-import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales } from "./estilo";
+import { ESTADO_RONDA, Icono, Insignia, Logo, Texto, Titulo, iniciales, useDesplegable } from "./estilo";
 
 export type SeccionPanel =
   | "resumen"
@@ -68,6 +68,18 @@ export default function PanelAdmin() {
   );
   const { width } = useWindowDimensions();
   const amplio = width >= ANCHO_AMPLIO;
+
+  // El título de la pestaña dice la sección, para distinguirlas en el
+  // historial del navegador y entre pestañas abiertas. Al salir del panel
+  // vuelve a ser "RecyTrack".
+  useEffect(() => {
+    if (Platform.OS !== "web") return;
+    const etiqueta = SECCIONES.find((s) => s.id === seccion)?.etiqueta;
+    document.title = etiqueta ? `${etiqueta} · RecyTrack` : "RecyTrack";
+    return () => {
+      document.title = "RecyTrack";
+    };
+  }, [seccion]);
 
   // El panel necesita la pantalla completa del computador, no el ancho de un teléfono.
   usePantallaCompleta();
@@ -178,11 +190,11 @@ function BarraSuperior({
 /** El círculo con las iniciales del administrador: abre su nombre y Cerrar sesión. */
 function MenuCuenta() {
   const { usuario, miPlanta, cerrarSesion } = useEcoTrack();
-  const [abierto, setAbierto] = useState(false);
+  const { abierto, setAbierto, ref } = useDesplegable();
   const nombre = usuario?.nombre || "Administrador";
 
   return (
-    <View className="relative ml-2.5">
+    <View ref={ref} className="relative ml-2.5">
       <TouchableOpacity
         onPress={() => setAbierto((v) => !v)}
         accessibilityRole="button"

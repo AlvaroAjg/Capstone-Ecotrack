@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -33,6 +34,9 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
   const [errores, setErrores] = useState<Errores>({});
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
+  // Enter pasa al campo siguiente; en la contraseña, continúa.
+  const campoEmail = useRef<TextInput>(null);
+  const campoPassword = useRef<TextInput>(null);
 
   async function handleRegistrar() {
     const nuevosErrores: Errores = {};
@@ -101,8 +105,14 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
               onChangeText={setNombre}
               onFocus={limpiar("nombre")}
               error={errores.nombre}
+              autoComplete="name"
+              autoCapitalize="words"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoEmail.current?.focus()}
             />
             <Campo
+              ref={campoEmail}
               etiqueta="Correo electrónico"
               placeholder="tucorreo@ejemplo.com"
               value={email}
@@ -112,8 +122,13 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoPassword.current?.focus()}
             />
             <Campo
+              ref={campoPassword}
               etiqueta="Contraseña"
               placeholder="Mínimo 6 caracteres"
               secureTextEntry
@@ -121,6 +136,9 @@ export default function RegisterScreen({ alVolver }: { alVolver: () => void }) {
               onChangeText={setPassword}
               onFocus={limpiar("password")}
               error={errores.password}
+              autoComplete="new-password"
+              returnKeyType="go"
+              onSubmitEditing={() => !cargando && handleRegistrar()}
             />
 
             <Boton

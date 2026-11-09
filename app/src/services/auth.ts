@@ -337,33 +337,5 @@ export async function cambiarContrasena(actual: string, nueva: string): Promise<
   await updatePassword(usuario, nueva);
 }
 
-const MENSAJES: Record<string, string> = {
-  "auth/invalid-email": "El correo no tiene un formato válido.",
-  "auth/user-not-found": "Correo o contraseña incorrectos.",
-  "auth/wrong-password": "Correo o contraseña incorrectos.",
-  "auth/invalid-credential": "Correo o contraseña incorrectos.",
-  "auth/email-already-in-use": "Ese correo ya tiene una cuenta en RecyTrack.",
-  "auth/weak-password": "La contraseña debe tener al menos 6 caracteres.",
-  "auth/network-request-failed": "Sin conexión. Revisa tu internet e intenta de nuevo.",
-  "auth/too-many-requests": "Demasiados intentos. Espera un momento y vuelve a intentarlo.",
-  "auth/unauthorized-continue-uri":
-    "Este sitio no está autorizado para enviar el correo de verificación. Agrégalo en Firebase → Authentication → Settings → Authorized domains.",
-  "auth/operation-not-allowed":
-    "Ese método de inicio de sesión no está habilitado en la consola de Firebase.",
-  "auth/popup-closed-by-user": "Cerraste la ventana de inicio de sesión antes de terminar.",
-  "auth/cancelled-popup-request": "Cerraste la ventana de inicio de sesión antes de terminar.",
-  "auth/unauthorized-domain":
-    "Este sitio no está autorizado para iniciar sesión con Google o Microsoft. Agrégalo en Firebase → Authentication → Settings → Authorized domains.",
-  "auth/account-exists-with-different-credential":
-    "Ese correo ya tiene una cuenta en RecyTrack. Entra de la misma forma que la primera vez (con tu contraseña, Google o Microsoft).",
-  "permission-denied": "No tienes permiso para realizar esta acción.",
-  unavailable: "No se pudo contactar a Firestore. Revisa tu conexión.",
-};
-
-/** Traduce un error de Firebase a un mensaje legible en español. */
-export function mensajeError(error: unknown): string {
-  const codigo = (error as { code?: string })?.code ?? "";
-  if (MENSAJES[codigo]) return MENSAJES[codigo];
-  if (error instanceof Error && error.message) return error.message;
-  return "No pudimos completar la operación. Intenta de nuevo.";
-}
+// La tabla de mensajes vive en lib/errores.ts: el panel la usa también.
+export { mensajeError } from "../lib/errores";

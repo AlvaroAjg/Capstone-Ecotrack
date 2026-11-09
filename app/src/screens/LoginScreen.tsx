@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
+  TextInput,
   TouchableOpacity,
   View,
 } from "react-native";
@@ -55,6 +56,8 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
   const [errorGeneral, setErrorGeneral] = useState<string | null>(null);
   const [cargando, setCargando] = useState(false);
   const [conectando, setConectando] = useState<ProveedorExterno | null>(null);
+  // Enter en el correo pasa a la contraseña; en la contraseña, entra.
+  const campoPassword = useRef<TextInput>(null);
 
   async function handleLogin() {
     const nuevosErrores: typeof errores = {};
@@ -105,7 +108,9 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
       colors={["#0F3D24", "#1E6B3C", "#2F9E5B"]}
       start={{ x: 0, y: 0 }}
       end={{ x: 1, y: 1 }}
-      style={{ flex: 1 }}
+      // Los círculos de adorno sobresalen del borde: sin recortarlos, en el
+      // teléfono la página se podía arrastrar hacia el lado.
+      style={{ flex: 1, overflow: "hidden" }}
     >
       <View className="absolute w-40 h-40 rounded-full bg-white/10 -top-10 -right-10" />
       <View className="absolute w-24 h-24 rounded-full bg-white/10 top-24 -left-8" />
@@ -157,9 +162,14 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
+              autoComplete="email"
+              returnKeyType="next"
+              submitBehavior="submit"
+              onSubmitEditing={() => campoPassword.current?.focus()}
             />
 
             <Campo
+              ref={campoPassword}
               etiqueta="Contraseña"
               placeholder="••••••••"
               secureTextEntry
@@ -167,6 +177,9 @@ export default function LoginScreen({ alRegistrarse }: { alRegistrarse: () => vo
               onChangeText={setPassword}
               onFocus={() => setErrores((e) => ({ ...e, password: undefined }))}
               error={errores.password}
+              autoComplete="current-password"
+              returnKeyType="go"
+              onSubmitEditing={() => !cargando && handleLogin()}
             />
 
             <Boton

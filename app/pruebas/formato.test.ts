@@ -5,6 +5,7 @@ import {
   esDeHoy,
   esDelMesActual,
   fechaCorta,
+  fechaLarga,
   formatDuracion,
   formatKg,
   generarCodigoRetiro,
@@ -89,6 +90,11 @@ describe("fechas", () => {
   test("fechaCorta", () => {
     expect(fechaCorta(new Date(2026, 8, 3, 9, 5).getTime())).toBe("03/09 09:05");
     expect(fechaCorta(null)).toBe("-");
+  });
+
+  test("fechaLarga usa 24 horas", () => {
+    expect(fechaLarga(new Date(2026, 8, 3, 9, 5).getTime())).toBe("3 de septiembre de 2026, 09:05");
+    expect(fechaLarga(new Date(2026, 8, 3, 21, 40).getTime())).toBe("3 de septiembre de 2026, 21:40");
   });
 });
 

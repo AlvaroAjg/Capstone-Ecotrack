@@ -6,6 +6,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { EcoTrackProvider, useEcoTrack, type Rol } from "./src/state/EcoTrack";
 import { BarraInferior, PantallaCargando, usePantallaCompleta } from "./src/components/ui";
 import BannerAvisos from "./src/components/BannerAvisos";
+import Dialogos from "./src/components/Dialogos";
 import LoginScreen from "./src/screens/LoginScreen";
 import RegisterScreen from "./src/screens/RegisterScreen";
 import UnirseAreaScreen from "./src/screens/UnirseAreaScreen";
@@ -245,6 +246,7 @@ export default function App() {
       <EcoTrackProvider>
         <StatusBar style="light" />
         <Raiz />
+        <Dialogos />
       </EcoTrackProvider>
     </SafeAreaProvider>
   );

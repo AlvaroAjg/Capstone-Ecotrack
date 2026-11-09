@@ -3,7 +3,7 @@ import { TouchableOpacity, View } from "react-native";
 import { useEcoTrack } from "../../state/EcoTrack";
 import { esNuevo } from "../../lib/avisos";
 import { tiempoRelativo } from "../../lib/formato";
-import { Icono, Texto } from "./estilo";
+import { Icono, Texto, useDesplegable } from "./estilo";
 
 /**
  * Campana de la barra del panel. Abre una lista con los avisos del
@@ -13,7 +13,7 @@ import { Icono, Texto } from "./estilo";
  */
 export default function CampanaPanel() {
   const { usuario, avisos, avisosNuevos, marcarAvisosVistos } = useEcoTrack();
-  const [abierta, setAbierta] = useState(false);
+  const { abierto: abierta, setAbierto: setAbierta, ref } = useDesplegable();
   // Se fija al abrir: marcar como vistos cambia el perfil en vivo, y sin esto
   // los nuevos dejarían de destacarse apenas se abre la lista.
   const [vistosAlAbrir, setVistosAlAbrir] = useState(0);
@@ -27,7 +27,7 @@ export default function CampanaPanel() {
   }
 
   return (
-    <View className="relative">
+    <View ref={ref} className="relative">
       <TouchableOpacity
         onPress={alternar}
         accessibilityRole="button"
