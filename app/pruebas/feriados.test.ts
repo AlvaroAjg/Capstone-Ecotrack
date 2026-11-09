@@ -20,6 +20,12 @@ describe("esDiaHabil", () => {
     expect(esDiaHabil(fecha(2026, 12, 25))).toBe(false); // viernes feriado
   });
 
+  test("los feriados que ya pasaron en el año tampoco son hábiles", () => {
+    expect(esDiaHabil(fecha(2026, 9, 17))).toBe(true);
+    expect(esDiaHabil(fecha(2026, 9, 18))).toBe(false);
+    expect(esDiaHabil(fecha(2026, 10, 12))).toBe(false);
+  });
+
   test("el fin de semana no es hábil", () => {
     expect(esDiaHabil(fecha(2026, 12, 5))).toBe(false); // sábado
     expect(esDiaHabil(fecha(2026, 12, 6))).toBe(false); // domingo

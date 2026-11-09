@@ -2,6 +2,7 @@
 // campaña y ver cómo va cada área frente a la meta. Son funciones puras para
 // poder probarlas.
 
+import { porcentaje } from "./formato";
 import type { FilaRanking } from "./tipos";
 
 /**
@@ -102,8 +103,11 @@ export function avanceAreas(meta: number, ranking: FilaRanking[]): AvanceArea[] 
  * de su dotación. Las áreas que ya llegaron no suman.
  */
 export function personasQueFaltan(meta: number, ranking: FilaRanking[]): number {
-  return ranking.reduce(
-    (total, f) => total + Math.max(0, Math.ceil((meta * f.dotacion) / 100) - f.participantes),
-    0
-  );
+  return ranking.reduce((total, f) => total + faltanEnElArea(meta, f), 0);
+}
+
+function faltanEnElArea(meta: number, { participantes, dotacion }: FilaRanking): number {
+  let faltan = 0;
+  while (participantes + faltan < dotacion && porcentaje(participantes + faltan, dotacion) < meta) faltan++;
+  return faltan;
 }
