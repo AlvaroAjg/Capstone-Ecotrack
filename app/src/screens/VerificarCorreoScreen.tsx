@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ScrollView, Text, View } from "react-native";
+import React, { useEffect, useState } from "react";
+import { AppState, ScrollView, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useEcoTrack } from "../state/EcoTrack";
 import { mensajeError } from "../services/auth";
@@ -16,6 +16,16 @@ export default function VerificarCorreoScreen() {
   const [reenviando, setReenviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [mensaje, setMensaje] = useState<string | null>(null);
+
+  // Lo normal es abrir el enlace en otra pestaña o en la app de correo y
+  // volver: al volver se comprueba solo, sin tener que tocar el botón. Si
+  // todavía no se confirma, no se muestra nada.
+  useEffect(() => {
+    const suscripcion = AppState.addEventListener("change", (estado) => {
+      if (estado === "active") comprobarVerificacion().catch(() => undefined);
+    });
+    return () => suscripcion.remove();
+  }, [comprobarVerificacion]);
 
   async function handleComprobar() {
     setComprobando(true);
