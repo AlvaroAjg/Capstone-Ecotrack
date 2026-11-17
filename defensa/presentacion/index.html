@@ -1,0 +1,1379 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecyTrack · Defensa de título</title>
+<!--
+  Copia de la presentación de la defensa para mostrarla dentro de la página de
+  demostración (../index.html). Las diapositivas vienen del mazo hecho en Claude,
+  sin las notas del orador. Si el mazo cambia, esta copia hay que regenerarla.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400..700&display=swap">
+<style>
+  html, body { margin: 0; height: 100%; background: #0b1f14; overflow: hidden; }
+  #escenario {
+    position: absolute; top: 0; left: 0;
+    width: 1920px; height: 1080px;
+    transform-origin: top left;
+    overflow: hidden;
+  }
+
+  /* Base del formato de diapositivas: lienzo fijo de 1920×1080 y sin márgenes
+     del navegador, para que las posiciones absolutas caigan donde se diseñaron. */
+  section {
+    position: absolute; inset: 0;
+    width: 1920px; height: 1080px;
+    box-sizing: border-box;
+    overflow: hidden;
+    color: #13211a;
+    font-family: 'DM Sans', Arial, sans-serif;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity .35s ease, visibility 0s linear .35s;
+  }
+  section.actual { opacity: 1; visibility: visible; transition: opacity .35s ease; }
+  section *, section *::before, section *::after { box-sizing: border-box; margin: 0; }
+  section img { display: block; }
+  section table { border-collapse: collapse; }
+  section th { text-align: left; font-weight: 700; }
+  section hr { border: 0; }
+  section b { font-weight: 700; }
+
+  x-shape { display: block; flex-shrink: 0; }
+  x-shape[kind="rounded"] { border-radius: 16px; }
+  x-shape[kind="ellipse"] { border-radius: 50%; }
+  x-shape[kind="diamond"] { clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+  x-shape[kind="arrow-right"] { clip-path: polygon(0 30%, 60% 30%, 60% 0, 100% 50%, 60% 100%, 60% 70%, 0 70%); }
+  x-shape[kind="arrow-left"] { clip-path: polygon(100% 30%, 40% 30%, 40% 0, 0 50%, 40% 100%, 40% 70%, 100% 70%); }
+  x-shape[kind="arrow-up"] { clip-path: polygon(30% 100%, 30% 40%, 0 40%, 50% 0, 100% 40%, 70% 40%, 70% 100%); }
+  x-shape[kind="arrow-down"] { clip-path: polygon(30% 0, 30% 60%, 0 60%, 50% 100%, 100% 60%, 70% 60%, 70% 0); }
+  x-icon { display: inline-block; flex-shrink: 0; }
+  x-icon svg { width: 100%; height: 100%; display: block; }
+
+  /* Pasos que aparecen con cada clic (data-build-in). */
+  [data-build-in] { transition: opacity .45s ease, translate .45s ease, scale .45s ease; }
+  [data-build-in].oculto { opacity: 0; }
+  [data-build-in^="rise"].oculto { translate: 0 60px; }
+  [data-build-in^="pop"].oculto { scale: .6; }
+
+  /* Lupa para los diagramas: se abren a pantalla completa con zoom y arrastre. */
+  section img.ampliable { cursor: zoom-in; }
+  #lupa {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; overflow: hidden;
+    background: #0b1f14f2;
+    cursor: grab; touch-action: none;
+  }
+  #lupa.abierta { display: block; }
+  #lupa.arrastrando { cursor: grabbing; }
+  #lupa img {
+    position: absolute; top: 0; left: 0;
+    max-width: none; transform-origin: 0 0;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 20px 60px #0008;
+    user-select: none; -webkit-user-drag: none;
+  }
+  #lupa button {
+    position: fixed; top: 14px; right: 14px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 0; background: #ffffffe0; color: #13211a;
+    font: 700 20px system-ui, sans-serif; cursor: pointer;
+  }
+  #lupa .ayuda {
+    position: fixed; left: 50%; bottom: 14px; translate: -50% 0;
+    font: 500 13px system-ui, sans-serif; color: #e8f3ec;
+    background: #00000080; padding: 6px 14px; border-radius: 999px;
+    pointer-events: none; white-space: nowrap;
+  }
+
+  #contador {
+    position: fixed; right: 12px; bottom: 10px;
+    font: 600 12px system-ui, sans-serif; color: #ffffff80;
+    background: #00000040; padding: 3px 8px; border-radius: 6px;
+    pointer-events: none; opacity: 0; transition: opacity .3s;
+  }
+  body:hover #contador { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="escenario">
+<section id="portada" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:128px;display:flex;flex-direction:column;justify-content:center">
+<div style="position:absolute;left:1100px;top:0px;width:820px;height:1080px;background:#10291C"></div>
+<div style="position:absolute;left:1340px;top:-160px;width:640px;height:640px;border-radius:320px;background:#163B27"></div>
+<img src="img/8b61ae0eef6e0eb88330c2802539300e.png" alt="Panel web del administrador de RecyTrack: resumen del mes con participación, depósitos validados, kilos estimados y rondas" style="position:absolute;left:1190px;top:250px;width:680px;height:507px;object-fit:cover;border-radius:16px;box-shadow:0 30px 60px rgba(4,14,8,0.45)">
+<div data-build-in="rise" style="position:absolute;left:1036px;top:470px;width:260px;height:548px;display:flex;flex-direction:column;background:#050806;border-radius:40px;padding:10px;box-shadow:0 30px 60px rgba(4,14,8,0.5)">
+<img src="img/5ddbe3e60d8bb041498b9504203cc9cf.png" alt="App RecyTrack en el celular: el colaborador elige la talla de la bolsa" style="width:240px;height:528px;object-fit:cover;border-radius:32px">
+</div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:128px;top:88px;width:320px;height:80px;object-fit:contain">
+<div style="width:860px;display:flex;flex-direction:column;gap:28px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PRESENTACIÓN FINAL CAPSTONE · APT122</p></div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:28px">
+<svg width="120" height="120" viewBox="0 0 64 64" aria-label="Logo de RecyTrack: flechas de reciclaje alrededor de una hoja"><path d="M 11.2 20 A 24 24 0 0 1 56 30" fill="none" stroke="#1B7F45" stroke-width="6" stroke-linecap="round"/><polygon points="50,28 62,28 56,39" fill="#1B7F45"/><path d="M 52.8 44 A 24 24 0 0 1 8 34" fill="none" stroke="#1B7F45" stroke-width="6" stroke-linecap="round"/><polygon points="2,36 14,36 8,25" fill="#1B7F45"/><path d="M 22 42 C 22 30 30 22 42 22 C 42 34 34 42 22 42 Z" fill="#10291C"/></svg>
+<h1 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:136px;font-weight:800;line-height:1;letter-spacing:-4px;color:#10291C">Recy<span style="color:#1B7F45">Track</span></h1>
+</div>
+<p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:44px;font-weight:600;line-height:1.2;color:#13211A">Trazabilidad del reciclaje colectivo con incentivos verificables</p>
+<p style="font-size:28px;line-height:1.4;color:#4E5D54">Para cualquier espacio compartido · validado en un piloto real</p>
+</div>
+<div style="position:absolute;left:128px;bottom:96px;width:880px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #1B7F45;padding:4px 0 4px 24px">
+<p style="font-size:28px;font-weight:700;color:#13211A">Álvaro Jaña · Matías Bustamante · Vicente Torres</p>
+<p style="font-size:24px;color:#4E5D54">Ingeniería en Informática · Sede Antonio Varas · 2026</p>
+</div>
+
+</section>
+
+<section id="integrantes" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · INTEGRANTES</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-v9ut6d" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">02</p>
+  </div>
+  <h2 id="pd62ffcd7c209r0-50fbabd6" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Integrantes del proyecto</h2>
+  <div id="pd62ffcd7c209r1_0-50fbabd6" style="position:absolute; top:323.75px; left:128px; width:534px; height:432px; display:flex; flex-direction:column; gap:20px; padding:40px; background:#ffffff; border:1px solid #dce3da; border-radius:24px">
+    <div style="width:112px; height:112px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:56px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; color:#f7f8f4">ÁJ</p>
+    </div>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:40px; font-weight:700; line-height:1.1; color:#13211a">Álvaro Jaña</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">DESARROLLO FULLSTACK</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">App en React Native, vistas del colaborador y del validador, panel web, integración con Firebase y despliegue.</p>
+  </div>
+  <div id="pd62ffcd7c209r1_1-50fbabd6" style="position:absolute; top:50%; left:50%; width:534px; height:432px; display:flex; flex-direction:column; gap:20px; padding:40px; background:#ffffff; border:1px solid #dce3da; border-radius:24px; transform:translate(-50%, -50%)">
+    <div style="width:112px; height:112px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#10291c; border-radius:56px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; color:#a6e27a">MB</p>
+    </div>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:40px; font-weight:700; line-height:1.1; color:#13211a">Matías Bustamante</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">SCRUM MASTER</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">Product Backlog y requisitos, ceremonias, plan de pruebas y coordinación del piloto con la viña.</p>
+  </div>
+  <div id="pd62ffcd7c209r1_2-50fbabd6" style="position:absolute; top:323.75px; left:1259px; width:534px; height:432px; display:flex; flex-direction:column; gap:20px; padding:40px; background:#ffffff; border:1px solid #dce3da; border-radius:24px">
+    <div style="width:112px; height:112px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:56px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; color:#f7f8f4">VT</p>
+    </div>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:40px; font-weight:700; line-height:1.1; color:#13211a">Vicente Torres</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">DATOS Y ARQUITECTURA</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">Modelo de datos en Firestore, arquitectura de la solución y reglas de seguridad de cada rol.</p>
+  </div>
+  
+</section>
+
+<section id="descripcion" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;gap:40px">
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PROYECTO RECYTRACK · DESCRIPCIÓN DEL PROYECTO</p></div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:1584px;top:48px;width:240px;height:60px;object-fit:contain">
+<h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;letter-spacing:-1px;color:#13211A">Del reciclaje que no se ve a un dato confiable</h2>
+<div style="flex:1;display:flex;flex-direction:row;gap:96px">
+<div style="flex:1;display:flex;flex-direction:column;gap:28px;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:28px;padding:44px">
+<p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#8A5300">PROBLEMA O DOLOR</p>
+<div style="display:flex;flex-direction:row;gap:32px">
+<div style="flex:1;display:flex;flex-direction:column;gap:6px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1;color:#8A5300">5,2 %</p><p style="font-size:24px;line-height:1.3;color:#4E5D54">de los residuos domiciliarios se valoriza en Chile</p></div>
+<div style="flex:1;display:flex;flex-direction:column;gap:6px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:72px;font-weight:700;line-height:1;color:#8A5300">88,5 %</p><p style="font-size:24px;line-height:1.3;color:#4E5D54">de los administradores no sabe qué pasa con el material</p></div>
+</div>
+<hr style="border:none;border-top:1px solid #DCE3DA">
+<p style="font-size:28px;line-height:1.4;color:#13211A">En condominios, empresas y colegios se recicla en puntos limpios compartidos, pero <b>no queda registro</b>:</p>
+<p style="font-size:26px;line-height:1.4;color:#4E5D54">¿Cuánto se recicla? ¿Quién participa? ¿Llegó el material a quien lo retira? Sin datos no hay cómo reconocerlo ni reportarlo.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:28px;background:#10291C;border-radius:28px;padding:44px">
+<p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#A6E27A">PROPUESTA DE SOLUCIÓN</p>
+<p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:40px;font-weight:700;line-height:1.2;color:#F7F8F4">Una app en el celular y un panel web que registran, validan y reportan el reciclaje de un espacio compartido.</p>
+<div style="display:flex;flex-direction:column;gap:20px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:20px"><div style="width:52px;height:52px;border-radius:26px;background:#A6E27A;display:flex;align-items:center;justify-content:center"><x-icon name="Check" style="color:#10291C;width:28px;height:28px"></x-icon></div><p style="flex:1;font-size:26px;color:#F7F8F4"><b style="color:#A6E27A">Medir:</b> solo cuenta lo validado</p></div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:20px"><div style="width:52px;height:52px;border-radius:26px;background:#A6E27A;display:flex;align-items:center;justify-content:center"><x-icon name="Check" style="color:#10291C;width:28px;height:28px"></x-icon></div><p style="flex:1;font-size:26px;color:#F7F8F4"><b style="color:#A6E27A">Motivar:</b> campañas y ranking por grupo</p></div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:20px"><div style="width:52px;height:52px;border-radius:26px;background:#A6E27A;display:flex;align-items:center;justify-content:center"><x-icon name="Check" style="color:#10291C;width:28px;height:28px"></x-icon></div><p style="flex:1;font-size:26px;color:#F7F8F4"><b style="color:#A6E27A">Reportar:</b> PDF mensual para la organización</p></div>
+</div>
+<p style="font-size:24px;line-height:1.4;color:#C3D6C8">Sin balanzas ni sensores: costo de operación cero.</p>
+</div>
+</div>
+<div data-build-in="pop" style="position:absolute;left:916px;top:560px;width:88px;height:88px;border-radius:44px;background:#1B7F45;border:6px solid #F7F8F4;display:flex;align-items:center;justify-content:center"><x-shape kind="arrow-right" style="background:#F7F8F4;width:36px;height:24px"></x-shape></div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#5E6B63">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#1B7F45">03</p></div>
+
+</section>
+
+<section id="contextos" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;gap:36px">
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PROYECTO RECYTRACK · DÓNDE SE APLICA</p></div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:1584px;top:48px;width:240px;height:60px;object-fit:contain">
+<h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;letter-spacing:-1px;color:#13211A">Pensado para cualquier espacio compartido</h2>
+<div style="display:flex;flex-direction:row;align-items:center;gap:20px">
+<p style="font-size:24px;font-weight:700;letter-spacing:2px;color:#4E5D54;padding:0 12px 0 0">UN SOLO MODELO</p>
+<p style="font-size:28px;font-weight:700;color:#F7F8F4;background:#10291C;padding:10px 26px;border-radius:999px">Organización</p>
+<x-shape kind="arrow-right" style="background:#9DBFA6;width:32px;height:22px"></x-shape>
+<p style="font-size:28px;font-weight:700;color:#17603A;background:#E3F1E2;padding:10px 26px;border-radius:999px">Grupos</p>
+<x-shape kind="arrow-right" style="background:#9DBFA6;width:32px;height:22px"></x-shape>
+<p style="font-size:28px;font-weight:700;color:#17603A;background:#E3F1E2;padding:10px 26px;border-radius:999px">Puntos limpios</p>
+<x-shape kind="arrow-right" style="background:#9DBFA6;width:32px;height:22px"></x-shape>
+<p style="font-size:28px;font-weight:700;color:#17603A;background:#E3F1E2;padding:10px 26px;border-radius:999px">Personas</p>
+</div>
+<div style="display:flex;flex-direction:row;gap:24px">
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:32px">
+<div style="width:72px;height:72px;border-radius:36px;background:#E3F1E2;display:flex;align-items:center;justify-content:center"><x-icon name="Home" style="color:#1B7F45;width:36px;height:36px"></x-icon></div>
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:36px;font-weight:700;color:#13211A">Condominio</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Grupos: <b style="color:#13211A">torres</b>. Valida el conserje en su ronda.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#10291C;border-radius:20px;padding:32px">
+<div style="width:72px;height:72px;border-radius:36px;background:#A6E27A;display:flex;align-items:center;justify-content:center"><x-icon name="Tool" style="color:#10291C;width:36px;height:36px"></x-icon></div>
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:36px;font-weight:700;color:#F7F8F4">Empresa o planta</h3>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">Grupos: <b style="color:#F7F8F4">áreas</b>. Valida quien ya recorre la planta.</p>
+<p style="font-size:24px;font-weight:700;color:#10291C;background:#A6E27A;padding:6px 16px;border-radius:999px">Piloto: Viñedos Familia Chadwick</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:32px">
+<div style="width:72px;height:72px;border-radius:36px;background:#E3F1E2;display:flex;align-items:center;justify-content:center"><x-icon name="GraduationCap" style="color:#1B7F45;width:36px;height:36px"></x-icon></div>
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:36px;font-weight:700;color:#13211A">Colegio o universidad</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Grupos: <b style="color:#13211A">cursos o facultades</b>. Valida un auxiliar.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:14px;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:32px">
+<div style="width:72px;height:72px;border-radius:36px;background:#E3F1E2;display:flex;align-items:center;justify-content:center"><x-icon name="Users" style="color:#1B7F45;width:36px;height:36px"></x-icon></div>
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:36px;font-weight:700;color:#13211A">Oficinas</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Grupos: <b style="color:#13211A">pisos o equipos</b>. Valida el personal de aseo.</p>
+</div>
+</div>
+<div style="display:flex;flex-direction:row;align-items:center;gap:28px;background:#E3F1E2;border-radius:20px;padding:24px 36px">
+<p style="width:260px;font-size:24px;font-weight:700;letter-spacing:2px;color:#17603A">LO QUE NO CAMBIA</p>
+<p style="flex:1;font-size:26px;line-height:1.35;color:#13211A">QR por contenedor · ronda diaria del validador · retiro registrado por el administrador · ranking por grupo</p>
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#5E6B63">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#1B7F45">04</p></div>
+
+</section>
+
+<section id="cadena" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · CÓMO FUNCIONA</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-1voqgnf" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">05</p>
+  </div>
+  <h2 id="p9c5a3e467c08r0-4c44e166" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Una cadena de verificación en cuatro pasos</h2>
+  <div id="p9c5a3e467c08r2-4c44e166" style="position:absolute; top:758.16px; left:50%; width:1664px; height:109px; display:flex; flex-direction:row; gap:24px; align-items:center; padding:28px 36px; background:#e3f1e2; border-radius:20px; transform:translateX(-50%)">
+    <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#17603a">ESTADOS DEL DEPÓSITO</p>
+    <p style="padding:8px 20px; font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#4a5750; background:#ffffff; border-radius:256px">pendiente</p>
+    <x-shape kind="arrow-right" style="width:28px; height:18px; background:#6e8a76"></x-shape>
+    <p style="padding:8px 20px; font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#17603a; background:#ffffff; border-radius:256px">validado</p>
+    <x-shape kind="arrow-right" style="width:28px; height:18px; background:#6e8a76"></x-shape>
+    <p style="padding:8px 20px; font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#f7f8f4; background:#1b7f45; border-radius:256px">certificado</p>
+    <p style="flex:1; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; text-align:right; color:#4e5d54">o <span style="color:#8a5300"><b>rechazado</b></span> · lo imponen las reglas de seguridad</p>
+  </div>
+  <div id="p9c5a3e467c08r1_0-4c44e166" style="position:absolute; top:296.16px; left:128px; width:369px; height:423px; display:flex; flex-direction:column; gap:16px; padding:32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1; color:#1b7f45">1</p>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:36px; font-weight:700; color:#13211a">Registrar</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">Participante · celular</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">Escanea el QR del contenedor, elige el material y la talla de la bolsa. La app estima los kilos.</p>
+  </div>
+  <x-shape kind="arrow-right" id="p9c5a3e467c08r1_1_0-4c44e166" style="position:absolute; top:495.16px; left:512px; width:32px; height:24px; background:#9dbfa6"></x-shape>
+  <div id="p9c5a3e467c08r1_2-4c44e166" style="position:absolute; top:296.16px; left:560px; width:369px; height:423px; display:flex; flex-direction:column; gap:16px; padding:32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1; color:#1b7f45">2</p>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:36px; font-weight:700; color:#13211a">Validar</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">Validador · ronda diaria</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">Una pasada al día por contenedor: conforme, con observación o sin material.</p>
+  </div>
+  <x-shape kind="arrow-right" id="p9c5a3e467c08r1_3_0-4c44e166" style="position:absolute; top:495.16px; left:945px; width:32px; height:24px; background:#9dbfa6"></x-shape>
+  <div id="p9c5a3e467c08r1_4-4c44e166" style="position:absolute; top:296.16px; left:993px; width:369px; height:423px; display:flex; flex-direction:column; gap:16px; padding:32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1; color:#1b7f45">3</p>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:36px; font-weight:700; color:#13211a">Certificar</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">Administrador · panel web</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#4e5d54">Registra el retiro con guía y peso opcional; eso certifica lo validado.</p>
+  </div>
+  <x-shape kind="arrow-right" id="p9c5a3e467c08r1_5_0-4c44e166" style="position:absolute; top:495.16px; left:1377px; width:32px; height:24px; background:#9dbfa6"></x-shape>
+  <div id="p9c5a3e467c08r1_6-4c44e166" style="position:absolute; top:296.16px; left:1425px; width:367px; height:423px; display:flex; flex-direction:column; gap:16px; padding:32px; background:#10291c; border-radius:20px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1; color:#a6e27a">4</p>
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:36px; font-weight:700; color:#f7f8f4">Reportar</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#a6e27a">Sistema · PDF</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#c3d6c8">Reporte mensual de la planta y certificado mensual de cada colaborador.</p>
+  </div>
+  
+</section>
+
+<section id="objetivo" data-transition="fade" style="background:#10291C;color:#F7F8F4;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;justify-content:center;gap:36px">
+<div style="position:absolute;left:1260px;top:-300px;width:900px;height:900px;border-radius:450px;background:#163B27"></div>
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#A6E27A"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#A6E27A">PROYECTO RECYTRACK · OBJETIVOS</p></div>
+<div style="position:absolute;left:1560px;top:40px;width:272px;height:76px;display:flex;align-items:center;justify-content:center;background:#F7F8F4;border-radius:14px"><img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="width:240px;height:60px;object-fit:contain"></div>
+<p style="font-size:28px;font-weight:700;letter-spacing:4px;color:#A6E27A">OBJETIVO GENERAL · SMART</p>
+<p style="width:1664px;font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:52px;font-weight:600;line-height:1.25;letter-spacing:-0.5px;color:#F7F8F4"><span style="color:#A6E27A">Lograr</span> que una organización con puntos limpios compartidos sepa, con datos verificados, cuánto recicla y qué grupos participan, sin instrumentos de medición ni costo de infraestructura.</p>
+<div style="display:flex;flex-direction:row;gap:20px">
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#163B27;border-radius:18px;padding:24px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:14px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1;color:#A6E27A">S</p><p style="font-size:24px;font-weight:700;color:#F7F8F4">Específico</p></div>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">Saber cuánto se recicla, quién participa y si se retiró.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#163B27;border-radius:18px;padding:24px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:14px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1;color:#A6E27A">M</p><p style="font-size:24px;font-weight:700;color:#F7F8F4">Medible</p></div>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">≥ 60 % de participación, ≥ 70 % de rondas, 100 % de reportes automáticos.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#163B27;border-radius:18px;padding:24px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:14px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1;color:#A6E27A">A</p><p style="font-size:24px;font-weight:700;color:#F7F8F4">Alcanzable</p></div>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">QR impresos, celulares propios y plan gratuito: $0.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#163B27;border-radius:18px;padding:24px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:14px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1;color:#A6E27A">R</p><p style="font-size:24px;font-weight:700;color:#F7F8F4">Relevante</p></div>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">Hoy ese reciclaje no deja registro ni se puede reportar.</p>
+</div>
+<div style="flex:1;display:flex;flex-direction:column;gap:10px;background:#163B27;border-radius:18px;padding:24px">
+<div style="display:flex;flex-direction:row;align-items:center;gap:14px"><p style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1;color:#E9B464">T</p><p style="font-size:24px;font-weight:700;color:#F7F8F4">Temporal</p></div>
+<p style="font-size:24px;line-height:1.35;color:#C3D6C8">Antes del 27-nov-2026, tras un piloto de 2 semanas.</p>
+</div>
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#9FB3A6">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#A6E27A">06</p></div>
+
+</section>
+
+<section id="especificos" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · OBJETIVOS</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-xvob36" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">07</p>
+  </div>
+  <h2 id="p2beb35453c1dr0-287667b0" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:56px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Objetivos específicos: qué queremos lograr</h2>
+  <table id="p2beb35453c1dr1-287667b0" style="position:absolute; top:50%; left:50%; width:1664px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a; background:#ffffff; transform:translate(-50%, -50%)">
+    <tr style="background:#10291c"><th style="padding:10px 16px; width:6%; color:#a6e27a">OE</th><th style="padding:10px 16px; width:41%; color:#f7f8f4">Queremos lograr que…</th><th style="padding:10px 16px; width:37%; color:#f7f8f4">Indicador</th><th style="padding:10px 16px; width:16%; color:#e9b464">Plazo</th></tr>
+    <tr><td style="padding:10px 16px; color:#1b7f45">1</td><td style="padding:10px 16px">cualquier persona se sume en minutos</td><td style="padding:10px 16px; color:#4e5d54">Cuenta y grupo listos en ≤ 5 min</td><td style="padding:10px 16px">Semana 1</td></tr>
+    <tr style="background:#f1f7ef"><td style="padding:10px 16px; color:#1b7f45">2</td><td style="padding:10px 16px">cada depósito quede registrado al momento</td><td style="padding:10px 16px; color:#4e5d54">≥ 95 % de QR leídos; ≤ 30 s por registro</td><td style="padding:10px 16px">Todo el piloto</td></tr>
+    <tr><td style="padding:10px 16px; color:#1b7f45">3 ★</td><td style="padding:10px 16px">lo registrado sea confiable</td><td style="padding:10px 16px; color:#4e5d54">≥ 70 % de rondas diarias realizadas</td><td style="padding:10px 16px">Todo el piloto</td></tr>
+    <tr style="background:#f1f7ef"><td style="padding:10px 16px; color:#1b7f45">4</td><td style="padding:10px 16px">la trazabilidad llegue hasta el retiro</td><td style="padding:10px 16px; color:#4e5d54">100 % de retiros certifican lo validado</td><td style="padding:10px 16px">Cada retiro</td></tr>
+    <tr><td style="padding:10px 16px; color:#1b7f45">5</td><td style="padding:10px 16px">la organización pueda reportar lo reciclado</td><td style="padding:10px 16px; color:#4e5d54">100 % de reportes y certificados automáticos</td><td style="padding:10px 16px">27-nov</td></tr>
+    <tr style="background:#f1f7ef"><td style="padding:10px 16px; color:#1b7f45">6 ★</td><td style="padding:10px 16px">los grupos se motiven a participar</td><td style="padding:10px 16px; color:#4e5d54">≥ 60 % con al menos un depósito validado</td><td style="padding:10px 16px">Todo el piloto</td></tr>
+    <tr><td style="padding:10px 16px; color:#1b7f45">7</td><td style="padding:10px 16px">la organización gestione el programa sola</td><td style="padding:10px 16px; color:#4e5d54">≥ 75 % de retiros sin ayuda; SUS ≥ 68</td><td style="padding:10px 16px">20-nov</td></tr>
+    <tr style="background:#f1f7ef"><td style="padding:10px 16px; color:#1b7f45">8</td><td style="padding:10px 16px">todo funcione sin inversión</td><td style="padding:10px 16px; color:#4e5d54">$0 en hardware e infraestructura</td><td style="padding:10px 16px">Todo el proyecto</td></tr>
+  </table>
+  <p id="p2beb35453c1dr2-287667b0" style="position:absolute; top:815.23px; left:128px; width:1664px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>★ críticos.</b></span> Se miden en un piloto de 2 semanas, del 10 al 20-nov: el piloto es el medio para comprobarlos, no el objetivo.</p>
+  
+</section>
+
+<section id="alcances" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · ALCANCES Y LIMITACIONES</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-jc8gdv" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">08</p>
+  </div>
+  <h2 id="p1340a29cb1a1r0-9e0cdcd6" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Qué entra, qué queda fuera y sus límites</h2>
+  <div id="p1340a29cb1a1r1-9e0cdcd6" style="position:absolute; top:248px; left:128px; width:1664px; height:464px; display:flex; flex-direction:row; gap:28px">
+    <div style="display:flex; flex-direction:column; gap:18px; flex:1; padding:28px 32px; background:#e3f1e2; border:3px solid #1b7f45; border-radius:28px">
+      <div style="display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#17603a">DENTRO DEL APLICATIVO</p>
+        <p style="padding:4px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#f7f8f4; background:#1b7f45; border-radius:256px">7 módulos</p>
+      </div>
+      <div style="display:grid; gap:14px; grid-template-columns:1fr 1fr 1fr 1fr">
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Users" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Incorporación por grupo</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Search" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Registro por QR</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Clock" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Ronda diaria de validación</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="PaperPlane" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Registro de retiros</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Book" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Reportes y certificados PDF</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Star" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Campañas y ranking</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:10px; padding:18px 20px; background:#ffffff; border-radius:16px">
+          <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+            <x-icon name="Chart" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+          </div>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.25; color:#13211a">Panel web del administrador</p>
+        </div>
+        <div style="display:flex; flex-direction:column; gap:6px; justify-content:center; padding:18px 20px; background:#10291c; border-radius:16px">
+          <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; line-height:1; color:#a6e27a">$0</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.25; color:#f7f8f4">sin hardware nuevo</p>
+        </div>
+      </div>
+    </div>
+    <div style="width:520px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:2px dashed #c7b48e; border-radius:28px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#8a5300">FUERA DE ALCANCE</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">Residuos industriales y especiales</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">Pesaje con balanzas o sensores</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">&nbsp;IA predictiva</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">Integración con gestores</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">Publicación en tiendas de apps</p>
+      <p style="padding:6px 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63; border:2px dashed #d9cbb0; border-radius:256px">Cloud Functions y avisos push</p>
+    </div>
+  </div>
+  <div id="p1340a29cb1a1r2-9e0cdcd6" style="position:absolute; top:795.44px; left:50%; width:1664px; height:107px; display:flex; flex-direction:row; gap:16px; padding:22px 28px; background:#10291c; border-radius:24px; transform:translateX(-50%)">
+    <div style="width:200px; display:flex; flex-direction:row; gap:12px; align-items:center">
+      <x-icon name="Warning" style="width:36px; height:36px; color:#e9b464"></x-icon>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; line-height:1.2; color:#e9b464">Límites declarados</p>
+    </div>
+    <p style="flex:1; padding:0 0 0 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4; border-left:2px solid #2e5a40">Validación visual por contenedor, no por bolsa</p>
+    <p style="flex:1; padding:0 0 0 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4; border-left:2px solid #2e5a40">Kilos estimados por talla, salvo retiro con peso</p>
+    <p style="flex:1; padding:0 0 0 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4; border-left:2px solid #2e5a40">Totales en el cliente: ~180 personas</p>
+    <p style="flex:1; padding:0 0 0 18px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4; border-left:2px solid #2e5a40">Piloteado en un solo contexto</p>
+  </div>
+  
+</section>
+
+<section id="metodologia" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · METODOLOGÍA DE TRABAJO</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-1c46q9t" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">09</p>
+  </div>
+  <h2 id="p7d46c57fd25cr0-b88b9a68" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Scrum adaptado: S0 y seis sprints</h2>
+  <div id="p7d46c57fd25cr1-b88b9a68" style="position:absolute; top:248px; left:128px; width:1664px; height:136px; display:flex; flex-direction:row; gap:24px">
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#8a5300">PRODUCT OWNER · PILOTO</p>
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Organización piloto</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">SCRUM MASTER</p>
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Matías Bustamante</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:8px; flex:1; padding:24px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">EQUIPO DE DESARROLLO</p>
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Álvaro, Vicente y Matías</p>
+    </div>
+  </div>
+  <div id="p7d46c57fd25cr2-b88b9a68" style="position:absolute; top:412px; left:128px; width:1664px; height:277px; display:flex; flex-direction:row; gap:24px">
+    <div style="display:flex; flex-direction:column; gap:14px; flex:1; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">CEREMONIAS</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Planning</b></span> al iniciar cada sprint</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Coordinación</b></span> asíncrona en GitHub y reuniones cortas</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Review</b></span> del incremento con la organización</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Retrospectiva</b></span> con acta y acciones</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:14px; flex:1; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#1b7f45">ARTEFACTOS</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Product Backlog:</b></span> 47 historias, 174 puntos, 8 épicas (una por OE)</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Priorización:</b></span> MoSCoW (29 Must) y estimación Fibonacci</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>Sprint Backlog:</b></span> una hoja por sprint, con burndown</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#13211a"><b>GitHub:</b></span> issue, casillas, commits y pull request</p>
+    </div>
+  </div>
+  <div id="p7d46c57fd25cr3-b88b9a68" style="position:absolute; top:755.57px; left:50%; width:1664px; height:119px; display:flex; flex-direction:row; gap:32px; align-items:center; padding:24px 32px; background:#1b7f45; border-radius:20px; transform:translateX(-50%)">
+    <p style="width:200px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; line-height:1.1; color:#f7f8f4">Definition of Done</p>
+    <div style="display:flex; flex-direction:row; gap:20px; flex:1">
+      <p style="flex:1; padding:0 0 0 16px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:600; line-height:1.3; color:#f7f8f4; border-left:2px solid #7fc49a">Pruebas de app y reglas en verde</p>
+      <p style="flex:1; padding:0 0 0 16px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:600; line-height:1.3; color:#f7f8f4; border-left:2px solid #7fc49a">PR aprobado por otro integrante</p>
+      <p style="flex:1; padding:0 0 0 16px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:600; line-height:1.3; color:#f7f8f4; border-left:2px solid #7fc49a">Merge commit con su autor</p>
+      <p style="flex:1; padding:0 0 0 16px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:600; line-height:1.3; color:#f7f8f4; border-left:2px solid #7fc49a">Funciona publicado y en el teléfono</p>
+      <p style="flex:1; padding:0 0 0 16px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:600; line-height:1.3; color:#f7f8f4; border-left:2px solid #7fc49a">Documentación al día</p>
+    </div>
+  </div>
+  
+</section>
+
+<section id="cronograma" data-transition="fade" style="display:flex; flex-direction:column; gap:24px; padding:150px 128px 140px; background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · CRONOGRAMA</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Cronograma 2026 y su cumplimiento</h2>
+  <div style="display:flex; flex-direction:column; gap:4px">
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center">
+      <div style="flex:0 1 330px; min-height:36px; max-height:36px"></div>
+      <div style="flex:0 1 220px; min-height:36px; max-height:36px"></div>
+      <div style="width:836px; display:flex; flex-direction:row">
+        <p style="width:132px; padding:2px 0; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#17603a; background:#e3f1e2; border-right:4px solid #f7f8f4; border-radius:8px">Ago</p>
+        <p style="width:176px; padding:2px 0; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#17603a; background:#e3f1e2; border-right:4px solid #f7f8f4; border-radius:8px">Sep</p>
+        <p style="width:176px; padding:2px 0; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#17603a; background:#e3f1e2; border-right:4px solid #f7f8f4; border-radius:8px">Oct</p>
+        <p style="width:220px; padding:2px 0; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#17603a; background:#e3f1e2; border-right:4px solid #f7f8f4; border-radius:8px">Nov</p>
+        <p style="width:132px; padding:2px 0; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#17603a; background:#e3f1e2; border-radius:8px">Dic</p>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Cumplimiento</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#5e6b63">Actividad</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#5e6b63">Fechas</p>
+      <div style="width:836px; display:flex; flex-direction:row">
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">17</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">24</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">31</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">07</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; text-align:center; color:#8a5300">14</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">21</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">28</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">05</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">12</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">19</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">26</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">02</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">09</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">16</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">23</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">30</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">07</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">14</p>
+        <p style="width:44px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#5e6b63">21</p>
+      </div>
+      <div style="flex:0 1 210px; min-height:30px; max-height:30px"></div>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">Definición (Fase 1)</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">17-ago – 28-ago</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 3px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">Cumplido</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S0 · Validación en la oficina</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">31-ago – 11-sep</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 91px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">Cumplido</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S1 · Arquitectura y roles</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">21-sep – 02-oct</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 223px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">100 % · 11 pts</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S2 · Panel y configuración</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">05-oct – 16-oct</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 311px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">100 % · 31 pts</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S3 · Registro y ronda</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">19-oct – 30-oct</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 399px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">100 % · 33 pts</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S4 · Retiros y reportes</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">02-nov – 13-nov</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 487px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">100 % · 30 pts</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S5 · Campañas y ranking</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">16-nov – 20-nov</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 575px; min-height:4px; max-height:4px"></div>
+        <div style="width:38px; height:26px; display:flex; flex-direction:column; background:#1b7f45; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#17603a">100 % · 25 pts</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">S6 · Cierre y métricas</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">23-nov – 27-nov</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 619px; min-height:4px; max-height:4px"></div>
+        <div style="width:38px; height:26px; display:flex; flex-direction:column; background:#d9912b; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#8a5300">60 % · 12/20</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Piloto (2 semanas)</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">10-nov – 20-nov</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 531px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#10291c; border-radius:8px">
+        </div>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#8a5300">En curso · 5/9 días</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:20px; align-items:center; padding:5px 0 0; border-top:1px solid #e1e7df">
+      <p style="width:330px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a">Documentación final</p>
+      <p style="width:220px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">16-nov – 27-nov</p>
+      <div style="width:836px; height:34px; display:flex; flex-direction:row; align-items:center">
+        <div style="flex:0 1 575px; min-height:4px; max-height:4px"></div>
+        <div style="width:82px; height:26px; display:flex; flex-direction:column; background:#d9912b; border-radius:8px">
+        </div>
+        <div style="width:15px; height:4px"></div>
+        <x-shape kind="diamond" style="width:26px; height:26px; background:#8a5300"></x-shape>
+      </div>
+      <p style="width:210px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#8a5300">◆ Defensa 01-dic</p>
+    </div>
+  </div>
+  <div style="display:flex; flex-direction:row; gap:32px; align-items:center">
+    <div style="display:flex; flex-direction:row; gap:10px; align-items:center">
+      <div style="width:32px; height:18px; display:flex; flex-direction:column; background:#1b7f45; border-radius:6px">
+      </div>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Cumplido</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:10px; align-items:center">
+      <div style="width:32px; height:18px; display:flex; flex-direction:column; background:#d9912b; border-radius:6px">
+      </div>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">En curso</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:10px; align-items:center">
+      <div style="width:32px; height:18px; display:flex; flex-direction:column; background:#c9d8c9; border-radius:6px">
+      </div>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Planificado</p>
+    </div>
+    <div style="display:flex; flex-direction:row; gap:10px; align-items:center">
+      <div style="width:32px; height:18px; display:flex; flex-direction:column; background:#10291c; border-radius:6px">
+      </div>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Piloto</p>
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#8a5300"><b>14-sep:</b> receso de Fiestas Patrias</p>
+  </div>
+  <div style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122 · S3 a S5 se adelantaron en el S2</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">10</p>
+  </div>
+  
+</section>
+
+<section id="arquitectura" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:row;gap:32px">
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PROYECTO RECYTRACK · ARQUITECTURA DEL SOFTWARE</p></div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:1584px;top:48px;width:240px;height:60px;object-fit:contain">
+<div style="width:372px;display:flex;flex-direction:column;gap:28px">
+<h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:56px;font-weight:700;line-height:1.1;letter-spacing:-1px;color:#13211A">Tres capas sobre Firebase</h2>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #1B7F45;padding:0 0 0 20px">
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:30px;font-weight:700;color:#13211A">Presentación</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Una PWA con tres vistas: colaborador, validador y panel web.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #8A5300;padding:0 0 0 20px">
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:30px;font-weight:700;color:#13211A">Negocio</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Lógica pura en el cliente; lo confiable, en las reglas del servidor.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #10291C;padding:0 0 0 20px">
+<h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:30px;font-weight:700;color:#13211A">Datos</h3>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Cloud Firestore; un solo paquete habla con Firebase.</p>
+</div>
+<p style="font-size:24px;font-weight:700;color:#17603A;background:#E3F1E2;padding:12px 20px;border-radius:14px">Sin backend propio · $0</p>
+</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:16px">
+<img src="img/5a59e773fb74f9c81770ab65d3109d48.png" alt="Diagrama de arquitectura general de RecyTrack: capa de presentación con las vistas del colaborador, del validador y el panel web; lógica en el cliente y reglas de seguridad en el servidor; capa de datos en Cloud Firestore; servicios de Firebase Auth y Hosting" style="width:1228px;height:660px;object-fit:contain">
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#5E6B63">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#1B7F45">11</p></div>
+
+</section>
+
+<section id="despliegue" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;gap:28px">
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PROYECTO RECYTRACK · ARQUITECTURA DEL SOFTWARE</p></div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:1584px;top:48px;width:240px;height:60px;object-fit:contain">
+<div style="display:flex;flex-direction:row;align-items:flex-end;justify-content:space-between;gap:48px">
+<h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:64px;font-weight:700;line-height:1.1;letter-spacing:-1px;color:#13211A">Dónde corre cada pieza</h2>
+<p style="width:760px;font-size:24px;line-height:1.4;color:#4E5D54"><b style="color:#13211A">Celular, navegador y nube:</b> todo por HTTPS a Firebase (plan Spark), región southamerica-east1, sin servidores propios.</p>
+</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:20px">
+<img src="img/63e87fe0fb70dc26425b181329094fef.png" alt="Diagrama de despliegue de RecyTrack: puntos limpios con QR en la planta, celulares y computador con navegador, y Firebase Hosting, Authentication y Cloud Firestore en la nube" style="width:1620px;height:620px;object-fit:contain">
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#5E6B63">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#1B7F45">12</p></div>
+
+</section>
+
+<section id="modelo" data-transition="fade" style="background:#F7F8F4;color:#13211A;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:row;gap:32px">
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#1B7F45"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#1B7F45">PROYECTO RECYTRACK · MODELO DE DATOS</p></div>
+<img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute;left:1584px;top:48px;width:240px;height:60px;object-fit:contain">
+<div style="width:372px;display:flex;flex-direction:column;gap:24px">
+<h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:48px;font-weight:700;line-height:1.1;letter-spacing:-1px;color:#13211A">Todo cuelga de la organización</h2>
+<p style="font-size:24px;line-height:1.4;color:#4E5D54"><b style="color:#13211A">Cloud Firestore</b>: la organización (plantas) es la raíz y cada colección guarda su id.</p>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #1B7F45;padding:0 0 0 20px">
+<p style="font-size:24px;font-weight:700;color:#13211A">Registro = depósito</p>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Su estado lo imponen las reglas.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #1B7F45;padding:0 0 0 20px">
+<p style="font-size:24px;font-weight:700;color:#13211A">Retiro atómico</p>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">Un lote crea el retiro y certifica los depósitos.</p>
+</div>
+<div style="display:flex;flex-direction:column;gap:6px;border-left:4px solid #1B7F45;padding:0 0 0 20px">
+<p style="font-size:24px;font-weight:700;color:#13211A">Privacidad</p>
+<p style="font-size:24px;line-height:1.35;color:#4E5D54">El depósito no guarda el nombre.</p>
+</div>
+</div>
+<div style="flex:1;display:flex;align-items:center;justify-content:center;background:#FFFFFF;border:1px solid #DCE3DA;border-radius:20px;padding:16px">
+<img src="img/d9eac0dbb5ce94b64fe3e841b7864fd1.png" alt="Modelo de datos de RecyTrack en Cloud Firestore: plantas, areas, usuarios, contenedores, registros, retiros, campanas, incidencias y codigosRol, con sus relaciones" style="width:1228px;height:660px;object-fit:contain">
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1664px;display:flex;flex-direction:row;justify-content:space-between;align-items:center"><p style="font-size:24px;color:#5E6B63">RecyTrack · Presentación final Capstone APT122</p><p style="font-size:24px;font-weight:700;color:#1B7F45">13</p></div>
+
+</section>
+
+<section id="tecnologias" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · TECNOLOGÍAS UTILIZADAS</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-62rlxt" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">14</p>
+  </div>
+  <h2 id="pe24c17c241f2r0-bcaaeb04" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Del celular a la nube, sin pagar nada</h2>
+  <div id="pe24c17c241f2r1-bcaaeb04" style="position:absolute; top:244px; left:128px; width:1664px; height:578px; display:flex; flex-direction:row">
+    <div style="width:280px; display:flex; flex-direction:column; gap:14px; align-items:center; justify-content:center; padding:24px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#4e5d54">DISPOSITIVOS</p>
+      <div style="width:80px; height:136px; display:flex; flex-direction:column; padding:8px; background:#10291c; border-radius:20px">
+        <div style="display:flex; flex-direction:row; align-items:center; justify-content:center; flex:1; background:#e3f1e2; border-radius:13px">
+          <x-icon name="Search" style="width:36px; height:36px; color:#1b7f45"></x-icon>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:2px; align-items:center">
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Celular</p>
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; text-align:center; color:#4e5d54">participante y validador</p>
+      </div>
+      <div style="display:flex; flex-direction:column; align-items:center">
+        <div style="width:170px; height:96px; display:flex; flex-direction:column; padding:7px; background:#10291c; border-radius:10px">
+          <div style="display:flex; flex-direction:row; align-items:center; justify-content:center; flex:1; background:#e3f1e2; border-radius:5px">
+            <x-icon name="Chart" style="width:36px; height:36px; color:#1b7f45"></x-icon>
+          </div>
+        </div>
+        <div style="width:220px; height:12px; display:flex; flex-direction:column; background:#4e5d54; border-radius:0 0 8px 8px">
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:2px; align-items:center">
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Computador</p>
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">administrador</p>
+      </div>
+    </div>
+    <div style="width:64px; display:flex; flex-direction:row; align-items:center; justify-content:center">
+      <x-shape kind="arrow-right" style="width:40px; height:26px; background:#9dbfa6"></x-shape>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:22px 24px; background:#e3f1e2; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#17603a">APLICACIÓN · UN SOLO CÓDIGO</p>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#ffffff; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+          <x-icon name="Code" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#13211a">React Native + Expo</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Un código para celular y panel web</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#ffffff; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+          <x-icon name="Verified" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#13211a">TypeScript</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Tipos del dominio: rol, estado, talla</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#ffffff; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+          <x-icon name="Settings" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#13211a">NativeWind</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Estilos para las vistas de 3 roles</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#ffffff; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+          <x-icon name="Search" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#13211a">jsQR · qrcode-generator</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Leer el QR e imprimir etiquetas</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#ffffff; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border-radius:26px">
+          <x-icon name="Book" style="width:28px; height:28px; color:#f7f8f4"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#13211a">pdf-lib</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">PDF generados en el dispositivo</p>
+        </div>
+      </div>
+    </div>
+    <div style="width:72px; display:flex; flex-direction:column; gap:6px; align-items:center; justify-content:center">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:20px; font-weight:700; color:#4e5d54">HTTPS</p>
+      <x-shape kind="arrow-right" style="width:40px; height:26px; background:#9dbfa6"></x-shape>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:22px 24px; background:#10291c; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#a6e27a">FIREBASE · PLAN SPARK</p>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#163b27; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#a6e27a; border-radius:26px">
+          <x-icon name="Key" style="width:28px; height:28px; color:#10291c"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#f7f8f4">Firebase Auth</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">Correo, Google y Microsoft</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#163b27; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#a6e27a; border-radius:26px">
+          <x-icon name="Database" style="width:28px; height:28px; color:#10291c"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#f7f8f4">Cloud Firestore</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">Base documental en tiempo real</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#163b27; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#a6e27a; border-radius:26px">
+          <x-icon name="Lock" style="width:28px; height:28px; color:#10291c"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#f7f8f4">Reglas de seguridad</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">Roles y estados en el servidor</p>
+        </div>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center; padding:10px 16px; background:#163b27; border-radius:14px">
+        <div style="width:52px; height:52px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#a6e27a; border-radius:26px">
+          <x-icon name="Globe" style="width:28px; height:28px; color:#10291c"></x-icon>
+        </div>
+        <div style="display:flex; flex-direction:column; flex:1">
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; font-weight:700; color:#f7f8f4">Firebase Hosting</p>
+          <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">Publica la PWA, sin tiendas</p>
+        </div>
+      </div>
+      <div style="flex:1"></div>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#a6e27a">Sin servidores propios ni Cloud Functions</p>
+    </div>
+  </div>
+  <div id="pe24c17c241f2r2-bcaaeb04" style="position:absolute; top:846px; left:128px; width:1664px; height:83px; display:flex; flex-direction:row; gap:36px; align-items:center; padding:18px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <div style="display:flex; flex-direction:row; gap:12px; align-items:center">
+      <x-icon name="CheckCircle" style="width:36px; height:36px; color:#1b7f45"></x-icon>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#17603a">CALIDAD</p>
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54"><span style="color:#13211a"><b>Vitest</b></span> · lógica de la app</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54"><span style="color:#13211a"><b>Emulador de Firestore</b></span> · cada regla</p>
+    <div style="flex:1"></div>
+    <p style="padding:6px 20px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#f7f8f4; background:#1b7f45; border-radius:256px">342 pruebas en verde</p>
+    <p style="padding:6px 20px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#10291c; background:#a6e27a; border-radius:256px">$0 de infraestructura</p>
+  </div>
+  
+</section>
+
+<section id="pilotaje" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:0; left:0; width:860px; height:1080px; display:flex; flex-direction:column; background:#10291c">
+  </div>
+  <div style="position:absolute; top:0; left:520px; width:520px; height:520px; display:flex; flex-direction:column; background:#163b27; border-radius:256px">
+  </div>
+  <div style="position:absolute; top:62px; left:128px; width:700px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#a6e27a; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#a6e27a">PROYECTO RECYTRACK · PILOTAJE</p>
+  </div>
+  <h2 style="position:absolute; top:150px; left:128px; width:680px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:60px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#f7f8f4">Del prototipo a una <span style="color:#a6e27a">organización real</span></h2>
+  <p style="position:absolute; top:300px; left:128px; width:640px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.4; color:#c3d6c8">Un piloto con usuarios reales para comprobar la cadena fuera del laboratorio y medir los objetivos.</p>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 700 380" aria-label="Ilustración: una organización con su edificio, un punto limpio con tres contenedores con código QR, una persona con su celular y una marca de validación" style="position:absolute; top:420px; left:100px; width:700px; height:380px"><circle cx="640" cy="64" r="38" fill="#E9B464"/><rect x="0" y="330" width="700" height="6" rx="3" fill="#2E5A40"/><polygon points="40,150 100,100 100,150 160,100 160,150 220,100 220,150 280,100 280,150 340,100 340,150" fill="#2E5A40"/><rect x="40" y="150" width="300" height="180" fill="#1C4A31"/><rect x="66" y="180" width="54" height="40" rx="4" fill="#2E5A40"/><rect x="143" y="180" width="54" height="40" rx="4" fill="#2E5A40"/><rect x="220" y="180" width="54" height="40" rx="4" fill="#2E5A40"/><rect x="66" y="246" width="54" height="40" rx="4" fill="#2E5A40"/><rect x="250" y="246" width="54" height="40" rx="4" fill="#2E5A40"/><rect x="160" y="250" width="56" height="80" rx="4" fill="#0B1F14"/><rect x="396" y="236" width="62" height="14" rx="5" fill="#7FC49A"/><rect x="400" y="250" width="54" height="80" rx="6" fill="#A6E27A"/><rect x="415" y="272" width="24" height="24" rx="3" fill="#F7F8F4"/><rect x="418" y="275" width="8" height="8" fill="#10291C"/><rect x="428" y="275" width="8" height="8" fill="#10291C"/><rect x="418" y="285" width="8" height="8" fill="#10291C"/><rect x="462" y="236" width="62" height="14" rx="5" fill="#C98A3A"/><rect x="466" y="250" width="54" height="80" rx="6" fill="#E9B464"/><rect x="481" y="272" width="24" height="24" rx="3" fill="#F7F8F4"/><rect x="484" y="275" width="8" height="8" fill="#10291C"/><rect x="494" y="275" width="8" height="8" fill="#10291C"/><rect x="494" y="285" width="8" height="8" fill="#10291C"/><rect x="528" y="236" width="62" height="14" rx="5" fill="#9FB3A6"/><rect x="532" y="250" width="54" height="80" rx="6" fill="#C3D6C8"/><rect x="547" y="272" width="24" height="24" rx="3" fill="#F7F8F4"/><rect x="550" y="275" width="8" height="8" fill="#10291C"/><rect x="560" y="285" width="8" height="8" fill="#10291C"/><rect x="550" y="285" width="8" height="8" fill="#10291C"/><circle cx="493" cy="186" r="28" fill="#A6E27A"/><path d="M480 186 L489 195 L507 177" fill="none" stroke="#10291C" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/><circle cx="640" cy="200" r="18" fill="#F7F8F4"/><rect x="618" y="224" width="44" height="70" rx="20" fill="#7FC49A"/><rect x="624" y="286" width="12" height="44" rx="5" fill="#F7F8F4"/><rect x="644" y="286" width="12" height="44" rx="5" fill="#F7F8F4"/><rect x="598" y="236" width="18" height="30" rx="4" fill="#F7F8F4"/><rect x="601" y="240" width="12" height="20" rx="2" fill="#1B7F45"/></svg>
+  <div style="position:absolute; top:830px; left:128px; width:680px; display:flex; flex-direction:row; gap:24px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1; padding:0 0 0 16px; border-left:3px solid #a6e27a">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:52px; font-weight:700; line-height:1; color:#a6e27a">2</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">semanas</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1; padding:0 0 0 16px; border-left:3px solid #a6e27a">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:52px; font-weight:700; line-height:1; color:#a6e27a">14</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">personas, 6 áreas</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1; padding:0 0 0 16px; border-left:3px solid #e9b464">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:52px; font-weight:700; line-height:1; color:#e9b464">$0</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">QR y celulares propios</p>
+    </div>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <p style="position:absolute; top:150px; left:1066px; width:600px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#17603a">RUTA DEL PILOTO · Oficina Santiago</p>
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 640" aria-label="Camino serpenteante que une las cinco etapas del piloto" style="position:absolute; top:200px; left:920px; width:180px; height:640px"><path d="M60 40 C60 110 120 110 120 180 C120 250 60 250 60 320 C60 390 120 390 120 460 C120 530 60 530 60 600" fill="none" stroke="#DCE8D8" stroke-width="30" stroke-linecap="round"/><path d="M60 40 C60 110 120 110 120 180 C120 250 60 250 60 320 C60 390 120 390 120 460 C120 530 60 530 60 600" fill="none" stroke="#FFFFFF" stroke-width="4" stroke-dasharray="12 14" stroke-linecap="round"/></svg>
+  <div data-build-in="pop 1" style="position:absolute; top:204px; left:944px; width:72px; height:72px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border:5px solid #f7f8f4; border-radius:36px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#f7f8f4">1</p>
+  </div>
+  <div data-build-in="pop 2" style="position:absolute; top:344px; left:1004px; width:72px; height:72px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border:5px solid #f7f8f4; border-radius:36px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#f7f8f4">2</p>
+  </div>
+  <div data-build-in="pop 3" style="position:absolute; top:484px; left:944px; width:72px; height:72px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#1b7f45; border:5px solid #f7f8f4; border-radius:36px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#f7f8f4">3</p>
+  </div>
+  <div data-build-in="pop 4" style="position:absolute; top:624px; left:1004px; width:72px; height:72px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#10291c; border:5px solid #a6e27a; border-radius:36px">
+    <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#a6e27a">4</p>
+  </div>
+  <div data-build-in="pop 5" style="position:absolute; top:764px; left:944px; width:72px; height:72px; display:flex; flex-direction:row; align-items:center; justify-content:center; background:#e9b464; border:5px solid #f7f8f4; border-radius:36px">
+    <x-icon name="Check" style="width:34px; height:34px; color:#10291c"></x-icon>
+  </div>
+  <div data-build-in="fade 1" style="position:absolute; top:196px; left:1110px; width:682px; display:flex; flex-direction:row; gap:16px; align-items:center; padding:14px 22px; background:#ffffff; border:1px solid #dce3da; border-radius:16px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:28px; font-weight:700; color:#13211a">Preparar</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Plataforma limpia y cuenta del administrador</p>
+    </div>
+    <p style="padding:4px 14px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; white-space:nowrap; color:#17603a; background:#e3f1e2; border-radius:256px">Antes</p>
+  </div>
+  <div data-build-in="fade 2" style="position:absolute; top:336px; left:1110px; width:682px; display:flex; flex-direction:row; gap:16px; align-items:center; padding:14px 22px; background:#ffffff; border:1px solid #dce3da; border-radius:16px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:28px; font-weight:700; color:#13211a">Configurar</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Grupos, contenedores, QR y validador</p>
+    </div>
+    <p style="padding:4px 14px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; white-space:nowrap; color:#17603a; background:#e3f1e2; border-radius:256px">Antes</p>
+  </div>
+  <div data-build-in="fade 3" style="position:absolute; top:476px; left:1110px; width:682px; display:flex; flex-direction:row; gap:16px; align-items:center; padding:14px 22px; background:#ffffff; border:1px solid #dce3da; border-radius:16px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:28px; font-weight:700; color:#13211a">Lanzar</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Charla breve por grupo y QR pegados</p>
+    </div>
+    <p style="padding:4px 14px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; white-space:nowrap; color:#17603a; background:#e3f1e2; border-radius:256px">10-nov</p>
+  </div>
+  <div data-build-in="fade 4" style="position:absolute; top:616px; left:1110px; width:682px; display:flex; flex-direction:row; gap:16px; align-items:center; padding:14px 22px; background:#10291c; border-radius:16px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:28px; font-weight:700; color:#f7f8f4">Operar</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#c3d6c8">Depósitos, ronda diaria y retiro semanal</p>
+    </div>
+    <p style="padding:4px 14px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; white-space:nowrap; color:#10291c; background:#a6e27a; border-radius:256px">2 semanas</p>
+  </div>
+  <div data-build-in="fade 5" style="position:absolute; top:756px; left:1110px; width:682px; display:flex; flex-direction:row; gap:16px; align-items:center; padding:14px 22px; background:#ffffff; border:1px solid #dce3da; border-radius:16px">
+    <div style="display:flex; flex-direction:column; gap:2px; flex:1">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:28px; font-weight:700; color:#13211a">Cerrar y medir</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#4e5d54">Reportes, encuesta SUS y objetivos</p>
+    </div>
+    <p style="padding:4px 14px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; white-space:nowrap; color:#8a5300; background:#fbefd3; border-radius:256px">20-nov</p>
+  </div>
+  <div style="position:absolute; bottom:56px; left:940px; width:852px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">15</p>
+  </div>
+  
+</section>
+
+<section id="piloto" data-transition="fade" style="display:flex; flex-direction:column; gap:24px; padding:150px 128px 140px; background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · RESULTADOS OBTENIDOS</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <h2 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">El piloto: ¿logramos los objetivos?</h2>
+  <p style="font-family:'DM Sans', Arial, sans-serif; font-size:26px; color:#4e5d54">Oficina de Viñedos Familia Chadwick, Santiago · 2 semanas (10 al 20-nov) · 14 participantes de 6 áreas · corte al 16-nov (5 de 9 días)</p>
+  <div style="display:flex; flex-direction:row; gap:32px; flex:1">
+    <table style="width:1140px; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a; background:#ffffff">
+      <tr style="background:#10291c"><th style="padding:9px 18px; width:9%; color:#a6e27a">OE</th><th style="padding:9px 18px; width:51%; color:#f7f8f4">Indicador</th><th style="padding:9px 18px; width:20%; color:#f7f8f4">Meta</th><th style="padding:9px 18px; width:20%; color:#e9b464">Al 16-nov</th></tr>
+      <tr><td style="padding:9px 18px">1</td><td style="padding:9px 18px; color:#4e5d54">Tiempo para sumarse</td><td style="padding:9px 18px">≤ 5 min</td><td style="padding:9px 18px; color:#8a5300">Por medir</td></tr>
+      <tr><td style="padding:9px 18px">2</td><td style="padding:9px 18px; color:#4e5d54">QR leídos y tiempo de registro</td><td style="padding:9px 18px">95 % · 30 s</td><td style="padding:9px 18px; color:#8a5300">Por medir</td></tr>
+      <tr style="background:#f1f7ef"><td style="padding:9px 18px">3 ★</td><td style="padding:9px 18px; color:#4e5d54">Rondas diarias realizadas</td><td style="padding:9px 18px">≥ 70 %</td><td style="padding:9px 18px; color:#17603a">100 % ✓</td></tr>
+      <tr><td style="padding:9px 18px">4</td><td style="padding:9px 18px; color:#4e5d54">Retiros que certifican lo validado</td><td style="padding:9px 18px">100 %</td><td style="padding:9px 18px; color:#17603a">100 % ✓</td></tr>
+      <tr><td style="padding:9px 18px">5</td><td style="padding:9px 18px; color:#4e5d54">Reportes y certificados automáticos</td><td style="padding:9px 18px">100 %</td><td style="padding:9px 18px; color:#8a5300">Al cierre</td></tr>
+      <tr style="background:#f1f7ef"><td style="padding:9px 18px">6 ★</td><td style="padding:9px 18px; color:#4e5d54">Participantes con depósito validado</td><td style="padding:9px 18px">≥ 60 %</td><td style="padding:9px 18px; color:#17603a">77 % ✓</td></tr>
+      <tr><td style="padding:9px 18px">7</td><td style="padding:9px 18px; color:#4e5d54">Retiros sin ayuda · usabilidad SUS</td><td style="padding:9px 18px">≥ 75 % · 68</td><td style="padding:9px 18px; color:#8a5300">0 de 1 · SUS —</td></tr>
+      <tr><td style="padding:9px 18px">8</td><td style="padding:9px 18px; color:#4e5d54">Gasto en hardware e infraestructura</td><td style="padding:9px 18px">$0</td><td style="padding:9px 18px; color:#17603a">$0 ✓</td></tr>
+    </table>
+    <div style="display:flex; flex-direction:column; gap:16px; flex:1; padding:30px; background:#10291c; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:2px; color:#a6e27a">TASA DE LOGRO</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#c3d6c8">Objetivos que alcanzan su meta ÷ 8, con los dos críticos (★)</p>
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:72px; font-weight:700; line-height:1; color:#e9b464">4 / 8</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#f7f8f4">Al 16-nov: OE3, OE4, OE6 y OE8. OE1, OE2, OE5 y OE7 se miden al cierre.</p>
+      <div style="display:flex; flex-direction:column; gap:10px">
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4"><span style="color:#a6e27a"><b>7 u 8</b></span> Logrado: escalar</p>
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4"><span style="color:#e9b464"><b>4 a 6</b></span> Parcial: ajustar</p>
+        <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4"><span style="color:#f0a39a"><b>0 a 3</b></span> Replantear</p>
+      </div>
+    </div>
+  </div>
+  <div style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122&nbsp;</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">16</p>
+  </div>
+  
+</section>
+
+<section id="obstaculos" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · OBSTÁCULOS</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-1kkuak8" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">17</p>
+  </div>
+  <h2 id="pd82d524c24ear0-d42316f4" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Obstáculos y cómo los enfrentamos</h2>
+  <div id="pd82d524c24ear1_0-d42316f4" style="position:absolute; top:318.14px; left:128px; width:539px; height:250px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Distancia y horarios</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">Organización lejana; cada uno en su práctica.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> Trabajo asíncrono en GitHub y reuniones con la organización sin esperar a los tres.</p>
+  </div>
+  <div id="pd82d524c24ear1_1-d42316f4" style="position:absolute; top:318.14px; left:50%; width:539px; height:250px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px; transform:translateX(-50%)">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Tecnologías nuevas</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">Firebase, modelo documental y NativeWind.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> Sprint 1 para la arquitectura; reglas y sus pruebas antes que las pantallas.</p>
+  </div>
+  <div id="pd82d524c24ear1_2-d42316f4" style="position:absolute; top:318.14px; left:1253px; width:539px; height:250px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Cambio de requisitos</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">La organización pidió quitar el rol de gestor.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> El administrador registra el retiro en el panel; reglas y pruebas reescritas.</p>
+  </div>
+  <div id="pd82d524c24ear1_3-d42316f4" style="position:absolute; top:592.14px; left:128px; width:539px; height:217px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Sin presupuesto</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">Sin balanzas, Cloud Functions ni tiendas.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> Validación visual, kilos por talla, reglas de seguridad y app web instalable.</p>
+  </div>
+  <div id="pd82d524c24ear1_4-d42316f4" style="position:absolute; top:592.14px; left:691px; width:539px; height:217px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Disciplina del proceso</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">9 PR sin revisión; seguimiento al final.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> Retro del S2: aprobación de otro integrante y backlogs al día en cada cierre.</p>
+  </div>
+  <div id="pd82d524c24ear1_5-d42316f4" style="position:absolute; top:592.14px; left:1253px; width:539px; height:217px; display:flex; flex-direction:column; gap:12px; padding:28px 32px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+    <h3 style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:32px; font-weight:700; color:#13211a">Dependencias externas</h3>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">Datos reales y login Microsoft con su TI.</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54"><span style="color:#17603a"><b>→</b></span> Validador suplente, seguimiento semanal y plazos de la organización.</p>
+  </div>
+  
+</section>
+
+<section id="demo" data-transition="fade" style="background:#10291C;color:#F7F8F4;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;justify-content:center;gap:40px">
+<div style="position:absolute;left:1060px;top:40px;width:1000px;height:1000px;border-radius:500px;background:#163B27"></div>
+<div style="position:absolute;left:1210px;top:190px;width:700px;height:700px;border-radius:350px;background:#1C4A31"></div>
+<div style="position:absolute;left:128px;top:62px;width:1100px;display:flex;flex-direction:row;align-items:center;gap:16px"><div style="width:40px;height:4px;border-radius:2px;background:#A6E27A"></div><p style="font-size:24px;font-weight:700;letter-spacing:3px;color:#A6E27A">PROYECTO RECYTRACK · EXPOSICIÓN DEL SISTEMA</p></div>
+<div style="width:900px;display:flex;flex-direction:column;gap:36px">
+<p style="font-size:28px;font-weight:700;letter-spacing:4px;color:#E9B464">DEMOSTRACIÓN EN VIVO</p>
+<h1 style="font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:120px;font-weight:700;line-height:1;letter-spacing:-3px;color:#F7F8F4">Veamos <span style="color:#A6E27A">RecyTrack</span> funcionando</h1>
+<div style="display:flex;flex-direction:column;gap:14px">
+<p style="font-size:28px;color:#C3D6C8"><b style="color:#A6E27A">1</b>  El colaborador escanea y registra</p>
+<p style="font-size:28px;color:#C3D6C8"><b style="color:#A6E27A">2</b>  El validador hace la ronda</p>
+<p style="font-size:28px;color:#C3D6C8"><b style="color:#A6E27A">3</b>  El administrador registra el retiro</p>
+</div>
+</div>
+<div data-build-in="rise" style="position:absolute;left:1340px;top:110px;width:400px;height:860px;display:flex;flex-direction:column;background:#050806;border-radius:64px;padding:16px;box-shadow:0 40px 90px rgb(0,0,0)">
+<img src="img/3827251db19b313858db30af1fc2b2c3.png" alt="Pantalla de inicio del colaborador en RecyTrack, con su área, el botón Escanear código QR y la campaña vigente" style="width:368px;height:828px;object-fit:cover;border-radius:50px">
+</div>
+<div style="position:absolute;left:128px;bottom:56px;width:1100px;display:flex;flex-direction:row;align-items:center"><p style="font-size:24px;color:#9FB3A6">RecyTrack · Presentación final Capstone APT122 · 18</p></div>
+
+</section>
+
+<section id="conclusiones" data-transition="fade" style="background:#f7f8f4">
+  <div style="position:absolute; top:62px; left:128px; width:1100px; display:flex; flex-direction:row; gap:16px; align-items:center">
+    <div style="width:40px; height:4px; display:flex; flex-direction:column; background:#1b7f45; border-radius:2px">
+    </div>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#1b7f45">PROYECTO RECYTRACK · CONCLUSIONES</p>
+  </div>
+  <img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="position:absolute; top:48px; left:1584px; width:240px; height:60px; object-fit:contain">
+  <div id="e3-1ukn8me" style="position:absolute; bottom:56px; left:128px; width:1664px; display:flex; flex-direction:row; align-items:center; justify-content:space-between">
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#5e6b63">RecyTrack · Presentación final Capstone APT122</p>
+    <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#1b7f45">19</p>
+  </div>
+  <h2 id="peb8807082194r0-ed04fe37" style="position:absolute; top:150px; left:128px; width:1664px; font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:64px; font-weight:700; line-height:1.1; letter-spacing:-1px; color:#13211a">Lo que demostramos y lo que viene</h2>
+  <div id="peb8807082194r1-ed04fe37" style="position:absolute; top:244px; left:128px; width:1664px; height:245px; display:flex; flex-direction:row; gap:20px">
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:24px 26px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; line-height:1; color:#1b7f45">01</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Verificar sin medir</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54">Una ronda diaria y el retiro registrado bastan para tener datos confiables, a costo $0.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:24px 26px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; line-height:1; color:#1b7f45">02</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Confianza en los datos</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54">Las reglas impiden saltarse estados; por eso la cadena sirve en cualquier contexto.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:24px 26px; background:#ffffff; border:1px solid #dce3da; border-radius:20px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; line-height:1; color:#1b7f45">03</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Velocidad con disciplina</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#4e5d54">Avanzar rápido no basta: la revisión y las retrospectivas sostienen la calidad.</p>
+    </div>
+    <div style="display:flex; flex-direction:column; gap:10px; flex:1; padding:24px 26px; background:#fbefd3; border-radius:20px">
+      <p style="font-family:'Bricolage Grotesque', Arial, sans-serif; font-size:44px; font-weight:700; line-height:1; color:#8a5300">04</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; color:#13211a">Lo que mostró el piloto</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.35; color:#8a5300">[Opinión de la contraparte]</p>
+    </div>
+  </div>
+  <div id="peb8807082194r2-ed04fe37" style="position:absolute; top:513px; left:128px; width:1664px; height:428px; display:flex; flex-direction:row; gap:20px">
+    <div style="display:flex; flex-direction:column; gap:12px; flex:1; padding:24px 30px; background:#e3f1e2; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#17603a">COMPETENCIAS DEL PERFIL DE EGRESO</p>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
+        <x-icon name="Code" style="width:32px; height:32px; color:#1b7f45"></x-icon>
+        <p style="flex:1; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a"><b>Desarrollar software:</b> PWA con 2 vistas y panel web, en uso real</p>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
+        <x-icon name="Database" style="width:32px; height:32px; color:#1b7f45"></x-icon>
+        <p style="flex:1; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a"><b>Modelar datos:</b> Firestore con estados protegidos por reglas</p>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
+        <x-icon name="Chart" style="width:32px; height:32px; color:#1b7f45"></x-icon>
+        <p style="flex:1; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a"><b>Gestionar proyectos:</b> Scrum, 174 pts de backlog y retros con acta</p>
+      </div>
+      <div style="display:flex; flex-direction:row; gap:16px; align-items:center">
+        <x-icon name="CheckCircle" style="width:32px; height:32px; color:#1b7f45"></x-icon>
+        <p style="flex:1; font-family:'DM Sans', Arial, sans-serif; font-size:24px; color:#13211a"><b>Certificar calidad:</b> 342 pruebas y casos de prueba por sprint</p>
+      </div>
+    </div>
+    <div style="width:600px; display:flex; flex-direction:column; gap:12px; padding:24px 30px; background:#10291c; border-radius:20px">
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; font-weight:700; letter-spacing:3px; color:#a6e27a">TRABAJO FUTURO</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; text-align:justify; color:#f7f8f4">→ Implementar en condominios, colegios &nbsp;<br>y oficinas</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4">→ Varias organizaciones en la misma plataforma</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4">→ Cloud Functions: lotes a 24 h y avisos push</p>
+      <p style="font-family:'DM Sans', Arial, sans-serif; font-size:24px; line-height:1.3; color:#f7f8f4">→ Peso real del retiro como dato verificado</p>
+    </div>
+  </div>
+  
+</section>
+
+<section id="preguntas" data-transition="fade" style="background:#10291C;color:#F7F8F4;font-family:'DM Sans', Arial, sans-serif;padding:150px 128px 140px;display:flex;flex-direction:column;justify-content:center;gap:40px">
+<div style="position:absolute;left:1180px;top:-200px;width:960px;height:960px;border-radius:480px;background:#163B27"></div>
+<div style="position:absolute;left:1560px;top:40px;width:272px;height:76px;display:flex;align-items:center;justify-content:center;background:#F7F8F4;border-radius:14px"><img src="img/6f76a9df418c44d6d1a8d8dcc88d957e.png" alt="Duoc UC · Escuela de Informática y Telecomunicaciones" style="width:240px;height:60px;object-fit:contain"></div>
+<svg width="112" height="112" viewBox="0 0 64 64" aria-label="Logo de RecyTrack"><path d="M 11.2 20 A 24 24 0 0 1 56 30" fill="none" stroke="#A6E27A" stroke-width="6" stroke-linecap="round"/><polygon points="50,28 62,28 56,39" fill="#A6E27A"/><path d="M 52.8 44 A 24 24 0 0 1 8 34" fill="none" stroke="#A6E27A" stroke-width="6" stroke-linecap="round"/><polygon points="2,36 14,36 8,25" fill="#A6E27A"/><path d="M 22 42 C 22 30 30 22 42 22 C 42 34 34 42 22 42 Z" fill="#F4F8F1"/><path d="M 25 39 L 37 27" stroke="#10291C" stroke-width="3" stroke-linecap="round"/></svg>
+<h1 style="width:1400px;font-family:'Bricolage Grotesque', Arial, sans-serif;font-size:136px;font-weight:700;line-height:1;letter-spacing:-4px;color:#F7F8F4">Preguntas de la <span style="color:#A6E27A">comisión</span></h1>
+<p style="font-size:36px;line-height:1.3;color:#C3D6C8">Muchas gracias.</p>
+<div style="position:absolute;left:128px;bottom:96px;width:1200px;display:flex;flex-direction:column;gap:8px;border-left:4px solid #A6E27A;padding:4px 0 4px 24px">
+<p style="font-size:28px;font-weight:700;color:#F7F8F4">Álvaro Jaña · Matías Bustamante · Vicente Torres</p>
+<p style="font-size:24px;color:#9FB3A6">RecyTrack · Ingeniería en Informática · Duoc UC · 2026</p>
+</div>
+
+</section>
+</div>
+<div id="contador"></div>
+<div id="lupa" role="dialog" aria-label="Diagrama ampliado">
+  <img alt="">
+  <button type="button" title="Cerrar (Esc)">✕</button>
+  <div class="ayuda">Rueda o + / − para acercar · arrastra para moverte · doble clic alterna · Esc cierra</div>
+</div>
+
+<script>
+  // Íconos del formato de diapositivas, dibujados aquí porque fuera de Claude
+  // no existe el set original.
+  const ICONOS = {
+    Book: '<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"/><path d="M4 19.5A2.5 2.5 0 0 0 6.5 22H20v-5"/>',
+    Chart: '<path d="M3 3v18h18"/><path d="M7 15l4-4 3 3 5-6"/>',
+    Check: '<path d="M20 6L9 17l-5-5"/>',
+    CheckCircle: '<circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-6"/>',
+    Clock: '<circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/>',
+    Code: '<path d="M16 18l6-6-6-6M8 6l-6 6 6 6"/>',
+    Database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.7 4 3 9 3s9-1.3 9-3V5"/><path d="M3 12c0 1.7 4 3 9 3s9-1.3 9-3"/>',
+    Globe: '<circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15 15 0 0 1 0 20M12 2a15 15 0 0 0 0 20"/>',
+    GraduationCap: '<path d="M22 10L12 5 2 10l10 5 10-5z"/><path d="M6 12v5c3 2 9 2 12 0v-5"/>',
+    Home: '<path d="M3 10l9-7 9 7v10a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+    Key: '<circle cx="7.5" cy="15.5" r="4.5"/><path d="M10.7 12.3L21 2M16 7l3 3M18 5l2 2"/>',
+    Lock: '<rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>',
+    PaperPlane: '<path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4z"/>',
+    Search: '<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>',
+    Settings: '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>',
+    Star: '<path d="M12 2l3.1 6.3 6.9 1-5 4.9 1.2 6.8L12 17.8 5.8 21l1.2-6.8-5-4.9 6.9-1z"/>',
+    Tool: '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.8-3.8a6 6 0 0 1-7.9 7.9l-6.9 6.9a2.1 2.1 0 0 1-3-3l6.9-6.9a6 6 0 0 1 7.9-7.9z"/>',
+    Users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8"/>',
+    Verified: '<path d="M12 2l2.4 1.8 3-.2.9 2.9 2.5 1.7-1 2.8 1 2.8-2.5 1.7-.9 2.9-3-.2L12 22l-2.4-1.8-3 .2-.9-2.9-2.5-1.7 1-2.8-1-2.8 2.5-1.7.9-2.9 3 .2z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>',
+    Warning: '<path d="M10.3 3.9L1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/>',
+  };
+  document.querySelectorAll("x-icon").forEach((icono) => {
+    const trazo = ICONOS[icono.getAttribute("name")] || ICONOS.Check;
+    icono.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${trazo}</svg>`;
+  });
+
+  const escenario = document.getElementById("escenario");
+  const diapositivas = [...escenario.querySelectorAll(":scope > section")];
+  const contador = document.getElementById("contador");
+
+  // Cada diapositiva tiene sus pasos: grupos de elementos que aparecen con un
+  // mismo clic. "fade 2" va en el paso 2; sin número, cada uno es su propio paso.
+  const pasos = diapositivas.map((s) => {
+    const grupos = new Map();
+    [...s.querySelectorAll("[data-build-in]")].forEach((el, i) => {
+      const n = el.dataset.buildIn.trim().split(/\s+/)[1];
+      const clave = n ? Number(n) : 1000 + i;
+      if (!grupos.has(clave)) grupos.set(clave, []);
+      grupos.get(clave).push(el);
+    });
+    return [...grupos.keys()].sort((a, b) => a - b).map((k) => grupos.get(k));
+  });
+
+  let actual = 0, paso = 0;
+
+  function mostrarPasos(i, cuantos) {
+    pasos[i].forEach((grupo, j) => grupo.forEach((el) => el.classList.toggle("oculto", j >= cuantos)));
+  }
+
+  function ir(i, cuantos) {
+    i = Math.max(0, Math.min(diapositivas.length - 1, i));
+    diapositivas[actual].classList.remove("actual");
+    actual = i;
+    paso = cuantos;
+    mostrarPasos(actual, paso);
+    diapositivas[actual].classList.add("actual");
+    contador.textContent = `${actual + 1} / ${diapositivas.length}`;
+    try { sessionStorage.setItem("recytrack-diapositiva", String(actual)); } catch {}
+  }
+
+  function avanzar() {
+    if (paso < pasos[actual].length) mostrarPasos(actual, ++paso);
+    else if (actual < diapositivas.length - 1) ir(actual + 1, 0);
+  }
+  function retroceder() {
+    if (paso > 0) mostrarPasos(actual, --paso);
+    else if (actual > 0) ir(actual - 1, pasos[actual - 1].length);
+  }
+
+  // Lupa. Son ampliables las imágenes grandes con object-fit: contain, que en
+  // el mazo son los diagramas (los logos también usan contain, pero son chicos).
+  const lupa = document.getElementById("lupa");
+  const imagenLupa = lupa.querySelector("img");
+  document.querySelectorAll("section img").forEach((img) => {
+    if (img.style.objectFit === "contain" && parseFloat(img.style.width) >= 800) img.classList.add("ampliable");
+  });
+
+  let vista = { escala: 1, x: 0, y: 0, minima: 1 };
+  function pintarLupa() {
+    imagenLupa.style.transform = `translate(${vista.x}px, ${vista.y}px) scale(${vista.escala})`;
+  }
+  function encuadrar() {
+    const ancho = imagenLupa.naturalWidth, alto = imagenLupa.naturalHeight;
+    const escala = Math.min((innerWidth * 0.94) / ancho, (innerHeight * 0.9) / alto);
+    vista = { escala, minima: escala, x: (innerWidth - ancho * escala) / 2, y: (innerHeight - alto * escala) / 2 };
+    pintarLupa();
+  }
+  // Acerca o aleja dejando fijo el punto (cx, cy) de la pantalla.
+  function zoom(factor, cx = innerWidth / 2, cy = innerHeight / 2) {
+    const nueva = Math.min(vista.minima * 6, Math.max(vista.minima, vista.escala * factor));
+    const f = nueva / vista.escala;
+    vista.x = cx - (cx - vista.x) * f;
+    vista.y = cy - (cy - vista.y) * f;
+    vista.escala = nueva;
+    if (nueva === vista.minima) return encuadrar();
+    pintarLupa();
+  }
+  function abrirLupa(img) {
+    imagenLupa.alt = img.alt;
+    imagenLupa.onload = encuadrar;
+    imagenLupa.src = img.src;
+    if (imagenLupa.complete) encuadrar();
+    lupa.classList.add("abierta");
+    avisarLupa(true);
+  }
+  function cerrarLupa() {
+    lupa.classList.remove("abierta");
+    avisarLupa(false);
+  }
+  // La página de demostración esconde su barra superior mientras la lupa está
+  // abierta, para que no tape el botón de cerrar.
+  function avisarLupa(abierta) {
+    if (window.parent !== window) window.parent.postMessage({ recytrack: "lupa", abierta }, "*");
+  }
+  const lupaAbierta = () => lupa.classList.contains("abierta");
+
+  lupa.querySelector("button").addEventListener("click", cerrarLupa);
+  lupa.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    zoom(Math.pow(1.001, -e.deltaY * (e.ctrlKey ? 4 : 1)), e.clientX, e.clientY);
+  }, { passive: false });
+  lupa.addEventListener("dblclick", (e) => {
+    if (vista.escala > vista.minima * 1.05) encuadrar();
+    else zoom(2.5, e.clientX, e.clientY);
+  });
+  let arrastre = null;
+  lupa.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    arrastre = { x: e.clientX, y: e.clientY, vx: vista.x, vy: vista.y, movio: false };
+    lupa.setPointerCapture(e.pointerId);
+    lupa.classList.add("arrastrando");
+  });
+  lupa.addEventListener("pointermove", (e) => {
+    if (!arrastre) return;
+    const dx = e.clientX - arrastre.x, dy = e.clientY - arrastre.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) arrastre.movio = true;
+    vista.x = arrastre.vx + dx;
+    vista.y = arrastre.vy + dy;
+    pintarLupa();
+  });
+  lupa.addEventListener("pointerup", (e) => {
+    lupa.classList.remove("arrastrando");
+    // Un clic simple fuera del diagrama cierra la lupa.
+    if (arrastre && !arrastre.movio && e.target === lupa) cerrarLupa();
+    arrastre = null;
+  });
+  addEventListener("resize", () => { if (lupaAbierta()) encuadrar(); });
+
+  function teclaLupa(tecla) {
+    if (tecla === "Escape") cerrarLupa();
+    else if (tecla === "+" || tecla === "=") zoom(1.4);
+    else if (tecla === "-" || tecla === "_") zoom(1 / 1.4);
+    else if (tecla === "0") encuadrar();
+    else if (tecla.startsWith("Arrow")) {
+      const paso = 80;
+      if (tecla === "ArrowLeft") vista.x += paso;
+      if (tecla === "ArrowRight") vista.x -= paso;
+      if (tecla === "ArrowUp") vista.y += paso;
+      if (tecla === "ArrowDown") vista.y -= paso;
+      pintarLupa();
+    } else return false;
+    return true;
+  }
+
+  function navegar(tecla) {
+    // Con la lupa abierta, las teclas mueven el diagrama, no las diapositivas.
+    if (lupaAbierta()) return teclaLupa(tecla);
+    if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(tecla)) avanzar();
+    else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(tecla)) retroceder();
+    else if (tecla === "Home") ir(0, 0);
+    else if (tecla === "End") ir(diapositivas.length - 1, pasos[diapositivas.length - 1].length);
+    else return false;
+    return true;
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    if (navegar(e.key)) { e.preventDefault(); return; }
+    // Los atajos de la página de demostración (1, 2, 3, F) también funcionan con
+    // el foco en la presentación.
+    if (window.parent !== window) window.parent.postMessage({ recytrack: "tecla", tecla: e.key }, "*");
+  });
+  // La página de demostración reenvía las flechas cuando el foco está en ella.
+  window.addEventListener("message", (e) => {
+    if (e.source === window.parent && e.data?.recytrack === "navegar") navegar(e.data.tecla);
+  });
+  escenario.addEventListener("click", (e) => {
+    const diagrama = e.target.closest("img.ampliable");
+    if (diagrama) return abrirLupa(diagrama);
+    e.clientX < innerWidth / 4 ? retroceder() : avanzar();
+  });
+
+  function ajustar() {
+    const escala = Math.min(innerWidth / 1920, innerHeight / 1080);
+    escenario.style.transform = `translate(${(innerWidth - 1920 * escala) / 2}px, ${(innerHeight - 1080 * escala) / 2}px) scale(${escala})`;
+  }
+  addEventListener("resize", ajustar);
+  ajustar();
+
+  let inicial = 0;
+  try { inicial = Number(sessionStorage.getItem("recytrack-diapositiva")) || 0; } catch {}
+  diapositivas.forEach((_, i) => mostrarPasos(i, 0));
+  ir(inicial, 0);
+</script>
+</body>
+</html>
