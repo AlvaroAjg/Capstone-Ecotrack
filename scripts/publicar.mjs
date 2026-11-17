@@ -37,6 +37,9 @@ paso("Armando la carpeta hosting/...");
 rmSync(destino, { recursive: true, force: true });
 cpSync(exportado, destino, { recursive: true });
 
+// La página de la defensa (defensa/index.html) queda en /defensa/, junto a la app.
+cpSync(join(raiz, "defensa"), join(destino, "defensa"), { recursive: true });
+
 console.log(`
 Listo. La carpeta hosting/ quedó preparada.
 
@@ -47,4 +50,8 @@ Ahora publica con:
 Y quedará disponible en:
 
     https://ecotrack-capstone-3f12d.web.app/
+
+Y la página para la defensa en:
+
+    https://ecotrack-capstone-3f12d.web.app/defensa/
 `);
