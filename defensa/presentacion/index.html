@@ -60,6 +60,36 @@
   [data-build-in^="rise"].oculto { translate: 0 60px; }
   [data-build-in^="pop"].oculto { scale: .6; }
 
+  /* Lupa para los diagramas: se abren a pantalla completa con zoom y arrastre. */
+  section img.ampliable { cursor: zoom-in; }
+  #lupa {
+    position: fixed; inset: 0; z-index: 10;
+    display: none; overflow: hidden;
+    background: #0b1f14f2;
+    cursor: grab; touch-action: none;
+  }
+  #lupa.abierta { display: block; }
+  #lupa.arrastrando { cursor: grabbing; }
+  #lupa img {
+    position: absolute; top: 0; left: 0;
+    max-width: none; transform-origin: 0 0;
+    background: #fff; border-radius: 8px;
+    box-shadow: 0 20px 60px #0008;
+    user-select: none; -webkit-user-drag: none;
+  }
+  #lupa button {
+    position: fixed; top: 14px; right: 14px;
+    width: 40px; height: 40px; border-radius: 50%;
+    border: 0; background: #ffffffe0; color: #13211a;
+    font: 700 20px system-ui, sans-serif; cursor: pointer;
+  }
+  #lupa .ayuda {
+    position: fixed; left: 50%; bottom: 14px; translate: -50% 0;
+    font: 500 13px system-ui, sans-serif; color: #e8f3ec;
+    background: #00000080; padding: 6px 14px; border-radius: 999px;
+    pointer-events: none; white-space: nowrap;
+  }
+
   #contador {
     position: fixed; right: 12px; bottom: 10px;
     font: 600 12px system-ui, sans-serif; color: #ffffff80;
@@ -1131,6 +1161,11 @@
 </section>
 </div>
 <div id="contador"></div>
+<div id="lupa" role="dialog" aria-label="Diagrama ampliado">
+  <img alt="">
+  <button type="button" title="Cerrar (Esc)">✕</button>
+  <div class="ayuda">Rueda o + / − para acercar · arrastra para moverte · doble clic alterna · Esc cierra</div>
+</div>
 
 <script>
   // Íconos del formato de diapositivas, dibujados aquí porque fuera de Claude
@@ -1205,7 +1240,95 @@
     else if (actual > 0) ir(actual - 1, pasos[actual - 1].length);
   }
 
+  // Lupa. Son ampliables las imágenes grandes con object-fit: contain, que en
+  // el mazo son los diagramas (los logos también usan contain, pero son chicos).
+  const lupa = document.getElementById("lupa");
+  const imagenLupa = lupa.querySelector("img");
+  document.querySelectorAll("section img").forEach((img) => {
+    if (img.style.objectFit === "contain" && parseFloat(img.style.width) >= 800) img.classList.add("ampliable");
+  });
+
+  let vista = { escala: 1, x: 0, y: 0, minima: 1 };
+  function pintarLupa() {
+    imagenLupa.style.transform = `translate(${vista.x}px, ${vista.y}px) scale(${vista.escala})`;
+  }
+  function encuadrar() {
+    const ancho = imagenLupa.naturalWidth, alto = imagenLupa.naturalHeight;
+    const escala = Math.min((innerWidth * 0.94) / ancho, (innerHeight * 0.9) / alto);
+    vista = { escala, minima: escala, x: (innerWidth - ancho * escala) / 2, y: (innerHeight - alto * escala) / 2 };
+    pintarLupa();
+  }
+  // Acerca o aleja dejando fijo el punto (cx, cy) de la pantalla.
+  function zoom(factor, cx = innerWidth / 2, cy = innerHeight / 2) {
+    const nueva = Math.min(vista.minima * 6, Math.max(vista.minima, vista.escala * factor));
+    const f = nueva / vista.escala;
+    vista.x = cx - (cx - vista.x) * f;
+    vista.y = cy - (cy - vista.y) * f;
+    vista.escala = nueva;
+    if (nueva === vista.minima) return encuadrar();
+    pintarLupa();
+  }
+  function abrirLupa(img) {
+    imagenLupa.alt = img.alt;
+    imagenLupa.onload = encuadrar;
+    imagenLupa.src = img.src;
+    if (imagenLupa.complete) encuadrar();
+    lupa.classList.add("abierta");
+  }
+  function cerrarLupa() { lupa.classList.remove("abierta"); }
+  const lupaAbierta = () => lupa.classList.contains("abierta");
+
+  lupa.querySelector("button").addEventListener("click", cerrarLupa);
+  lupa.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    zoom(Math.pow(1.001, -e.deltaY * (e.ctrlKey ? 4 : 1)), e.clientX, e.clientY);
+  }, { passive: false });
+  lupa.addEventListener("dblclick", (e) => {
+    if (vista.escala > vista.minima * 1.05) encuadrar();
+    else zoom(2.5, e.clientX, e.clientY);
+  });
+  let arrastre = null;
+  lupa.addEventListener("pointerdown", (e) => {
+    if (e.target.closest("button")) return;
+    arrastre = { x: e.clientX, y: e.clientY, vx: vista.x, vy: vista.y, movio: false };
+    lupa.setPointerCapture(e.pointerId);
+    lupa.classList.add("arrastrando");
+  });
+  lupa.addEventListener("pointermove", (e) => {
+    if (!arrastre) return;
+    const dx = e.clientX - arrastre.x, dy = e.clientY - arrastre.y;
+    if (Math.abs(dx) + Math.abs(dy) > 4) arrastre.movio = true;
+    vista.x = arrastre.vx + dx;
+    vista.y = arrastre.vy + dy;
+    pintarLupa();
+  });
+  lupa.addEventListener("pointerup", (e) => {
+    lupa.classList.remove("arrastrando");
+    // Un clic simple fuera del diagrama cierra la lupa.
+    if (arrastre && !arrastre.movio && e.target === lupa) cerrarLupa();
+    arrastre = null;
+  });
+  addEventListener("resize", () => { if (lupaAbierta()) encuadrar(); });
+
+  function teclaLupa(tecla) {
+    if (tecla === "Escape") cerrarLupa();
+    else if (tecla === "+" || tecla === "=") zoom(1.4);
+    else if (tecla === "-" || tecla === "_") zoom(1 / 1.4);
+    else if (tecla === "0") encuadrar();
+    else if (tecla.startsWith("Arrow")) {
+      const paso = 80;
+      if (tecla === "ArrowLeft") vista.x += paso;
+      if (tecla === "ArrowRight") vista.x -= paso;
+      if (tecla === "ArrowUp") vista.y += paso;
+      if (tecla === "ArrowDown") vista.y -= paso;
+      pintarLupa();
+    } else return false;
+    return true;
+  }
+
   function navegar(tecla) {
+    // Con la lupa abierta, las teclas mueven el diagrama, no las diapositivas.
+    if (lupaAbierta()) return teclaLupa(tecla);
     if (["ArrowRight", "ArrowDown", "PageDown", " ", "Enter"].includes(tecla)) avanzar();
     else if (["ArrowLeft", "ArrowUp", "PageUp", "Backspace"].includes(tecla)) retroceder();
     else if (tecla === "Home") ir(0, 0);
@@ -1225,7 +1348,11 @@
   window.addEventListener("message", (e) => {
     if (e.source === window.parent && e.data?.recytrack === "navegar") navegar(e.data.tecla);
   });
-  escenario.addEventListener("click", (e) => (e.clientX < innerWidth / 4 ? retroceder() : avanzar()));
+  escenario.addEventListener("click", (e) => {
+    const diagrama = e.target.closest("img.ampliable");
+    if (diagrama) return abrirLupa(diagrama);
+    e.clientX < innerWidth / 4 ? retroceder() : avanzar();
+  });
 
   function ajustar() {
     const escala = Math.min(innerWidth / 1920, innerHeight / 1080);
