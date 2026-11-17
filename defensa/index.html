@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RecyTrack · Demostración</title>
+<!--
+  Página para mostrar la app en la defensa: el colaborador y el validador en dos
+  teléfonos lado a lado, y el panel del administrador en otra vista.
+
+  No tiene lógica ni credenciales: solo envuelve la app publicada en iframes.
+  Cada vista carga la app desde un dominio distinto porque Firebase guarda la
+  sesión por dominio; con el mismo dominio las tres vistas quedarían con la
+  misma cuenta. Las direcciones se cambian con el botón de configuración.
+-->
+<style>
+  :root {
+    --fondo: #0b1f14;
+    --fondo-2: #123322;
+    --borde: #1f4a32;
+    --texto: #e8f3ec;
+    --suave: #9cbfaa;
+    --acento: #2fae5e;
+    --acento-texto: #04140b;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; }
+  body {
+    background: radial-gradient(ellipse at top, var(--fondo-2), var(--fondo) 70%);
+    color: var(--texto);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* Barra superior */
+  header {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--borde);
+    flex-shrink: 0;
+  }
+  .marca { font-weight: 700; font-size: 16px; white-space: nowrap; }
+  .marca span { color: var(--suave); font-weight: 400; }
+  .selector {
+    margin: 0 auto;
+    display: flex;
+    background: #00000040;
+    border: 1px solid var(--borde);
+    border-radius: 999px;
+    padding: 3px;
+  }
+  .selector button {
+    border: 0;
+    background: transparent;
+    color: var(--suave);
+    font: inherit;
+    font-weight: 600;
+    padding: 7px 18px;
+    border-radius: 999px;
+    cursor: pointer;
+  }
+  .selector button[aria-pressed="true"] { background: var(--acento); color: var(--acento-texto); }
+  .selector kbd { font: inherit; opacity: .6; margin-left: 6px; }
+  .acciones { display: flex; gap: 6px; }
+  .icono {
+    border: 1px solid var(--borde);
+    background: transparent;
+    color: var(--texto);
+    width: 34px; height: 34px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+  }
+  .icono:hover { background: #ffffff10; }
+
+  main { flex: 1; position: relative; min-height: 0; }
+  .vista { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+  .vista[hidden] { display: flex; visibility: hidden; pointer-events: none; }
+
+  /* Vista planta: dos teléfonos */
+  #planta { gap: 56px; padding: 12px 16px 16px; }
+  .columna { display: flex; flex-direction: column; align-items: center; }
+  .rotulo { text-align: center; margin-bottom: 10px; white-space: nowrap; }
+  .rotulo b { display: block; font-size: 15px; }
+  .rotulo small { color: var(--suave); }
+  /* El teléfono se dibuja a tamaño real y se escala con transform, así la app
+     ve un ancho de teléfono (390 px) aunque en pantalla se vea más chico. */
+  .caja-telefono { position: relative; }
+  .telefono {
+    position: absolute; top: 0; left: 0;
+    width: 414px; height: 868px;
+    padding: 12px;
+    border-radius: 52px;
+    background: #050b07;
+    border: 2px solid #2a3b31;
+    box-shadow: 0 30px 60px #00000080;
+    transform-origin: top left;
+  }
+  .telefono iframe {
+    width: 390px; height: 844px;
+    border: 0; border-radius: 40px;
+    background: #fff;
+    display: block;
+  }
+
+  /* Vista panel: ventana de navegador */
+  #panel { padding: 12px 16px 16px; }
+  .ventana {
+    width: 100%; height: 100%;
+    display: flex; flex-direction: column;
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 30px 60px #00000080;
+    background: #fff;
+  }
+  .ventana-barra {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 12px;
+    background: #e9eeeb;
+    color: #44524a;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+  .puntos { display: flex; gap: 6px; }
+  .puntos i { width: 11px; height: 11px; border-radius: 50%; background: #c9d2cc; display: block; }
+  .direccion { flex: 1; background: #fff; border-radius: 6px; padding: 4px 10px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+  .lienzo { flex: 1; position: relative; overflow: hidden; min-height: 0; }
+  /* El panel exige al menos 1024 px de ancho (ANCHO_ESCRITORIO en App.tsx); si
+     la pantalla es más angosta, se dibuja a 1280 px y se escala. */
+  .lienzo iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: top left; }
+
+  .aviso {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 8px; padding: 24px; text-align: center;
+    color: #44524a; background: #f6f8f7;
+  }
+  .aviso[hidden] { display: none; }
+  .aviso code { background: #e9eeeb; padding: 2px 6px; border-radius: 4px; }
+
+  /* Configuración */
+  dialog {
+    border: 1px solid var(--borde);
+    border-radius: 12px;
+    background: var(--fondo-2);
+    color: var(--texto);
+    width: min(560px, calc(100vw - 32px));
+    padding: 20px;
+  }
+  dialog::backdrop { background: #000000a0; }
+  dialog h2 { margin: 0 0 4px; font-size: 18px; }
+  dialog p { color: var(--suave); margin: 0 0 16px; }
+  dialog label { display: block; font-weight: 600; margin-bottom: 12px; }
+  dialog input {
+    display: block; width: 100%; margin-top: 4px;
+    padding: 8px 10px; border-radius: 8px;
+    border: 1px solid var(--borde); background: #00000040; color: var(--texto);
+    font: 13px ui-monospace, Consolas, monospace;
+  }
+  .botones { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .botones button {
+    border: 1px solid var(--borde); background: transparent; color: var(--texto);
+    padding: 8px 16px; border-radius: 8px; font: inherit; font-weight: 600; cursor: pointer;
+  }
+  .botones button.principal { background: var(--acento); border-color: var(--acento); color: var(--acento-texto); }
+
+  @media (max-width: 720px) {
+    header { flex-wrap: wrap; }
+    .selector { order: 3; width: 100%; justify-content: center; }
+    #planta { gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="marca">♻️ RecyTrack <span>· Oficinas Viñedos Familia Chadwick</span></div>
+  <nav class="selector" aria-label="Vista">
+    <button type="button" data-vista="planta" aria-pressed="true">📱 Oficinas <kbd>1</kbd></button>
+    <button type="button" data-vista="panel" aria-pressed="false">🖥️ Panel web <kbd>2</kbd></button>
+  </nav>
+  <div class="acciones">
+    <button type="button" class="icono" id="recargar" title="Recargar la vista actual (R)">↻</button>
+    <button type="button" class="icono" id="pantalla" title="Pantalla completa (F)">⛶</button>
+    <button type="button" class="icono" id="ajustes" title="Configurar direcciones">⚙</button>
+  </div>
+</header>
+
+<main>
+  <section class="vista" id="planta">
+    <div class="columna">
+      <div class="rotulo"><b>Colaborador</b><small>Escanea el QR y declara material y talla</small></div>
+      <div class="caja-telefono"><div class="telefono"><iframe id="marco-colaborador" title="App del colaborador"></iframe></div></div>
+    </div>
+    <div class="columna">
+      <div class="rotulo"><b>Validador</b><small>Ronda diaria por contenedor</small></div>
+      <div class="caja-telefono"><div class="telefono"><iframe id="marco-validador" title="App del validador"></iframe></div></div>
+    </div>
+  </section>
+
+  <section class="vista" id="panel" hidden>
+    <div class="ventana">
+      <div class="ventana-barra">
+        <div class="puntos"><i></i><i></i><i></i></div>
+        <div class="direccion" id="direccion-panel"></div>
+      </div>
+      <div class="lienzo" id="lienzo">
+        <iframe id="marco-panel" title="Panel web del administrador"></iframe>
+        <div class="aviso" id="aviso-panel" hidden>
+          <b>Falta la dirección del panel</b>
+          <span>El administrador necesita un dominio distinto al de los teléfonos para tener su propia sesión.</span>
+          <span>Publica un canal de vista previa con <code>npx firebase-tools hosting:channel:deploy defensa --expires 30d</code> y pega su URL en ⚙.</span>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<dialog id="dialogo">
+  <form method="dialog">
+    <h2>Direcciones de la app</h2>
+    <p>Cada vista necesita un dominio distinto para que cada una mantenga su propia sesión. Se guardan en este navegador.</p>
+    <label>Colaborador <input name="colaborador" type="url" required></label>
+    <label>Validador <input name="validador" type="url" required></label>
+    <label>Panel del administrador <input name="panel" type="url" placeholder="https://…--defensa-….web.app"></label>
+    <div class="botones">
+      <button type="button" id="restablecer">Restablecer</button>
+      <button value="cancelar" formnovalidate>Cancelar</button>
+      <button value="guardar" class="principal">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+  // web.app y firebaseapp.com son dos dominios del mismo sitio de Firebase
+  // Hosting: misma app, pero cada uno con su propia sesión.
+  const PROYECTO = "ecotrack-capstone-3f12d";
+  const POR_DEFECTO = {
+    colaborador: `https://${PROYECTO}.web.app/`,
+    validador: `https://${PROYECTO}.firebaseapp.com/`,
+    panel: "",
+  };
+  const CLAVE = "recytrack-defensa-direcciones";
+
+  function leerDirecciones() {
+    let guardadas = {};
+    try { guardadas = JSON.parse(localStorage.getItem(CLAVE)) || {}; } catch {}
+    // ?panel=… en la URL permite dejar un enlace listo desde la presentación.
+    const parametros = Object.fromEntries(new URLSearchParams(location.search));
+    const direcciones = { ...POR_DEFECTO };
+    for (const nombre of Object.keys(POR_DEFECTO)) {
+      direcciones[nombre] = parametros[nombre] || guardadas[nombre] || POR_DEFECTO[nombre];
+    }
+    return direcciones;
+  }
+
+  let direcciones = leerDirecciones();
+  const marcos = {
+    colaborador: document.getElementById("marco-colaborador"),
+    validador: document.getElementById("marco-validador"),
+    panel: document.getElementById("marco-panel"),
+  };
+
+  function cargarMarcos() {
+    for (const [nombre, marco] of Object.entries(marcos)) {
+      if (direcciones[nombre]) marco.src = direcciones[nombre];
+      else marco.removeAttribute("src");
+    }
+    const sinPanel = !direcciones.panel;
+    document.getElementById("aviso-panel").hidden = !sinPanel;
+    marcos.panel.hidden = sinPanel;
+    document.getElementById("direccion-panel").textContent = direcciones.panel || "Panel del administrador";
+  }
+
+  // Escalado: los iframes mantienen su tamaño lógico (teléfono de 390 px,
+  // escritorio de al menos 1280 px) y solo se achican en pantalla.
+  function ajustarTelefonos() {
+    const planta = document.getElementById("planta");
+    const cajas = planta.querySelectorAll(".caja-telefono");
+    const rotulo = planta.querySelector(".rotulo").offsetHeight + 10;
+    const altoLibre = planta.clientHeight - 28 - rotulo;
+    const anchoLibre = (planta.clientWidth - 32 - 56) / 2;
+    const escala = Math.min(1, altoLibre / 868, anchoLibre / 414);
+    cajas.forEach((caja) => {
+      caja.style.width = `${414 * escala}px`;
+      caja.style.height = `${868 * escala}px`;
+      caja.firstElementChild.style.transform = `scale(${escala})`;
+    });
+  }
+
+  function ajustarPanel() {
+    const lienzo = document.getElementById("lienzo");
+    const ancho = lienzo.clientWidth, alto = lienzo.clientHeight;
+    if (!ancho) return;
+    const anchoLogico = Math.max(1280, ancho);
+    const escala = ancho / anchoLogico;
+    Object.assign(marcos.panel.style, {
+      width: `${anchoLogico}px`,
+      height: `${alto / escala}px`,
+      transform: `scale(${escala})`,
+    });
+  }
+
+  function ajustar() { ajustarTelefonos(); ajustarPanel(); }
+
+  let vistaActual = "planta";
+  function mostrar(vista) {
+    vistaActual = vista;
+    document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== vista));
+    document.querySelectorAll(".selector button").forEach((b) =>
+      b.setAttribute("aria-pressed", String(b.dataset.vista === vista)));
+    try { localStorage.setItem("recytrack-defensa-vista", vista); } catch {}
+    ajustar();
+  }
+
+  function recargarVista() {
+    const nombres = vistaActual === "planta" ? ["colaborador", "validador"] : ["panel"];
+    for (const nombre of nombres) if (direcciones[nombre]) marcos[nombre].src = direcciones[nombre];
+  }
+
+  function pantallaCompleta() {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen?.();
+  }
+
+  document.querySelectorAll(".selector button").forEach((b) =>
+    b.addEventListener("click", () => mostrar(b.dataset.vista)));
+  document.getElementById("recargar").addEventListener("click", recargarVista);
+  document.getElementById("pantalla").addEventListener("click", pantallaCompleta);
+
+  // Los atajos solo funcionan con el foco en esta página: si el foco está
+  // dentro de un iframe (escribiendo en la app), las teclas van a la app.
+  document.addEventListener("keydown", (e) => {
+    if (e.ctrlKey || e.metaKey || e.altKey || document.getElementById("dialogo").open) return;
+    if (e.key === "1") mostrar("planta");
+    else if (e.key === "2") mostrar("panel");
+    else if (e.key === "r" || e.key === "R") recargarVista();
+    else if (e.key === "f" || e.key === "F") pantallaCompleta();
+  });
+
+  // Configuración
+  const dialogo = document.getElementById("dialogo");
+  const formulario = dialogo.querySelector("form");
+  document.getElementById("ajustes").addEventListener("click", () => {
+    for (const nombre of Object.keys(POR_DEFECTO)) formulario.elements[nombre].value = direcciones[nombre];
+    dialogo.showModal();
+  });
+  document.getElementById("restablecer").addEventListener("click", () => {
+    for (const nombre of Object.keys(POR_DEFECTO)) formulario.elements[nombre].value = POR_DEFECTO[nombre];
+  });
+  dialogo.addEventListener("close", () => {
+    if (dialogo.returnValue !== "guardar") return;
+    const nuevas = {};
+    for (const nombre of Object.keys(POR_DEFECTO)) nuevas[nombre] = formulario.elements[nombre].value.trim();
+    try { localStorage.setItem(CLAVE, JSON.stringify(nuevas)); } catch {}
+    direcciones = { ...POR_DEFECTO, ...nuevas };
+    cargarMarcos();
+    ajustar();
+  });
+
+  window.addEventListener("resize", ajustar);
+  cargarMarcos();
+  let vistaInicial = "planta";
+  try { vistaInicial = localStorage.getItem("recytrack-defensa-vista") || "planta"; } catch {}
+  mostrar(vistaInicial === "panel" ? "panel" : "planta");
+</script>
+</body>
+</html>
