@@ -5,8 +5,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>RecyTrack · Demostración</title>
 <!--
-  Página para mostrar la app en la defensa: el colaborador y el validador en dos
-  teléfonos lado a lado, y el panel del administrador en otra vista.
+  Página para la defensa: la presentación (presentacion/), el colaborador y el
+  validador en dos teléfonos lado a lado, y el panel del administrador, cada uno
+  en su vista y con un atajo de teclado.
 
   No tiene lógica ni credenciales: solo envuelve la app publicada en iframes.
   Cada vista carga la app desde un dominio distinto porque Firebase guarda la
@@ -80,6 +81,16 @@
   main { flex: 1; position: relative; min-height: 0; }
   .vista { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
   .vista[hidden] { display: flex; visibility: hidden; pointer-events: none; }
+
+  /* Vista presentación: las diapositivas ocupan toda la pantalla y la barra
+     superior se esconde hasta que el mouse sube al borde. */
+  #presentacion iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+  body.en-presentacion header {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 2;
+    background: var(--fondo);
+    opacity: 0; transition: opacity .2s;
+  }
+  body.en-presentacion header:hover, body.en-presentacion header:focus-within { opacity: 1; }
 
   /* Vista planta: dos teléfonos */
   #planta { gap: 56px; padding: 12px 16px 16px; }
@@ -181,8 +192,9 @@
 <header>
   <div class="marca">♻️ RecyTrack <span>· Oficinas Viñedos Familia Chadwick</span></div>
   <nav class="selector" aria-label="Vista">
-    <button type="button" data-vista="planta" aria-pressed="true">📱 Oficinas <kbd>1</kbd></button>
-    <button type="button" data-vista="panel" aria-pressed="false">🖥️ Panel web <kbd>2</kbd></button>
+    <button type="button" data-vista="presentacion" aria-pressed="true">🎞️ Presentación <kbd>1</kbd></button>
+    <button type="button" data-vista="planta" aria-pressed="false">📱 Oficinas <kbd>2</kbd></button>
+    <button type="button" data-vista="panel" aria-pressed="false">🖥️ Panel web <kbd>3</kbd></button>
   </nav>
   <div class="acciones">
     <button type="button" class="icono" id="recargar" title="Recargar la vista actual (R)">↻</button>
@@ -192,7 +204,11 @@
 </header>
 
 <main>
-  <section class="vista" id="planta">
+  <section class="vista" id="presentacion">
+    <iframe id="marco-presentacion" src="presentacion/index.html" title="Presentación de la defensa"></iframe>
+  </section>
+
+  <section class="vista" id="planta" hidden>
     <div class="columna">
       <div class="rotulo"><b>Colaborador</b><small>Escanea el QR y declara material y talla</small></div>
       <div class="caja-telefono"><div class="telefono"><iframe id="marco-colaborador" title="App del colaborador"></iframe></div></div>
@@ -308,17 +324,28 @@
 
   function ajustar() { ajustarTelefonos(); ajustarPanel(); }
 
-  let vistaActual = "planta";
+  const VISTAS = ["presentacion", "planta", "panel"];
+  let vistaActual = "presentacion";
   function mostrar(vista) {
     vistaActual = vista;
+    document.body.classList.toggle("en-presentacion", vista === "presentacion");
     document.querySelectorAll(".vista").forEach((s) => (s.hidden = s.id !== vista));
     document.querySelectorAll(".selector button").forEach((b) =>
       b.setAttribute("aria-pressed", String(b.dataset.vista === vista)));
     try { localStorage.setItem("recytrack-defensa-vista", vista); } catch {}
+    // Un marco escondido que se queda con el foco se traga las teclas, así que
+    // el foco va a la vista que se muestra: a las diapositivas, o a esta página.
+    const marco = document.getElementById("marco-presentacion");
+    if (vista === "presentacion") marco.focus();
+    else if (document.activeElement?.tagName === "IFRAME") { document.activeElement.blur(); window.focus(); }
     ajustar();
   }
 
   function recargarVista() {
+    if (vistaActual === "presentacion") {
+      document.getElementById("marco-presentacion").contentWindow.location.reload();
+      return;
+    }
     const nombres = vistaActual === "planta" ? ["colaborador", "validador"] : ["panel"];
     for (const nombre of nombres) if (direcciones[nombre]) marcos[nombre].src = direcciones[nombre];
   }
@@ -335,12 +362,30 @@
 
   // Los atajos solo funcionan con el foco en esta página: si el foco está
   // dentro de un iframe (escribiendo en la app), las teclas van a la app.
+  function atajo(tecla) {
+    if (["1", "2", "3"].includes(tecla)) mostrar(VISTAS[Number(tecla) - 1]);
+    else if (tecla === "r" || tecla === "R") recargarVista();
+    else if (tecla === "f" || tecla === "F") pantallaCompleta();
+    else return false;
+    return true;
+  }
+
+  const marcoPresentacion = document.getElementById("marco-presentacion");
+  const TECLAS_DIAPOSITIVA = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Enter", "Backspace", "Home", "End"];
+
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || document.getElementById("dialogo").open) return;
-    if (e.key === "1") mostrar("planta");
-    else if (e.key === "2") mostrar("panel");
-    else if (e.key === "r" || e.key === "R") recargarVista();
-    else if (e.key === "f" || e.key === "F") pantallaCompleta();
+    if (atajo(e.key)) return;
+    // Con el foco en esta página (por ejemplo, después de usar el selector),
+    // las flechas igual mueven las diapositivas.
+    if (vistaActual === "presentacion" && TECLAS_DIAPOSITIVA.includes(e.key)) {
+      e.preventDefault();
+      marcoPresentacion.contentWindow.postMessage({ recytrack: "navegar", tecla: e.key }, "*");
+    }
+  });
+  // Con el foco dentro de la presentación, ella nos manda los atajos.
+  window.addEventListener("message", (e) => {
+    if (e.source === marcoPresentacion.contentWindow && e.data?.recytrack === "tecla") atajo(e.data.tecla);
   });
 
   // Configuración
@@ -365,9 +410,9 @@
 
   window.addEventListener("resize", ajustar);
   cargarMarcos();
-  let vistaInicial = "planta";
-  try { vistaInicial = localStorage.getItem("recytrack-defensa-vista") || "planta"; } catch {}
-  mostrar(vistaInicial === "panel" ? "panel" : "planta");
+  let vistaInicial = "presentacion";
+  try { vistaInicial = localStorage.getItem("recytrack-defensa-vista") || vistaInicial; } catch {}
+  mostrar(VISTAS.includes(vistaInicial) ? vistaInicial : "presentacion");
 </script>
 </body>
 </html>
