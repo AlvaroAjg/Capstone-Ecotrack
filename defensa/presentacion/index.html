@@ -1274,8 +1274,17 @@
     imagenLupa.src = img.src;
     if (imagenLupa.complete) encuadrar();
     lupa.classList.add("abierta");
+    avisarLupa(true);
   }
-  function cerrarLupa() { lupa.classList.remove("abierta"); }
+  function cerrarLupa() {
+    lupa.classList.remove("abierta");
+    avisarLupa(false);
+  }
+  // La página de demostración esconde su barra superior mientras la lupa está
+  // abierta, para que no tape el botón de cerrar.
+  function avisarLupa(abierta) {
+    if (window.parent !== window) window.parent.postMessage({ recytrack: "lupa", abierta }, "*");
+  }
   const lupaAbierta = () => lupa.classList.contains("abierta");
 
   lupa.querySelector("button").addEventListener("click", cerrarLupa);

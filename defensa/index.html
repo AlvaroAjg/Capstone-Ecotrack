@@ -91,6 +91,8 @@
     opacity: 0; transition: opacity .2s;
   }
   body.en-presentacion header:hover, body.en-presentacion header:focus-within { opacity: 1; }
+  /* Con un diagrama ampliado, la barra no aparece: taparía el botón de cerrar. */
+  body.en-presentacion.lupa-abierta header { display: none; }
 
   /* Vista planta: dos teléfonos */
   #planta { gap: 56px; padding: 12px 16px 16px; }
@@ -350,9 +352,17 @@
     for (const nombre of nombres) if (direcciones[nombre]) marcos[nombre].src = direcciones[nombre];
   }
 
-  function pantallaCompleta() {
-    if (document.fullscreenElement) document.exitFullscreen();
-    else document.documentElement.requestFullscreen?.();
+  // En pantalla completa el navegador usa Esc para salir, y Esc es la tecla que
+  // cierra un diagrama ampliado. Con el bloqueo de teclado (Chrome y Edge) Esc
+  // llega a la página; para salir quedan F o mantener Esc apretado.
+  async function pantallaCompleta() {
+    if (document.fullscreenElement) {
+      navigator.keyboard?.unlock?.();
+      document.exitFullscreen();
+      return;
+    }
+    await document.documentElement.requestFullscreen?.();
+    try { await navigator.keyboard?.lock?.(["Escape"]); } catch {}
   }
 
   document.querySelectorAll(".selector button").forEach((b) =>
@@ -385,7 +395,9 @@
   });
   // Con el foco dentro de la presentación, ella nos manda los atajos.
   window.addEventListener("message", (e) => {
-    if (e.source === marcoPresentacion.contentWindow && e.data?.recytrack === "tecla") atajo(e.data.tecla);
+    if (e.source !== marcoPresentacion.contentWindow) return;
+    if (e.data?.recytrack === "tecla") atajo(e.data.tecla);
+    else if (e.data?.recytrack === "lupa") document.body.classList.toggle("lupa-abierta", !!e.data.abierta);
   });
 
   // Configuración
