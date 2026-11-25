@@ -15,7 +15,7 @@
 <text x="565.0" y="297.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">y certificado mensual</text>
 <text x="565.0" y="379.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">CU-04 Realizar la ronda diaria de validación</text>
 <text x="565.0" y="462.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">CU-05 Administrar la planta</text>
-<text x="565.0" y="477.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">(contenedores, áreas, personas, incentivo)</text>
+<text x="565.0" y="477.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">(puntos limpios, áreas, personas, campañas)</text>
 <text x="565.0" y="549.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">CU-06 Registrar retiro y certificar depósitos</text>
 <text x="565.0" y="624.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">CU-07 Generar reporte mensual de la planta</text>
 <circle cx="90" cy="113" r="8" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>

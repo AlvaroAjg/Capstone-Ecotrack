@@ -62,7 +62,7 @@
 <text x="725.0" y="392.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Capa de negocio (lógica en el cliente)</text>
 <text x="725.0" y="742.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Capa de datos</text>
 <text x="540.0" y="982.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Fuentes de datos</text>
-<text x="540.0" y="1000.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Cloud Firestore (11 colecciones)</text>
+<text x="540.0" y="1000.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Cloud Firestore (13 colecciones)</text>
 <text x="970.0" y="982.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Servicios externos</text>
 <text x="970.0" y="1000.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Firebase Auth · Google · Microsoft</text>
 <text x="1310.0" y="372.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Transversal</text>
@@ -84,7 +84,7 @@
 <text x="725.0" y="476.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">useEcoTrack()</text>
 <text x="435.0" y="577.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Reglas de negocio</text>
 <text x="435.0" y="595.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">lib/ derivados · rondas · retiros</text>
-<text x="435.0" y="608.9" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">incentivo · misiones · avisos</text>
+<text x="435.0" y="608.9" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">puntaje · incentivo · avisos</text>
 <text x="725.0" y="577.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Documentos PDF</text>
 <text x="725.0" y="595.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">lib/ certificadoMensual · reporte</text>
 <text x="725.0" y="608.9" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">certificadoPdf · reportePdf</text>
