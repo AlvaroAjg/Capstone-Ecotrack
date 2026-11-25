@@ -16,7 +16,7 @@ Capstone de Duoc UC (equipo: Álvaro Jaña, Matías Bustamante y Vicente Torres)
 
 ## Proyecto
 
-El piloto es la planta de Viñedos Familia Chadwick, dividida en áreas, con tres roles: **colaborador**, **validador** y **administrador**. La cadena: el colaborador escanea el QR del contenedor y declara material y talla → el validador hace la ronda diaria por contenedor (conforme, con observación o sin material) → el administrador registra el retiro desde el panel web, lo que certifica los depósitos validados → certificado mensual por colaborador y reporte mensual de la planta. Quien retira el material no es usuario. El modelo de condominio de la Fase 1 (torres, departamentos, gestor) ya no existe.
+El piloto se hizo en la oficina de Viñedos Familia Chadwick en Santiago, del 10 al 20 de noviembre de 2026, dividida en áreas; en el código la organización se llama `planta`. Hay tres roles: **colaborador**, **validador** y **administrador**. La cadena: el colaborador escanea el QR del contenedor y declara material y talla → el validador hace la ronda diaria por contenedor (conforme, con observación o sin material) → el administrador registra el retiro desde el panel web, lo que certifica los depósitos validados → certificado mensual por colaborador y reporte mensual de la planta. Quien retira el material no es usuario. El modelo de condominio de la Fase 1 (torres, departamentos, gestor) ya no existe.
 
 - `app/`: la app (Expo + React Native + react-native-web, TypeScript, NativeWind, Firebase). Se publica como PWA.
   - `src/screens/`: pantallas del colaborador y del validador; el panel web del administrador está en `src/screens/panel/`.
