@@ -83,7 +83,7 @@
 <text x="600.0" y="471.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«component»</text>
 <text x="600.0" y="489.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">LogicaPura</text>
 <text x="600.0" y="505.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">derivados · rondas · retiros</text>
-<text x="600.0" y="519.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">incentivo · misiones · avisos</text>
+<text x="600.0" y="519.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">puntaje · incentivo · avisos</text>
 <text x="1000.0" y="471.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«component»</text>
 <text x="1000.0" y="489.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">EstadoRecyTrack</text>
 <text x="1000.0" y="505.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">state/EcoTrack.tsx</text>
@@ -103,7 +103,7 @@
 <text x="1302.0" y="782.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="start" fill="#1F2D24">Cloud Firestore</text>
 <path d="M1348,901 L1348,947 A70.0,9 0 0 0 1488,947 L1488,901" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M1348,901 A70.0,9 0 0 1 1488,901 A70.0,9 0 0 1 1348,901 Z" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<text x="1418.0" y="928.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">11 colecciones</text>
+<text x="1418.0" y="928.0" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">13 colecciones</text>
 <text x="1695.0" y="600.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«external»</text>
 <text x="1695.0" y="618.5" font-family="DejaVu Sans" font-size="12" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Google Identity</text>
 <text x="1695.0" y="695.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«external»</text>
@@ -143,8 +143,8 @@
 <text x="480.0" y="297.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">ValidacionContenedores</text>
 <text x="745.0" y="248.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«component»</text>
 <text x="745.0" y="266.5" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">PanelAdministrador</text>
-<text x="745.0" y="282.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Resumen · Contenedores · Personas</text>
-<text x="745.0" y="297.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Rondas · Incentivo · Retiros</text>
+<text x="745.0" y="282.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Resumen · Puntos limpios · Personas</text>
+<text x="745.0" y="297.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">Rondas · Campañas · Retiros</text>
 <text x="1015.0" y="248.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«component»</text>
 <text x="1015.0" y="266.5" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">ComponentesUI</text>
 <text x="1015.0" y="282.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#5A6660">EscanerQR (jsQR) · CodigoQR</text>

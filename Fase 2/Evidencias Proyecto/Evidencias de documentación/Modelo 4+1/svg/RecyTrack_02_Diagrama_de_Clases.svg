@@ -8,20 +8,20 @@
 <rect x="420.0" y="230.0" width="250.0" height="30.0" rx="3" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="770.0" y="230.0" width="250.0" height="85.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="770.0" y="230.0" width="250.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
-<rect x="1160.0" y="230.0" width="260.0" height="85.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
+<rect x="1160.0" y="230.0" width="260.0" height="116.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1160.0" y="230.0" width="260.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="420.0" y="440.0" width="250.0" height="102.0" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="420.0" y="440.0" width="250.0" height="30.0" rx="3" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>
-<rect x="770.0" y="430.0" width="330.0" height="158.5" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
+<rect x="770.0" y="430.0" width="330.0" height="174.0" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="770.0" y="430.0" width="330.0" height="30.0" rx="3" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>
-<path d="M770,547.5 L1100,547.5" fill="none" stroke="#3F5E48" stroke-width="1" stroke-linejoin="round"/>
+<path d="M770,563.0 L1100,563.0" fill="none" stroke="#3F5E48" stroke-width="1" stroke-linejoin="round"/>
 <rect x="1180.0" y="420.0" width="240.0" height="69.5" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1180.0" y="420.0" width="240.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1180.0" y="530.0" width="280.0" height="116.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1180.0" y="530.0" width="280.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
-<rect x="40.0" y="720.0" width="280.0" height="143.0" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
+<rect x="40.0" y="720.0" width="280.0" height="158.5" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="40.0" y="720.0" width="280.0" height="30.0" rx="3" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>
-<path d="M40,837.5 L320,837.5" fill="none" stroke="#3F5E48" stroke-width="1" stroke-linejoin="round"/>
+<path d="M40,853.0 L320,853.0" fill="none" stroke="#3F5E48" stroke-width="1" stroke-linejoin="round"/>
 <rect x="420.0" y="720.0" width="250.0" height="220.5" rx="3" fill="#F7F9F7" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="420.0" y="720.0" width="250.0" height="30.0" rx="3" fill="#E2EDE5" stroke="#3F5E48" stroke-width="1.4"/>
 <path d="M420,915.0 L670,915.0" fill="none" stroke="#3F5E48" stroke-width="1" stroke-linejoin="round"/>
@@ -36,7 +36,7 @@
 <rect x="1145.0" y="1040.0" width="150.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1310.0" y="1040.0" width="150.0" height="116.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1310.0" y="1040.0" width="150.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
-<rect x="980.0" y="1200.0" width="150.0" height="116.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
+<rect x="980.0" y="1200.0" width="150.0" height="131.5" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="980.0" y="1200.0" width="150.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1145.0" y="1200.0" width="150.0" height="147.0" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
 <rect x="1145.0" y="1200.0" width="150.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
@@ -62,6 +62,8 @@
 <text x="1290.0" y="264.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">ConteoArea</text>
 <text x="1169.0" y="290.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- depositos : Integer</text>
 <text x="1169.0" y="305.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- participantes : Integer</text>
+<text x="1169.0" y="321.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- semanas : Map&lt;String, Integer&gt;</text>
+<text x="1169.0" y="336.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- gramos : Integer</text>
 <text x="545.0" y="460.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Area</text>
 <text x="429.0" y="486.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- id : String</text>
 <text x="429.0" y="501.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- nombre : String</text>
@@ -73,8 +75,9 @@
 <text x="779.0" y="507.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- email : String</text>
 <text x="779.0" y="522.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- rol : Rol</text>
 <text x="779.0" y="538.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- avisosVistosHasta : Long</text>
-<text x="779.0" y="563.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ unirseAArea(area : Area)</text>
-<text x="779.0" y="579.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ promoverAAdministrador(codigo : String)</text>
+<text x="779.0" y="553.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- suplente : Boolean</text>
+<text x="779.0" y="579.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ unirseAArea(area : Area)</text>
+<text x="779.0" y="594.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ promoverAAdministrador(codigo : String)</text>
 <text x="1300.0" y="438.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«agregado»</text>
 <text x="1300.0" y="454.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Participacion</text>
 <text x="1189.0" y="480.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- mes : String</text>
@@ -87,10 +90,11 @@
 <text x="180.0" y="740.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Contenedor</text>
 <text x="49.0" y="766.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- codigo : String {aleatorio}</text>
 <text x="49.0" y="781.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- punto : String</text>
-<text x="49.0" y="797.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- material : Material [0..1]</text>
-<text x="49.0" y="812.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- activo : Boolean</text>
-<text x="49.0" y="828.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- creadoEn : Long</text>
-<text x="49.0" y="853.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ nombre() : String</text>
+<text x="49.0" y="797.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- ubicacion : String</text>
+<text x="49.0" y="812.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- material : Material [0..1]</text>
+<text x="49.0" y="828.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- activo : Boolean</text>
+<text x="49.0" y="843.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- creadoEn : Long</text>
+<text x="49.0" y="869.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">+ nombre() : String</text>
 <text x="545.0" y="740.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Registro</text>
 <text x="429.0" y="766.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- id : String</text>
 <text x="429.0" y="781.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- material : Material</text>
@@ -142,6 +146,7 @@
 <text x="989.0" y="1275.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">Plastico</text>
 <text x="989.0" y="1291.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">Vidrio</text>
 <text x="989.0" y="1306.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">Metal</text>
+<text x="989.0" y="1322.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">Aluminio</text>
 <text x="1220.0" y="1218.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«enumeration»</text>
 <text x="1220.0" y="1234.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Contaminante</text>
 <text x="1154.0" y="1260.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">Vidrio</text>
@@ -177,13 +182,13 @@
 <path d="M1100.0,454.8 L1180.0,454.8" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M1100.0,588.0 L1180.0,588.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M495.0,542.0 L495.0,720.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<path d="M810.0,588.5 L810.0,625.0 L565.0,625.0 L565.0,720.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<path d="M850.0,588.5 L850.0,665.0 L645.0,665.0 L645.0,720.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<path d="M930.0,588.5 L930.0,1080.0 L670.0,1080.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M810.0,604.0 L810.0,625.0 L565.0,625.0 L565.0,720.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M850.0,604.0 L850.0,665.0 L645.0,665.0 L645.0,720.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M930.0,604.0 L930.0,1080.0 L670.0,1080.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M320.0,790.0 L420.0,790.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M545.0,940.5 L545.0,1020.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<path d="M100.0,863.0 L100.0,1050.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
-<path d="M280.0,863.0 L280.0,1045.0 L420.0,1045.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M100.0,878.5 L100.0,1050.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<path d="M280.0,878.5 L280.0,1045.0 L420.0,1045.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <path d="M320.0,1118.8 L420.0,1118.8" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
 <rect x="423.7" y="171.0" width="112.3" height="29.5" fill="#FFFFFF" fill-opacity="0.92"/>
 <rect x="340.8" y="279.0" width="68.4" height="15.8" fill="#FFFFFF" fill-opacity="0.92"/>
@@ -240,13 +245,13 @@
 <text x="501.0" y="554.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
 <text x="501.0" y="710.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="690.0" y="619.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">registra ▼</text>
-<text x="816.0" y="600.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
+<text x="816.0" y="616.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
 <text x="571.0" y="710.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="745.0" y="659.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">valida ▼</text>
-<text x="856.0" y="600.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..1</text>
+<text x="856.0" y="616.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..1</text>
 <text x="651.0" y="710.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="938.0" y="960.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">◀ registra</text>
-<text x="936.0" y="600.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
+<text x="936.0" y="616.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
 <text x="678.0" y="1074.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="370.0" y="794.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">recibe ▶</text>
 <text x="328.0" y="784.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
@@ -255,12 +260,23 @@
 <text x="551.0" y="952.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="551.0" y="1010.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..1</text>
 <text x="108.0" y="1000.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">reportada en ▲</text>
-<text x="106.0" y="875.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
+<text x="106.0" y="890.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
 <text x="106.0" y="1040.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="330.0" y="1037.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">retira ◀</text>
-<text x="286.0" y="875.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1..*</text>
+<text x="286.0" y="890.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1..*</text>
 <text x="412.0" y="1039.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="end" fill="#1F2D24">0..*</text>
 <text x="370.0" y="1122.8" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">◀ atiende</text>
 <text x="328.0" y="1112.8" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">0..*</text>
 <text x="412.0" y="1112.8" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="end" fill="#1F2D24">0..1</text>
+<path d="M1085.0,604.0 L1085.0,800.0 L1180.0,800.0" fill="none" stroke="#3F5E48" stroke-width="1.3" stroke-linejoin="round"/>
+<rect x="1180.0" y="760.0" width="280.0" height="100.5" rx="3" fill="#FFF9E8" stroke="#3F5E48" stroke-width="1.4"/>
+<rect x="1180.0" y="760.0" width="280.0" height="44.0" rx="3" fill="#F6E7B8" stroke="#3F5E48" stroke-width="1.4"/>
+<text x="1320.0" y="778.0" font-family="DejaVu Sans" font-size="10.5" font-weight="normal" font-style="italic" text-anchor="middle" fill="#5A6660">«agregado»</text>
+<text x="1320.0" y="794.0" font-family="DejaVu Sans" font-size="13" font-weight="bold" font-style="normal" text-anchor="middle" fill="#1F2D24">Constancia</text>
+<text x="1189.0" y="820.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- mes : String</text>
+<text x="1189.0" y="835.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- semana : String {lunes}</text>
+<text x="1189.0" y="851.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">- gramos : Integer {tope 5 kg}</text>
+<text x="1091.0" y="616.5" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="start" fill="#1F2D24">1</text>
+<text x="1172.0" y="792.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="end" fill="#1F2D24">0..*</text>
+<text x="1132.0" y="815.0" font-family="DejaVu Sans" font-size="11" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">acumula ▶</text>
 </svg>
