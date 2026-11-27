@@ -10,10 +10,10 @@ Trabajo de Título (Capstone) — Ingeniería en Informática, Instituto Profesi
 
 ## Descripción del proyecto
 
-**RecyTrack** es un sistema de trazabilidad del reciclaje de uso diario en la planta de **Viñedos Familia Chadwick**. Los colaboradores reciclan todos los días en el casino, las oficinas y las salas de descanso, pero ese reciclaje no deja registro: no se sabe cuánto se junta, qué áreas participan, si los contenedores están bien separados ni si el material se retiró. RecyTrack construye una **cadena de verificación**: cada depósito queda registrado, una persona lo valida en el punto limpio y se certifica cuando el material sale de la planta.
+**RecyTrack** es un sistema de trazabilidad del reciclaje de uso diario para espacios con puntos limpios compartidos, como una empresa, una planta, un condominio o un colegio. Se pilotó en la oficina de **Viñedos Familia Chadwick** en Santiago. En esos espacios la gente recicla todos los días, pero ese reciclaje no deja registro: no se sabe cuánto se junta, qué áreas participan, si los contenedores están bien separados ni si el material se retiró. RecyTrack construye una **cadena de verificación**: cada depósito queda registrado, una persona lo valida en el punto limpio y se certifica cuando el material se retira.
 
 **El problema que resolvemos:**
-- **Sin registro** — el reciclaje de la planta existe, pero no se puede medir ni mostrar.
+- **Sin registro** — el reciclaje existe, pero no se puede medir ni mostrar.
 - **Sin trazabilidad** — no se sabe si lo que se juntó se retiró ni con qué calidad de separación.
 - **Sin confianza** — las apps de reciclaje cuentan lo que declara el usuario; nadie lo revisa.
 
@@ -36,7 +36,7 @@ Quien retira el material no es usuario del sistema: el retiro lo registra el adm
 
 **Sobre el nombre:** el proyecto partió como EcoTrack y pasó a llamarse RecyTrack para no confundirlo con otra app de Duoc UC que ya usa ese nombre. El cambio es solo en lo que se ve: el proyecto de Firebase (`ecotrack-capstone-3f12d`), la URL de la app, el prefijo `ECOTRACK:` de los códigos QR y los nombres del código (`state/EcoTrack.tsx`, `useEcoTrack`) siguen igual, porque son internos y cambiarlos rompería la base de datos y los QR ya generados.
 
-**Sobre el cambio de contexto:** la propuesta de la Fase 1 era para un condominio (torres, departamentos y un gestor de reciclaje). Al cerrar el flujo con la viña, a fines de septiembre de 2026, el piloto pasó a la planta: las torres son ahora **áreas**, el administrador del edificio pasó a ser el **validador** y el **gestor** desapareció como usuario, porque el retiro lo registra el administrador desde el panel. El detalle está en la [metodología](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Metodologia.docx) y en la [visión del producto](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Product_Vision.docx).
+**Sobre el cambio de contexto:** la propuesta de la Fase 1 era para un condominio (torres, departamentos y un gestor de reciclaje). Al cerrar el flujo con la viña, a fines de septiembre de 2026, el piloto pasó a la planta: las torres son ahora **áreas**, el administrador del edificio pasó a ser el **validador** y el **gestor** desapareció como usuario, porque el retiro lo registra el administrador desde el panel. En noviembre, junto con la viña, el piloto se trasladó a su oficina de Santiago, donde los grupos son las áreas de trabajo; en el código la organización se sigue llamando `planta`. El detalle está en la [metodología](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Metodologia.docx) y en la [visión del producto](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Product_Vision.docx).
 
 ## Alcance del proyecto de título
 
@@ -70,7 +70,7 @@ Detalle técnico completo en [SETUP-FIREBASE.md](SETUP-FIREBASE.md).
 Registro desde el teléfono y vinculación obligatoria a un área de la planta con el código del área. Una persona pertenece a una sola área a la vez. El alta y la vinculación deben tomar menos de 5 minutos.
 
 ### Módulo 2 — Registro de reciclaje
-Escaneo del QR del contenedor (uno por contenedor; si el punto limpio los tiene separados por material, el QR ya dice el material), selección del material (papel/cartón, plástico, vidrio, metal) y de la talla de la bolsa (S, M, L o XL). No se pide el peso: la app estima los kilos según material y talla. La bolsa es solo la referencia de cuánto se trae: el material se vacía suelto en el contenedor y la bolsa se guarda, porque una bolsa plástica dentro contamina el reciclaje. Registrar debe tomar segundos.
+Escaneo del QR del contenedor (uno por contenedor; si el punto limpio los tiene separados por material, el QR ya dice el material), selección del material (papel/cartón, plástico, vidrio, metal, aluminio) y de la talla de la bolsa (S, M, L o XL). No se pide el peso: la app estima los kilos según material y talla. La bolsa es solo la referencia de cuánto se trae: el material se vacía suelto en el contenedor y la bolsa se guarda, porque una bolsa plástica dentro contamina el reciclaje. Registrar debe tomar segundos.
 
 ### Módulo 3 — Ronda diaria de validación
 El validador (con un suplente) ya recorre la planta por su trabajo. Una vez al día pasa por los puntos limpios y marca cada contenedor con uno de tres resultados: conforme, con observación o sin material. No pesa ni mide.
@@ -99,10 +99,10 @@ Configuración de la planta (áreas, puntos limpios y contenedores con sus QR, p
 
 | Parámetro | Detalle |
 |---|---|
-| Entorno | Planta de Viñedos Familia Chadwick, con las áreas y los puntos limpios que defina la viña |
-| Usuarios | Colaboradores de las áreas participantes, un validador titular y un suplente, y el administrador del programa (área de Sostenibilidad y Calidad) |
-| Duración | Cuatro semanas de operación real, desde el cierre del sprint 4 |
-| Materiales permitidos | Papel/cartón, plástico, vidrio y metal |
+| Entorno | Oficina de Viñedos Familia Chadwick en Santiago, con sus áreas de trabajo y los puntos limpios que definió la viña |
+| Usuarios | 14 personas inscritas en 6 áreas (13 colaboradores y el validador) y el administrador del programa. En el piloto la ronda la hizo un integrante del equipo, sin suplente |
+| Duración | Dos semanas de operación real, del 10 al 20 de noviembre de 2026 |
+| Materiales permitidos | Papel/cartón, plástico, vidrio, metal y aluminio |
 | Fuera del alcance | Residuos industriales y del proceso vitivinícola, orgánicos, electrónicos y residuos especiales |
 
 ## Métricas de éxito
@@ -128,7 +128,7 @@ RecyTrack no gestiona los residuos industriales ni los del proceso vitivinícola
 
 ## Metodología de desarrollo
 
-Scrum adaptado al contexto académico: un **sprint 0** de validación en terreno y **seis sprints de dos semanas**. El piloto de cuatro semanas en la planta empieza al cierre del sprint 4 y corre en paralelo con los sprints 5 y 6.
+Scrum adaptado al contexto académico: un **sprint 0** de validación con la organización y **seis sprints**: los cuatro primeros de dos semanas y el 5 y el 6 de una semana, para cerrar antes de la defensa. El piloto de dos semanas en la oficina corrió del 10 al 20 de noviembre, durante los sprints 4 y 5.
 
 | Sprint | Semanas | Objetivo |
 |---|---|---|
@@ -136,15 +136,15 @@ Scrum adaptado al contexto académico: un **sprint 0** de validación en terreno
 | S1 | 5 y 6 | Arquitectura base, modelo de datos de la planta, autenticación, roles y vinculación a un área. |
 | S2 | 7 y 8 | Registro de reciclaje por QR, con material, talla de bolsa e historial del colaborador. |
 | S3 | 9 y 10 | Ronda diaria del validador: conforme, con observación y sin material. |
-| S4 | 11 y 12 | Retiros desde el panel, reporte mensual y certificado mensual. Al cierre comienza el piloto. |
-| S5 | 13 y 14 | Panel web del administrador, campañas y ranking de áreas por participación. |
-| S6 | 15 a 17 | Cierre del piloto, plan de pruebas, medición de métricas y documentación final. |
+| S4 | 11 y 12 | Retiros desde el panel, reporte mensual y certificado mensual. El 10 de noviembre comienza el piloto. |
+| S5 | 13 | Panel web del administrador, campañas y ranking de áreas por puntaje. |
+| S6 | 14 | Cierre del piloto, plan de pruebas, medición de métricas y documentación final. |
 
-La presentación final es en la semana 18. Roles: Matías Bustamante es Scrum Master; Álvaro Jaña y Vicente Torres son el equipo de desarrollo, y la contraparte de la viña es el dueño del producto. Detalle en [RecyTrack_Metodologia.docx](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Metodologia.docx); el avance está en el Product Backlog y el Sprint Backlog de la misma carpeta.
+La defensa es el 1 de diciembre de 2026 (semana 15). Roles: Matías Bustamante es Scrum Master y los tres forman el equipo de desarrollo, y la contraparte de la viña es el dueño del producto. Detalle en [RecyTrack_Metodologia.docx](Fase%202/Evidencias%20Proyecto/Evidencias%20de%20documentación/RecyTrack_Metodologia.docx); el avance está en el Product Backlog y el Sprint Backlog de la misma carpeta.
 
 ## Objetivo general
 
-Desarrollar un sistema (prototipo) que permita registrar, validar y certificar el reciclaje de uso diario de los colaboradores de una planta, entregando a la empresa datos verificados de cuánto se recicla, en qué áreas y con qué calidad, sin balanzas ni sensores.
+Lograr que una organización con puntos limpios compartidos sepa, con datos verificados, cuánto recicla y qué grupos participan, sin instrumentos de medición ni costo de infraestructura.
 
 ## Tecnologías utilizadas
 
@@ -190,7 +190,7 @@ Las evidencias individuales de cada integrante siguen el formato de nombre:
 ## Estado del proyecto
 
 - [x] Fase 1 — Definición del proyecto
-- [ ] Fase 2 — Desarrollo del proyecto
+- [x] Fase 2 — Desarrollo del proyecto
 - [ ] Fase 3 — Entrega final
 
 ## Cómo ejecutar la aplicación

@@ -19,14 +19,14 @@
 <text x="400.0" y="132.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Promoverse a administrador</text>
 <text x="400.0" y="147.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">con el código de la planta</text>
 <text x="400.0" y="201.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Consultar resumen del mes</text>
-<text x="400.0" y="256.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Gestionar contenedores</text>
-<text x="400.0" y="271.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">por punto limpio</text>
+<text x="400.0" y="256.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Gestionar puntos limpios</text>
+<text x="400.0" y="271.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">y sus contenedores</text>
 <text x="400.0" y="318.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Gestionar áreas</text>
 <text x="400.0" y="333.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">(código y dotación)</text>
 <text x="400.0" y="387.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Cambiar persona de área</text>
 <text x="400.0" y="449.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Nombrar validador y suplente</text>
-<text x="400.0" y="504.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Definir incentivo</text>
-<text x="400.0" y="519.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">(meta de participación)</text>
+<text x="400.0" y="504.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Definir campaña</text>
+<text x="400.0" y="519.0" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">(meta de puntaje)</text>
 <text x="400.0" y="573.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Consultar rondas del mes</text>
 <text x="400.0" y="635.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Registrar retiro</text>
 <text x="400.0" y="697.5" font-family="DejaVu Sans" font-size="12" font-weight="normal" font-style="normal" text-anchor="middle" fill="#1F2D24">Descargar reporte mensual (PDF)</text>
