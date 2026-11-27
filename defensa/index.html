@@ -6,8 +6,8 @@
 <title>RecyTrack · Demostración</title>
 <!--
   Página para la defensa: la presentación (presentacion/), el colaborador y el
-  validador en dos teléfonos lado a lado, y el panel del administrador, cada uno
-  en su vista y con un atajo de teclado.
+  validador en dos teléfonos lado a lado, el panel del administrador y las fotos
+  del piloto (evidencias/), cada uno en su vista y con un atajo de teclado.
 
   No tiene lógica ni credenciales: solo envuelve la app publicada en iframes.
   Cada vista carga la app desde un dominio distinto porque Firebase guarda la
@@ -147,6 +147,41 @@
      la pantalla es más angosta, se dibuja a 1280 px y se escala. */
   .lienzo iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: top left; }
 
+  /* Vista evidencias: fotos del piloto en dos grupos, todas a la vista sin
+     desplazarse, y cada una se amplía con un clic. */
+  #evidencias { gap: 28px; padding: 16px 24px 24px; align-items: stretch; }
+  .grupo { display: flex; flex-direction: column; min-width: 0; min-height: 0; }
+  .grupo:first-child { flex: 4; }
+  .grupo:last-child { flex: 2; }
+  .grupo h2 { margin: 0 0 2px; font-size: 16px; }
+  .grupo > p { margin: 0 0 12px; color: var(--suave); }
+  .fotos { flex: 1; display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 14px; min-height: 0; }
+  .foto {
+    display: flex; flex-direction: column; min-height: 0;
+    margin: 0; padding: 0; border: 1px solid var(--borde); border-radius: 12px; overflow: hidden;
+    background: #00000040; color: inherit; font: inherit; text-align: left; cursor: zoom-in;
+  }
+  .foto img { flex: 1; min-height: 0; width: 100%; object-fit: cover; display: block; }
+  .foto span { padding: 8px 10px; font-size: 13px; line-height: 1.3; }
+  .foto:hover { border-color: var(--acento); }
+
+  #visor {
+    position: fixed; inset: 0; z-index: 5;
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px;
+    background: #000000e0; padding: 24px;
+  }
+  #visor[hidden] { display: none; }
+  #visor img { max-width: 100%; max-height: calc(100% - 48px); border-radius: 10px; }
+  #visor p { margin: 0; font-size: 16px; text-align: center; }
+  #visor button {
+    position: absolute; border: 0; background: #ffffff18; color: #fff;
+    width: 44px; height: 44px; border-radius: 50%; font-size: 20px; cursor: pointer;
+  }
+  #visor button:hover { background: #ffffff30; }
+  #visor .cerrar { top: 16px; right: 16px; }
+  #visor .anterior { left: 16px; top: 50%; }
+  #visor .siguiente { right: 16px; top: 50%; }
+
   .aviso {
     position: absolute; inset: 0;
     display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -186,6 +221,10 @@
     header { flex-wrap: wrap; }
     .selector { order: 3; width: 100%; justify-content: center; }
     #planta { gap: 16px; }
+    #evidencias { flex-direction: column; overflow: auto; }
+    .fotos { grid-auto-flow: row; grid-template-columns: 1fr 1fr; }
+    .grupo { flex: none !important; }
+    .foto img { flex: none; aspect-ratio: 3 / 4; }
   }
 </style>
 </head>
@@ -197,6 +236,7 @@
     <button type="button" data-vista="presentacion" aria-pressed="true">Presentación <kbd>1</kbd></button>
     <button type="button" data-vista="planta" aria-pressed="false">Oficinas <kbd>2</kbd></button>
     <button type="button" data-vista="panel" aria-pressed="false">Panel web <kbd>3</kbd></button>
+    <button type="button" data-vista="evidencias" aria-pressed="false">Evidencias <kbd>4</kbd></button>
   </nav>
   <div class="acciones">
     <button type="button" class="icono" id="recargar" title="Recargar la vista actual (R)">↻</button>
@@ -237,7 +277,36 @@
       </div>
     </div>
   </section>
+
+  <section class="vista" id="evidencias" hidden>
+    <div class="grupo">
+      <h2>En las oficinas</h2>
+      <p>Cada contenedor tiene su QR y el afiche con los pasos para registrar.</p>
+      <div class="fotos">
+        <button type="button" class="foto"><img src="evidencias/papel-puestos.jpg" alt="Contenedor de papel junto a los puestos de trabajo, con su QR y el afiche de RecyTrack"><span>Papel junto a los puestos de trabajo</span></button>
+        <button type="button" class="foto"><img src="evidencias/papel-sala.jpg" alt="Contenedor de papel en la pared de una sala, con su QR y el afiche de RecyTrack"><span>Papel en una sala</span></button>
+        <button type="button" class="foto"><img src="evidencias/papel-pasillo.jpg" alt="Contenedor de papel en un pasillo, con su QR y el afiche de RecyTrack"><span>Papel en un pasillo</span></button>
+        <button type="button" class="foto"><img src="evidencias/plastico-aluminio-vidrio.jpg" alt="Contenedor de plástico, aluminio y vidrio con un QR por compartimento"><span>Plástico, aluminio y vidrio: un QR por compartimento</span></button>
+      </div>
+    </div>
+    <div class="grupo">
+      <h2>Retiro</h2>
+      <p>El material sale de las oficinas al punto limpio.</p>
+      <div class="fotos">
+        <button type="button" class="foto"><img src="evidencias/retiro-maxisaco.jpg" alt="Maxisaco con el papel y cartón reciclados, junto al punto limpio móvil"><span>Papel y cartón entregados</span></button>
+        <button type="button" class="foto"><img src="evidencias/punto-limpio-providencia.jpg" alt="Punto limpio móvil de la Municipalidad de Providencia con los maxisacos de material"><span>Punto limpio móvil de Providencia</span></button>
+      </div>
+    </div>
+  </section>
 </main>
+
+<div id="visor" role="dialog" aria-label="Foto ampliada" hidden>
+  <img alt="">
+  <p></p>
+  <button type="button" class="cerrar" title="Cerrar (Esc)">✕</button>
+  <button type="button" class="anterior" title="Anterior (←)">‹</button>
+  <button type="button" class="siguiente" title="Siguiente (→)">›</button>
+</div>
 
 <dialog id="dialogo">
   <form method="dialog">
@@ -326,7 +395,7 @@
 
   function ajustar() { ajustarTelefonos(); ajustarPanel(); }
 
-  const VISTAS = ["presentacion", "planta", "panel"];
+  const VISTAS = ["presentacion", "planta", "panel", "evidencias"];
   let vistaActual = "presentacion";
   function mostrar(vista) {
     vistaActual = vista;
@@ -373,7 +442,7 @@
   // Los atajos solo funcionan con el foco en esta página: si el foco está
   // dentro de un iframe (escribiendo en la app), las teclas van a la app.
   function atajo(tecla) {
-    if (["1", "2", "3"].includes(tecla)) mostrar(VISTAS[Number(tecla) - 1]);
+    if (["1", "2", "3", "4"].includes(tecla)) mostrar(VISTAS[Number(tecla) - 1]);
     else if (tecla === "r" || tecla === "R") recargarVista();
     else if (tecla === "f" || tecla === "F") pantallaCompleta();
     else return false;
@@ -383,8 +452,36 @@
   const marcoPresentacion = document.getElementById("marco-presentacion");
   const TECLAS_DIAPOSITIVA = ["ArrowRight", "ArrowLeft", "ArrowDown", "ArrowUp", "PageDown", "PageUp", " ", "Enter", "Backspace", "Home", "End", "Escape", "+", "-", "=", "0"];
 
+  // Visor de evidencias: con una foto abierta, las flechas pasan de foto y Esc
+  // la cierra, en vez de cambiar de vista.
+  const visor = document.getElementById("visor");
+  const fotos = [...document.querySelectorAll(".foto")];
+  let fotoActual = 0;
+  function abrirFoto(i) {
+    fotoActual = (i + fotos.length) % fotos.length;
+    const img = fotos[fotoActual].querySelector("img");
+    visor.querySelector("img").src = img.src;
+    visor.querySelector("img").alt = img.alt;
+    visor.querySelector("p").textContent = fotos[fotoActual].querySelector("span").textContent;
+    visor.hidden = false;
+  }
+  const cerrarFoto = () => (visor.hidden = true);
+  fotos.forEach((f, i) => f.addEventListener("click", () => abrirFoto(i)));
+  visor.querySelector(".cerrar").addEventListener("click", cerrarFoto);
+  visor.querySelector(".anterior").addEventListener("click", () => abrirFoto(fotoActual - 1));
+  visor.querySelector(".siguiente").addEventListener("click", () => abrirFoto(fotoActual + 1));
+  visor.addEventListener("click", (e) => { if (e.target === visor) cerrarFoto(); });
+
   document.addEventListener("keydown", (e) => {
     if (e.ctrlKey || e.metaKey || e.altKey || document.getElementById("dialogo").open) return;
+    if (!visor.hidden) {
+      if (e.key === "Escape") cerrarFoto();
+      else if (e.key === "ArrowLeft") abrirFoto(fotoActual - 1);
+      else if (e.key === "ArrowRight") abrirFoto(fotoActual + 1);
+      else return;
+      e.preventDefault();
+      return;
+    }
     if (atajo(e.key)) return;
     // Con el foco en esta página (por ejemplo, después de usar el selector),
     // las flechas igual mueven las diapositivas.
